@@ -35,13 +35,41 @@ const oauth2Client = new google.auth.OAuth2(
 
 let userTokens = null;
 
+// Persist tokens to disk so they survive Railway restarts
+const TOKEN_FILE = path.join(__dirname, '.oauth-tokens.json');
+
+function saveTokensToDisk(tokens) {
+  try {
+    require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens));
+  } catch(e) { console.error('Could not save tokens:', e.message); }
+}
+
+function loadTokensFromDisk() {
+  try {
+    const raw = require('fs').readFileSync(TOKEN_FILE, 'utf8');
+    return JSON.parse(raw);
+  } catch(e) { return null; }
+}
+
+// Load tokens on startup
+const savedTokens = loadTokensFromDisk();
+if (savedTokens) {
+  userTokens = savedTokens;
+  oauth2Client.setCredentials(savedTokens);
+  console.log('OAuth tokens loaded from disk');
+}
+
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly'
 ];
 
 app.get('/auth/google', (req, res) => {
-  const url = oauth2Client.generateAuthUrl({ access_type: 'offline', scope: DRIVE_SCOPES });
+  const url = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: DRIVE_SCOPES,
+    prompt: 'consent'  // force consent screen so Google always returns refresh_token
+  });
   res.redirect(url);
 });
 
@@ -50,15 +78,19 @@ app.get('/auth/google/callback', async (req, res) => {
     const { tokens } = await oauth2Client.getToken(req.query.code);
     userTokens = tokens;
     oauth2Client.setCredentials(tokens);
+    saveTokensToDisk(tokens);
+    console.log('OAuth tokens saved. Has refresh_token:', !!tokens.refresh_token);
     res.redirect('/?auth=success');
   } catch (e) {
+    console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
   }
 });
 
 app.get('/auth/logout', (req, res) => {
   userTokens = null;
-  oauth2Client.revokeCredentials().catch(() => {}); // best effort
+  try { require('fs').unlinkSync(TOKEN_FILE); } catch(e) {}
+  oauth2Client.revokeCredentials().catch(() => {});
   res.redirect('/?auth=logout');
 });
 
@@ -226,10 +258,12 @@ async function getDrive() {
       const { credentials } = await oauth2Client.refreshAccessToken();
       userTokens = credentials;
       oauth2Client.setCredentials(credentials);
-      console.log('OAuth token refreshed');
+      saveTokensToDisk(credentials);
+      console.log('OAuth token refreshed and saved');
     } catch (e) {
       console.error('Token refresh failed:', e.message);
       userTokens = null;
+      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
       return null;
     }
   }
