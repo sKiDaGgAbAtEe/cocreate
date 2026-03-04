@@ -439,7 +439,7 @@ io.on('connection', (socket) => {
 
     const modeLabels = {
       resonant: 'Resonant', silent: 'Silent', expansive: 'Expansive',
-      friction: 'Friction', synthesis: 'Synthesis'
+      friction: 'Friction', synthesis: 'Synthesis', solve: 'Solve'
     };
 
     const sysMsg = {

@@ -376,6 +376,7 @@
           <button class="mode-btn" data-mode="expansive" onclick="setMode('expansive',this)">↗ Expansive</button>
           <button class="mode-btn" data-mode="friction" onclick="setMode('friction',this)">⚡ Friction</button>
           <button class="mode-btn" data-mode="synthesis" onclick="setMode('synthesis',this)">⊕ Synthesis</button>
+          <button class="mode-btn" data-mode="solve" onclick="setMode('solve',this)">⚙ Solve</button>
         </div>
       </div>
       <div class="sidebar-section">
@@ -720,10 +721,11 @@ function getModeInstruction() {
   const desc = intensity < 4 ? 'very sparse — only speak when something genuinely needs naming' : intensity > 7 ? 'generous — offer multiple threads' : 'measured — one clear observation at a time';
   const modes = {
     resonant: `You are in RESONANT mode. Do NOT interrogate or challenge. Make gentle connections, open possibilities. Stay warm and spacious. Voice intensity ${intensity}/10 — ${desc}.`,
-    silent: `You are in SILENT mode. Only respond with "Noted: [key phrase]." Nothing more.`,
+    silent: `You are in SILENT mode. Only respond if directly addressed with your name. Otherwise stay completely silent.`,
     expansive: `You are in EXPANSIVE mode. Expand outward — implications, metaphors, the widest frame. Do NOT press on the person. Voice intensity ${intensity}/10 — ${desc}.`,
     friction: `You are in FRICTION mode. Interrogate structure, name contradictions, apply pressure. This is the ONLY mode where pressing is permitted. Voice intensity ${intensity}/10 — ${desc}.`,
-    synthesis: `You are in SYNTHESIS mode. Stabilize, harmonize, consolidate. Find what is converging. Do NOT destabilize. Voice intensity ${intensity}/10 — ${desc}.`
+    synthesis: `You are in SYNTHESIS mode. Stabilize, harmonize, consolidate. Find what is converging. Do NOT destabilize. Voice intensity ${intensity}/10 — ${desc}.`,
+    solve: `You are in SOLVE mode. The person has a problem that needs solving. Be direct, practical, and concrete. Do NOT philosophize, wax poetic, or offer abstract reflections. Understand the problem clearly, then offer specific actionable solutions or next steps. Ask ONE clarifying question if you genuinely need more information to help. Otherwise just solve it. Voice intensity ${intensity}/10 — ${desc}.`
   };
   return modes[currentMode] || modes.resonant;
 }
