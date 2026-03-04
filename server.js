@@ -61,6 +61,10 @@ app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
 // ── Room State (persisted to Drive) ────────────────────
 const rooms = {};
 
+// ── Lobby Chat ─────────────────────────────────────────
+const lobbyChat = []; // rolling message board, max 200 messages
+const lobbyMembers = new Set(); // currently online in lobby
+
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
@@ -69,6 +73,9 @@ function getRoomList() {
   return Object.values(rooms).map(r => ({
     id: r.id,
     title: r.title,
+    creator: r.creator || '',
+    subject: r.subject || '',
+    notes: r.notes || '',
     basin: r.basin?.name || 'Unknown',
     basinColor: r.basin?.color || '#c4a882',
     memberCount: 0, // reset on restart - sockets are gone
@@ -313,6 +320,9 @@ app.post('/api/rooms', (req, res) => {
   const room = {
     id,
     title: req.body.title || 'Untitled Space',
+    creator: req.body.creator || '',
+    subject: req.body.subject || '',
+    notes: req.body.notes || '',
     basin: req.body.basin || DEFAULT_BASINS[0],
     contributions: [],
     members: [],
@@ -347,6 +357,9 @@ function sanitizeRoom(room) {
   return {
     id: room.id,
     title: room.title,
+    creator: room.creator || '',
+    subject: room.subject || '',
+    notes: room.notes || '',
     basin: room.basin,
     contributions: room.contributions,
     members: room.members,
@@ -413,6 +426,40 @@ io.on('connection', (socket) => {
   let currentRoom = null;
   let currentPlayer = null;
 
+  // ── Lobby presence ──────────────────────────────────
+  socket.on('lobby:join', ({ playerName: pName }) => {
+    lobbyMembers.add(pName);
+    socket.join('__lobby__');
+    // Send history to joining member
+    socket.emit('lobby:history', { messages: lobbyChat, members: [...lobbyMembers] });
+    // Announce to others
+    socket.to('__lobby__').emit('lobby:member-joined', { playerName: pName });
+    io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+  });
+
+  socket.on('lobby:leave', ({ playerName: pName }) => {
+    lobbyMembers.delete(pName);
+    socket.leave('__lobby__');
+    io.to('__lobby__').emit('lobby:member-left', { playerName: pName });
+    io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+  });
+
+  socket.on('lobby:message', ({ playerName: pName, text }) => {
+    const msg = {
+      id: Date.now(),
+      author: pName,
+      text,
+      timestamp: new Date().toISOString()
+    };
+    lobbyChat.push(msg);
+    if (lobbyChat.length > 200) lobbyChat.shift(); // rolling window
+    io.to('__lobby__').emit('lobby:message', msg);
+  });
+
+  socket.on('lobby:typing', ({ playerName: pName, isTyping }) => {
+    socket.to('__lobby__').emit('lobby:typing', { playerName: pName, isTyping });
+  });
+
   // Join a room
   socket.on('room:join', ({ roomId, playerName }) => {
     const room = rooms[roomId];
@@ -439,6 +486,23 @@ io.on('connection', (socket) => {
 
     // Update room list for everyone
     io.emit('rooms:updated', getRoomList());
+  });
+
+  // Basin switch mid-session
+  socket.on('room:switch-basin', ({ roomId, basin, playerName: pName }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+    room.basin = basin;
+    room.updatedAt = new Date().toISOString();
+    const sysMsg = {
+      id: Date.now(),
+      type: 'system',
+      text: `${pName} switched basin to ${basin.name}`,
+      timestamp: new Date().toISOString()
+    };
+    room.contributions.push(sysMsg);
+    io.to(roomId).emit('room:basin-switched', { basin, sysMsg });
+    persistRoomsToDrive();
   });
 
   // Mode change
@@ -596,6 +660,11 @@ io.on('connection', (socket) => {
 
   // Disconnect
   socket.on('disconnect', () => {
+    if (currentPlayer) {
+      lobbyMembers.delete(currentPlayer);
+      io.to('__lobby__').emit('lobby:member-left', { playerName: currentPlayer });
+      io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+    }
     if (currentRoom && currentPlayer && rooms[currentRoom]) {
       rooms[currentRoom].members = rooms[currentRoom].members.filter(m => m !== currentPlayer);
       socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
@@ -620,6 +689,70 @@ async function saveRoomToDrive(room) {
     console.error('Room save error:', e.message);
   }
 }
+
+// ── Process Session ────────────────────────────
+app.post('/api/rooms/:id/process', async (req, res) => {
+  const room = rooms[req.params.id];
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+
+  const { mode } = req.body; // 'convergence' | 'ideas' | 'actions' | 'story' | 'summary'
+
+  const transcript = room.contributions
+    .filter(c => c.type !== 'system')
+    .map(c => `[${c.author}]: ${c.text}`)
+    .join('\n\n');
+
+  if (!transcript.trim()) return res.status(400).json({ error: 'No contributions to process' });
+
+  const prompts = {
+    convergence: `You are analyzing a collaborative thinking session transcript. Identify 2-5 CONVERGENCE NODES — moments where the collective field produced something none of the participants could have produced alone. For each node, identify: the moment it occurred (quote a brief excerpt), what type it is (Alignment / Field Acceleration / Resonance Collision), and what emerged from it. Return as JSON: { "nodes": [{ "type": string, "excerpt": string, "what_emerged": string, "participants": [string] }], "summary": string }`,
+    ideas: `You are analyzing a collaborative thinking session. Extract 2-6 IDEA OBJECTS — structured artifacts representing emergent ideas that arose from the interference between participants. For each idea object: title, core_concept (1 sentence), contributing_voices (array), what_it_solved, what_it_opened, potential_next_actions (array), alternate_branches (array), conflicts_or_tensions. Return as JSON: { "ideas": [{ "title": string, "core_concept": string, "contributing_voices": [string], "what_it_solved": string, "what_it_opened": string, "potential_next_actions": [string], "alternate_branches": [string], "conflicts_or_tensions": string }] }`,
+    actions: `You are analyzing a collaborative thinking session. Extract all concrete ACTION ITEMS, decisions made, and next steps that emerged. Group them by owner if identifiable. Return as JSON: { "actions": [{ "item": string, "owner": string, "context": string, "priority": "high"|"medium"|"low" }], "decisions": [string], "open_questions": [string] }`,
+    story: `You are analyzing a creative collaborative thinking session. Extract the narrative structure: themes, character arcs (if applicable), tensions, and story scaffolding that emerged. Return as JSON: { "themes": [string], "central_tension": string, "narrative_arc": string, "character_dynamics": [{ "name": string, "role": string }], "unresolved_threads": [string], "story_seeds": [string] }`,
+    summary: `You are analyzing a collaborative thinking session. Produce a FIELD SUMMARY — a brief, evocative overview of what the session produced, what the group was working with, and what it opened. 2-4 paragraphs. Return as JSON: { "field_summary": string, "key_phrases": [string], "session_character": string }`
+  };
+
+  const systemPrompt = prompts[mode] || prompts.summary;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 2000,
+        system: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown, no backticks, no preamble.',
+        messages: [{ role: 'user', content: `Here is the session transcript:\n\n${transcript}` }]
+      })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    const rawText = data.content?.[0]?.text || '{}';
+    let parsed;
+    try { parsed = JSON.parse(rawText); }
+    catch { parsed = { raw: rawText }; }
+
+    // Optionally save to Drive
+    const drive = await getDrive();
+    if (drive) {
+      try {
+        const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
+        const fileName = `${room.title.replace(/\s+/g,'-')}-${room.id}-${mode}.json`;
+        await writeDriveFile(drive, fileName, folderId, {
+          roomId: room.id, roomTitle: room.title, mode, processedAt: new Date().toISOString(), result: parsed
+        });
+      } catch(e) { console.error('Could not save processed session:', e.message); }
+    }
+
+    res.json({ mode, result: parsed });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;

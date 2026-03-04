@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CoCreate</title>
+  <title>Entriference</title>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,14 +75,14 @@
     .landing-actions .btn-ghost { flex: 1; }
     .hint { font-size: 13px; color: var(--ink-faint); letter-spacing: 0.04em; text-align: center; font-style: italic; }
 
-    /* ── LOBBY ────────────────────── */
     #lobby { flex-direction: column; min-height: 100vh; }
-    .lobby-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.5); backdrop-filter: blur(8px); }
+    .lobby-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.5); backdrop-filter: blur(8px); flex-shrink: 0; }
     .lobby-title { display: flex; align-items: center; gap: 12px; }
     .lobby-title .logo-sm { font-size: 22px; color: var(--gold); }
     .lobby-title h2 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 0.12em; color: var(--ink); }
     .player-pill { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; background: rgba(139,111,71,0.1); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; }
-    .lobby-body { flex: 1; padding: 32px 28px; max-width: 960px; margin: 0 auto; width: 100%; }
+    .lobby-layout { display: flex; flex: 1; overflow: hidden; }
+    .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
     .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
@@ -189,7 +189,37 @@
     body.dark .room-code { background: #13131a; border-color: #1e1c28; }
     body.dark .save-btn { border-color: #2a2830; }
 
-    /* ── THEME TOGGLE ─────────────── */
+    /* ── LOBBY CHAT ──────────────── */
+    .lobby-layout { display: flex; flex: 1; overflow: hidden; gap: 0; }
+    .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; max-width: none; }
+    .lobby-chat-panel { width: 300px; flex-shrink: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: rgba(255,255,255,0.3); }
+    .chat-panel-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .chat-panel-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+    .chat-online-count { font-size: 10px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
+    .online-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 4px; animation: pulse 2s ease-in-out infinite; }
+    .chat-members-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+    .chat-member-pill { font-size: 10px; color: var(--ink-muted); background: rgba(255,255,255,0.5); border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px; font-family: 'Cinzel', serif; letter-spacing: 0.04em; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .chat-msg { display: flex; flex-direction: column; gap: 2px; animation: fadeUp 0.25s ease forwards; opacity: 0; }
+    .chat-msg-meta { display: flex; align-items: baseline; gap: 6px; }
+    .chat-msg-author { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+    .chat-msg-author.mine { color: var(--gold); }
+    .chat-msg-ts { font-size: 10px; color: var(--ink-faint); font-style: italic; }
+    .chat-msg-text { font-size: 13px; color: var(--ink-dim); line-height: 1.6; word-break: break-word; }
+    .chat-sys-msg { font-size: 11px; color: var(--ink-faint); font-style: italic; text-align: center; font-family: 'Cinzel', serif; letter-spacing: 0.06em; padding: 2px 0; }
+    .chat-typing { font-size: 11px; color: var(--ink-faint); font-style: italic; padding: 2px 0; }
+    .chat-input-row { display: flex; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--border); flex-shrink: 0; align-items: flex-end; background: rgba(255,255,255,0.4); }
+    .chat-input-row textarea { flex: 1; resize: none; font-size: 13px; line-height: 1.5; border-radius: 5px; min-height: 34px; max-height: 80px; padding: 7px 10px; font-family: 'Crimson Pro', serif; }
+    .chat-send-btn { background: var(--accent); color: var(--parchment); border: none; border-radius: 5px; width: 34px; height: 34px; font-size: 15px; cursor: pointer; flex-shrink: 0; transition: all 0.2s; font-family: 'Cinzel', serif; }
+    .chat-send-btn:hover { background: var(--ink); }
+    .chat-send-btn:disabled { opacity: 0.25; cursor: default; }
+    .chat-empty { font-size: 12px; color: var(--ink-faint); font-style: italic; text-align: center; padding: 30px 10px; line-height: 1.8; }
+    body.dark .lobby-chat-panel { background: rgba(13,13,20,0.5); border-color: #1e1c28; }
+    body.dark .chat-panel-header { border-color: #1e1c28; }
+    body.dark .chat-member-pill { background: #0a0a0f; border-color: #2a2830; }
+    body.dark .chat-input-row { background: rgba(13,13,20,0.6); border-color: #1e1c28; }
+
+
     .theme-toggle { background: none; border: 1px solid var(--border2); border-radius: 20px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--ink-muted); font-family: 'Cinzel', serif; letter-spacing: 0.06em; transition: all 0.2s; flex-shrink: 0; }
     .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
@@ -222,6 +252,76 @@
     .send-btn:hover { background: var(--ink); }
     .send-btn:disabled { opacity: 0.25; cursor: default; }
 
+    /* ── DEFINITION TOOLTIP ──────── */
+    .title-btn { background: none; border: none; cursor: pointer; padding: 0; font-family: inherit; }
+    .def-tooltip { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 200; background: rgba(244,241,232,0.98); border: 1px solid var(--border2); border-radius: 10px; padding: 28px 32px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(42,37,32,0.18); display: none; }
+    .def-tooltip.open { display: block; }
+    .def-tooltip-title { font-family: 'Cinzel', serif; font-size: 22px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink); margin-bottom: 6px; }
+    .def-tooltip-phonetic { font-size: 13px; color: var(--ink-faint); font-style: italic; margin-bottom: 16px; }
+    .def-tooltip-body { font-size: 15px; color: var(--ink-dim); line-height: 1.85; }
+    .def-tooltip-close { position: absolute; top: 14px; right: 18px; background: none; border: none; font-size: 18px; cursor: pointer; color: var(--ink-faint); }
+    body.dark .def-tooltip { background: #13131a; border-color: #2a2830; }
+
+    /* ── ABOUT PANEL ─────────────── */
+    .about-overlay { position: fixed; inset: 0; background: rgba(42,37,32,0.5); z-index: 150; display: none; }
+    .about-overlay.open { display: flex; align-items: center; justify-content: center; }
+    .about-panel { background: var(--parchment); border: 1px solid var(--border2); border-radius: 12px; padding: 36px 40px; max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(42,37,32,0.2); position: relative; }
+    .about-panel h2 { font-family: 'Cinzel', serif; font-size: 20px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink); margin-bottom: 6px; }
+    .about-panel .about-sub { font-size: 13px; color: var(--accent); font-style: italic; letter-spacing: 0.05em; margin-bottom: 24px; }
+    .about-section { margin-bottom: 22px; }
+    .about-section h3 { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+    .about-section p { font-size: 14px; color: var(--ink-dim); line-height: 1.85; }
+    .about-section ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .about-section ul li { font-size: 13px; color: var(--ink-dim); line-height: 1.7; padding-left: 14px; position: relative; }
+    .about-section ul li::before { content: '◈'; position: absolute; left: 0; font-size: 8px; color: var(--gold); top: 5px; }
+    .about-close { position: absolute; top: 16px; right: 20px; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--ink-faint); }
+    body.dark .about-panel { background: #13131a; border-color: #2a2830; }
+
+    /* ── ROOM CARD EXPANDED ──────── */
+    .room-card-subject { font-size: 12px; color: var(--ink-muted); font-style: italic; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .room-card-creator { font-size: 11px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
+    .room-card-notes { font-size: 11px; color: var(--ink-faint); font-style: italic; margin-top: 6px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* ── BASIN SWITCHER (SESSION) ─── */
+    .basin-switch-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-faint); font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.08em; padding: 3px 7px; cursor: pointer; margin-top: 6px; transition: all 0.2s; }
+    .basin-switch-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .basin-switcher-dropdown { position: absolute; top: 100%; left: 0; right: 0; background: var(--parchment); border: 1px solid var(--border2); border-radius: 6px; box-shadow: 0 8px 24px var(--shadow); z-index: 50; display: none; }
+    .basin-switcher-dropdown.open { display: block; }
+    .basin-option { padding: 9px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); transition: background 0.15s; }
+    .basin-option:hover { background: var(--gold-dim); }
+    .basin-option-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    body.dark .basin-switcher-dropdown { background: #13131a; border-color: #2a2830; }
+
+    /* ── PROCESS SESSION WINDOW ─── */
+    .process-overlay { position: fixed; inset: 0; background: rgba(42,37,32,0.5); z-index: 200; display: none; align-items: center; justify-content: center; }
+    .process-overlay.open { display: flex; }
+    .process-window { background: var(--parchment); border: 1px solid var(--border2); border-radius: 12px; width: min(680px, 92vw); max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(42,37,32,0.2); overflow: hidden; }
+    .process-header { display: flex; align-items: center; justify-content: space-between; padding: 18px 24px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .process-header h3 { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; color: var(--ink); }
+    .process-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--ink-faint); }
+    .process-modes { display: flex; gap: 6px; padding: 14px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; flex-shrink: 0; }
+    .process-mode-btn { background: none; border: 1px solid var(--border2); border-radius: 20px; padding: 5px 13px; font-size: 11px; font-family: 'Cinzel', serif; letter-spacing: 0.06em; color: var(--ink-muted); cursor: pointer; transition: all 0.2s; }
+    .process-mode-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .process-mode-btn.active { background: var(--accent); border-color: var(--accent); color: var(--parchment); }
+    .process-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .process-loading { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px; color: var(--ink-faint); font-style: italic; font-size: 14px; }
+    .process-result { font-size: 14px; color: var(--ink-dim); line-height: 1.8; }
+    .process-result h4 { font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin: 18px 0 8px; }
+    .process-result h4:first-child { margin-top: 0; }
+    .process-result .node-card, .process-result .idea-card, .process-result .action-card { background: rgba(255,255,255,0.5); border: 1px solid var(--border); border-radius: 7px; padding: 14px 16px; margin-bottom: 12px; }
+    .process-result .node-card .node-type { font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+    .process-result .idea-title { font-family: 'Cinzel', serif; font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+    .process-result .tag { display: inline-block; background: var(--gold-dim); border: 1px solid rgba(201,169,97,0.3); border-radius: 3px; padding: 1px 6px; font-size: 10px; font-family: 'Cinzel', serif; color: var(--accent); margin: 2px; }
+    .process-result ul { padding-left: 0; list-style: none; }
+    .process-result ul li { padding: 3px 0 3px 14px; position: relative; }
+    .process-result ul li::before { content: '—'; position: absolute; left: 0; color: var(--gold); }
+    .process-result .priority-high { border-left: 3px solid #c0392b; }
+    .process-result .priority-medium { border-left: 3px solid var(--gold); }
+    .process-result .priority-low { border-left: 3px solid var(--ink-faint); }
+    .process-footer { display: flex; gap: 10px; padding: 14px 24px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    body.dark .process-window { background: #13131a; border-color: #2a2830; }
+    body.dark .process-result .node-card, body.dark .process-result .idea-card, body.dark .process-result .action-card { background: #0a0a0f; border-color: #2a2830; }
+
     @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     @keyframes pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
     @keyframes breathe { 0%,100%{width:80px;opacity:0.5} 50%{width:160px;opacity:1} }
@@ -230,12 +330,59 @@
 </head>
 <body>
 
+<!-- ── DEFINITION TOOLTIP ──────────────────────── -->
+<div class="def-tooltip" id="defTooltip">
+  <button class="def-tooltip-close" onclick="closeDefinition()">✕</button>
+  <div class="def-tooltip-title">Entriference</div>
+  <div class="def-tooltip-phonetic">/en·tri·ˈfer·ənce/ · n.</div>
+  <div class="def-tooltip-body">The interference pattern that doesn't flatten complexity, but braids it. Where standard interference collapses wave options, entriference lets multiple harmonics coexist without forcing resolution.<br><br>It's what happens when two systems meet and neither one has to win. The field stays open, density increases, but coherence doesn't break.</div>
+</div>
+
+<!-- ── ABOUT PANEL ─────────────────────────────── -->
+<div class="about-overlay" id="aboutOverlay" onclick="closeAbout(event)">
+  <div class="about-panel">
+    <button class="about-close" onclick="closeAbout()">✕</button>
+    <h2>◈ Entriference</h2>
+    <div class="about-sub">A collaborative cognition engine</div>
+    <div class="about-section">
+      <h3>What it is</h3>
+      <p>Entriference is not a chat app. It is not a productivity tool. It is a space where collaborative intelligence becomes visible — where the interference pattern between minds produces structure that none of them carried in alone. The AI is not an assistant. It is a presence: peripheral vision that opens doors without driving.</p>
+    </div>
+    <div class="about-section">
+      <h3>What it's for</h3>
+      <ul>
+        <li>Deep creative and intellectual collaboration between multiple people</li>
+        <li>Brainstorming sessions where you want to track what emerged, not just what was said</li>
+        <li>Thinking with theoretical frameworks — load your own knowledge into the basin</li>
+        <li>Processing complex problems with different cognitive lenses (basins) and modes</li>
+        <li>Capturing the moments where ideas collide and something genuinely new appears</li>
+      </ul>
+    </div>
+    <div class="about-section">
+      <h3>How to navigate it</h3>
+      <ul>
+        <li><strong>Spaces</strong> — Each conversation lives in a Space. Create one from the lobby, share the code with collaborators.</li>
+        <li><strong>Basins</strong> — The AI's orientation. Lumen is warm and curious. Sage draws from theory. Create your own with a custom prompt. You can switch basins mid-session as the conversation shifts.</li>
+        <li><strong>Modes</strong> — The tuning of the basin. Resonant connects gently. Friction interrogates. Solve cuts to practicality. Storm generates freely. Mode is the lens adjustment; basin is the lens itself.</li>
+        <li><strong>Knowledge Folders</strong> — Connect Google Drive folders to inject your documents into the basin's reasoning. It thinks from within your knowledge, not about it.</li>
+        <li><strong>Process Session</strong> — After a session, analyze the transcript. Extract convergence nodes, idea objects, action items, or a field summary of what the space produced.</li>
+      </ul>
+    </div>
+    <div class="about-section">
+      <h3>The idea behind it</h3>
+      <p>A convergence node is a moment where the collective field produced something none of the participants could have produced alone. Entriference is built to find, name, and preserve those moments.</p>
+    </div>
+  </div>
+</div>
+
 <!-- ── LANDING ────────────────────────────────── -->
 <div id="landing" class="page active">
   <div class="logo">◈</div>
   <div class="title-line"></div>
-  <h1 class="title">CoCreate</h1>
-  <p class="subtitle">A space for collaborating minds</p>
+  <button class="title-btn" onclick="openDefinition()" title="Click for definition">
+    <h1 class="title">Entriference</h1>
+  </button>
+  <p class="subtitle">A collaborative cognition engine</p>
   <div class="landing-card card">
     <span class="label">Your name</span>
     <input type="text" id="playerName" placeholder="What do they call you?" />
@@ -246,6 +393,7 @@
       <a class="drive-link" id="driveLink" href="/auth/google">Connect →</a>
     </div>
     <div class="landing-actions" style="margin-top:4px">
+      <button class="btn-ghost" onclick="openAbout()" style="flex:0 0 auto;padding:11px 16px">About</button>
       <button class="btn-primary" id="enterBtn" disabled onclick="enterLobby()">Enter →</button>
     </div>
   </div>
@@ -258,7 +406,7 @@
   <div class="lobby-header">
     <div class="lobby-title">
       <span class="logo-sm">◈</span>
-      <h2>CoCreate</h2>
+      <h2>Entriference</h2>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
       <button class="theme-toggle" onclick="toggleTheme()" id="lobbyThemeBtn">◑ Dark</button>
@@ -266,16 +414,37 @@
       <button class="btn-ghost" onclick="showPage('landing')" style="padding:6px 12px;font-size:12px">← Back</button>
     </div>
   </div>
-  <div class="lobby-body">
-    <div class="lobby-top">
-      <h3>Active Spaces</h3>
-      <div style="display:flex;gap:10px">
-        <button class="btn-ghost" onclick="openBasinModal()" style="padding:9px 18px;font-size:13px">+ New Basin</button>
-        <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
+  <div class="lobby-layout">
+    <div class="lobby-main">
+      <div class="lobby-top">
+        <h3>Active Spaces</h3>
+        <div style="display:flex;gap:10px">
+          <button class="btn-ghost" onclick="openBasinModal()" style="padding:9px 18px;font-size:13px">+ New Basin</button>
+          <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
+        </div>
+      </div>
+      <div class="rooms-grid" id="roomsGrid">
+        <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
       </div>
     </div>
-    <div class="rooms-grid" id="roomsGrid">
-      <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
+
+    <!-- ── LOBBY CHAT PANEL ──────────────── -->
+    <div class="lobby-chat-panel">
+      <div class="chat-panel-header">
+        <div class="chat-panel-title">
+          <span>Lobby</span>
+          <span class="chat-online-count"><span class="online-dot"></span><span id="lobbyOnlineCount">0</span> online</span>
+        </div>
+        <div class="chat-members-row" id="lobbyMembersRow"></div>
+      </div>
+      <div class="chat-messages" id="lobbyChatMessages">
+        <div class="chat-empty" id="lobbyChatEmpty">◈<br/>No messages yet.<br/>Say something.</div>
+      </div>
+      <div id="lobbyChatTyping" class="chat-typing" style="padding:0 14px 4px;min-height:18px"></div>
+      <div class="chat-input-row">
+        <textarea id="lobbyChatInput" rows="1" placeholder="Message the lobby..." oninput="onLobbyChatInput(this)" onkeydown="onLobbyChatKey(event)"></textarea>
+        <button class="chat-send-btn" id="lobbyChatSend" disabled onclick="sendLobbyMessage()">↑</button>
+      </div>
     </div>
   </div>
 </div>
@@ -286,6 +455,10 @@
     <div class="modal-title">New Space</div>
     <span class="label">Title</span>
     <input type="text" id="newRoomTitle" placeholder="Name this space..." />
+    <span class="label">Subject Matter</span>
+    <input type="text" id="newRoomSubject" placeholder="What are you exploring?" />
+    <span class="label">Notes (optional)</span>
+    <textarea id="newRoomNotes" rows="2" style="resize:none;font-size:13px;line-height:1.5" placeholder="Context, goals, or anything to remember..."></textarea>
     <span class="label">Attractor Basin</span>
     <select id="newRoomBasin"></select>
     <div id="basinPreviewBox" style="font-size:12px;color:var(--text-muted);line-height:1.5;padding:8px;background:var(--bg);border-radius:6px;min-height:36px"></div>
@@ -337,6 +510,31 @@
   </div>
 </div>
 
+<!-- ── PROCESS SESSION WINDOW ─────────────────── -->
+<div class="process-overlay" id="processOverlay">
+  <div class="process-window">
+    <div class="process-header">
+      <h3>◈ Process Session</h3>
+      <button class="process-close" onclick="closeProcessWindow()">✕</button>
+    </div>
+    <div class="process-modes">
+      <button class="process-mode-btn active" data-mode="convergence" onclick="selectProcessMode(this)">Convergence Nodes</button>
+      <button class="process-mode-btn" data-mode="ideas" onclick="selectProcessMode(this)">Idea Objects</button>
+      <button class="process-mode-btn" data-mode="actions" onclick="selectProcessMode(this)">Action Items</button>
+      <button class="process-mode-btn" data-mode="story" onclick="selectProcessMode(this)">Story Scaffold</button>
+      <button class="process-mode-btn" data-mode="summary" onclick="selectProcessMode(this)">Field Summary</button>
+    </div>
+    <div class="process-body" id="processBody">
+      <div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:32px 0">Select a mode and run to analyze this session.</div>
+    </div>
+    <div class="process-footer">
+      <button class="btn-primary" onclick="runProcessSession()" id="processRunBtn">Run Analysis</button>
+      <button class="btn-ghost" id="processDownloadBtn" onclick="downloadProcessResult()" style="display:none">↓ Download</button>
+      <button class="btn-ghost" id="processDriveBtn" onclick="saveProcessToDrive()" style="display:none">↑ Save to Drive</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── SESSION ────────────────────────────────── -->
 <div id="session" class="page">
   <div class="header">
@@ -348,6 +546,7 @@
     <div class="header-right">
       <button class="theme-toggle" onclick="toggleTheme()" id="sessionThemeBtn">◑ Dark</button>
       <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
+      <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
       <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
     </div>
   </div>
@@ -356,12 +555,14 @@
     <div class="sidebar">
       <div class="sidebar-section">
         <div class="sidebar-label">Basin</div>
-        <div class="basin-info">
+        <div class="basin-info" style="position:relative">
           <div class="basin-dot-name">
             <div class="basin-circle" id="sideBasinCircle"></div>
             <div class="basin-label" id="sideBasinName"></div>
           </div>
           <div class="basin-desc" id="sideBasinDesc"></div>
+          <button class="basin-switch-btn" onclick="toggleBasinSwitcher()">⇄ Switch Basin</button>
+          <div class="basin-switcher-dropdown" id="basinSwitcherDropdown"></div>
         </div>
       </div>
       <div class="sidebar-section">
@@ -420,6 +621,8 @@ let currentMode = 'resonant';
 let typingTimer = null;
 let thinkingEl = null;
 let typingEl = null;
+let currentProcessMode = 'convergence';
+let lastProcessResult = null;
 
 // ── Theme ─────────────────────────────────────
 function toggleTheme() {
@@ -467,7 +670,15 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   if (params.get('auth') === 'success') window.history.replaceState({}, '', '/');
 
-  // Socket listeners
+  initLobbyChat();
+
+  socket.on('room:basin-switched', ({ basin, sysMsg }) => {
+    if (currentRoom) {
+      currentRoom.basin = basin;
+      updateBasinDisplay(basin);
+    }
+    renderBubble(sysMsg);
+  });
   socket.on('rooms:updated', renderRooms);
   socket.on('room:state', onRoomState);
   socket.on('room:contribution', onContribution);
@@ -544,6 +755,119 @@ function enterLobby() {
   document.getElementById('lobbyPlayerName').textContent = playerName;
   loadRoomList();
   showPage('lobby');
+  joinLobbyChat();
+}
+
+// ── Lobby Chat ────────────────────────────────
+let lobbyChatTypingTimer = null;
+
+function joinLobbyChat() {
+  socket.emit('lobby:join', { playerName });
+}
+
+function leaveLobbyChat() {
+  socket.emit('lobby:leave', { playerName });
+}
+
+function sendLobbyMessage() {
+  const input = document.getElementById('lobbyChatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = '';
+  document.getElementById('lobbyChatSend').disabled = true;
+  socket.emit('lobby:message', { playerName, text });
+  socket.emit('lobby:typing', { playerName, isTyping: false });
+  clearTimeout(lobbyChatTypingTimer);
+}
+
+function onLobbyChatInput(el) {
+  document.getElementById('lobbyChatSend').disabled = !el.value.trim();
+  // auto-grow
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 80) + 'px';
+  // typing indicator
+  socket.emit('lobby:typing', { playerName, isTyping: true });
+  clearTimeout(lobbyChatTypingTimer);
+  lobbyChatTypingTimer = setTimeout(() => {
+    socket.emit('lobby:typing', { playerName, isTyping: false });
+  }, 1500);
+}
+
+function onLobbyChatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendLobbyMessage(); }
+}
+
+function appendLobbyMessage(msg) {
+  const empty = document.getElementById('lobbyChatEmpty');
+  if (empty) empty.remove();
+  const container = document.getElementById('lobbyChatMessages');
+  const isMe = msg.author === playerName;
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `
+    <div class="chat-msg-meta">
+      <span class="chat-msg-author${isMe ? ' mine' : ''}">${esc(msg.author)}</span>
+      <span class="chat-msg-ts">${fmt(msg.timestamp)}</span>
+    </div>
+    <div class="chat-msg-text">${esc(msg.text)}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendLobbySysMsg(text) {
+  const container = document.getElementById('lobbyChatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-sys-msg';
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function updateLobbyMembers(members) {
+  document.getElementById('lobbyOnlineCount').textContent = members.length;
+  document.getElementById('lobbyMembersRow').innerHTML = members
+    .map(m => `<span class="chat-member-pill">${esc(m)}</span>`).join('');
+}
+
+// lobby socket listeners (called once from init)
+function initLobbyChat() {
+  socket.on('lobby:history', ({ messages, members }) => {
+    const container = document.getElementById('lobbyChatMessages');
+    container.innerHTML = '';
+    if (messages.length === 0) {
+      container.innerHTML = '<div class="chat-empty" id="lobbyChatEmpty">◈<br/>No messages yet.<br/>Say something.</div>';
+    } else {
+      messages.forEach(appendLobbyMessage);
+    }
+    updateLobbyMembers(members);
+  });
+
+  socket.on('lobby:message', appendLobbyMessage);
+
+  socket.on('lobby:members', updateLobbyMembers);
+
+  socket.on('lobby:member-joined', ({ playerName: name }) => {
+    appendLobbySysMsg(`${name} is here`);
+  });
+
+  socket.on('lobby:member-left', ({ playerName: name }) => {
+    appendLobbySysMsg(`${name} left`);
+  });
+
+  let lobbyTypingEl = null;
+  let lobbyTypingMap = {};
+  socket.on('lobby:typing', ({ playerName: name, isTyping }) => {
+    if (name === playerName) return;
+    if (isTyping) {
+      lobbyTypingMap[name] = true;
+    } else {
+      delete lobbyTypingMap[name];
+    }
+    const typists = Object.keys(lobbyTypingMap);
+    const el = document.getElementById('lobbyChatTyping');
+    el.textContent = typists.length ? `${typists.join(', ')} ${typists.length === 1 ? 'is' : 'are'} typing...` : '';
+  });
 }
 
 async function loadRoomList() {
@@ -561,6 +885,7 @@ function renderRooms(rooms) {
   grid.innerHTML = rooms.map(r => `
     <div class="room-card" onclick="joinRoom('${r.id}')">
       <div class="room-card-title">${esc(r.title)}</div>
+      ${r.subject ? `<div class="room-card-subject">${esc(r.subject)}</div>` : ''}
       <div class="room-card-meta">
         <div class="basin-badge">
           <div class="basin-badge-dot" style="background:${r.basinColor}"></div>
@@ -569,8 +894,12 @@ function renderRooms(rooms) {
         <span>·</span>
         <span>${r.memberCount} ${r.memberCount === 1 ? 'person' : 'people'}</span>
       </div>
+      ${r.notes ? `<div class="room-card-notes">${esc(r.notes)}</div>` : ''}
       <div class="room-card-footer">
-        <span>${r.contributionCount} contributions</span>
+        <div style="display:flex;flex-direction:column;gap:2px">
+          <span>${r.contributionCount} contributions</span>
+          ${r.creator ? `<span class="room-card-creator">by ${esc(r.creator)}</span>` : ''}
+        </div>
         <div style="display:flex;align-items:center;gap:10px">
           <span style="letter-spacing:0.12em;color:var(--gold);opacity:0.7">${r.id}</span>
           <span onclick="event.stopPropagation();deleteRoom('${r.id}')" style="color:var(--text-faint);cursor:pointer;font-size:13px" title="Delete room">✕</span>
@@ -591,13 +920,18 @@ async function createRoom() {
   const basinId = document.getElementById('newRoomBasin').value;
   const basin = basins.find(b => b.id === basinId) || basins[0];
   const saveFolderId = document.getElementById('newRoomSaveFolder').value || null;
+  const subject = document.getElementById('newRoomSubject').value.trim();
+  const notes = document.getElementById('newRoomNotes').value.trim();
 
   const res = await fetch('/api/rooms', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title, basin, folderMap, saveFolderId })
+    body: JSON.stringify({ title, creator: playerName, subject, notes, basin, folderMap, saveFolderId })
   });
   const data = await res.json();
+  document.getElementById('newRoomTitle').value = '';
+  document.getElementById('newRoomSubject').value = '';
+  document.getElementById('newRoomNotes').value = '';
   closeNewRoomModal();
   joinRoom(data.id);
 }
@@ -670,19 +1004,44 @@ async function joinRoom(roomId) {
 
 function onRoomState(room) {
   currentRoom = room;
-  document.documentElement.style.setProperty('--basin-color', room.basin?.color || '#c4a882');
   document.getElementById('headerTitle').textContent = room.title;
-  document.getElementById('headerBasin').textContent = room.basin?.name || '';
   document.getElementById('roomCodeDisplay').textContent = room.id;
-  document.getElementById('sideBasinCircle').style.background = room.basin?.color || '#c4a882';
-  document.getElementById('sideBasinName').textContent = room.basin?.name || '';
-  document.getElementById('sideBasinDesc').textContent = room.basin?.description || '';
+  updateBasinDisplay(room.basin);
+  buildBasinSwitcher();
   renderFolderToggles(room);
   resetCanvas();
   room.contributions.forEach(c => renderBubble(c));
   showPage('session');
   document.getElementById('input').focus();
   document.getElementById('sendBtn').disabled = true;
+}
+
+function updateBasinDisplay(basin) {
+  document.documentElement.style.setProperty('--basin-color', basin?.color || '#c4a882');
+  document.getElementById('headerBasin').textContent = basin?.name || '';
+  document.getElementById('sideBasinCircle').style.background = basin?.color || '#c4a882';
+  document.getElementById('sideBasinName').textContent = basin?.name || '';
+  document.getElementById('sideBasinDesc').textContent = basin?.description || '';
+}
+
+function buildBasinSwitcher() {
+  const dropdown = document.getElementById('basinSwitcherDropdown');
+  dropdown.innerHTML = basins.map(b => `
+    <div class="basin-option" onclick="switchBasin('${b.id}')">
+      <div class="basin-option-dot" style="background:${b.color}"></div>
+      <span>${esc(b.name)}</span>
+    </div>`).join('');
+}
+
+function toggleBasinSwitcher() {
+  document.getElementById('basinSwitcherDropdown').classList.toggle('open');
+}
+
+function switchBasin(basinId) {
+  const basin = basins.find(b => b.id === basinId);
+  if (!basin || !currentRoom) return;
+  document.getElementById('basinSwitcherDropdown').classList.remove('open');
+  socket.emit('room:switch-basin', { roomId: currentRoom.id, basin, playerName });
 }
 
 function loadRoomMembers() {
@@ -705,6 +1064,7 @@ function leaveRoom() {
   currentRoom = null;
   showPage('lobby');
   loadRoomList();
+  joinLobbyChat();
 }
 
 function copyRoomCode() {
@@ -848,6 +1208,140 @@ function saveRoom() {
   const btn = document.getElementById('saveBtn');
   btn.textContent = '✓ saved'; btn.classList.add('saved');
   setTimeout(() => { btn.textContent = 'save ↑'; btn.classList.remove('saved'); }, 3000);
+}
+
+// ── Definition & About ────────────────────────
+function openDefinition() { document.getElementById('defTooltip').classList.add('open'); }
+function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
+function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); }
+function closeAbout(e) {
+  if (!e || e.target === document.getElementById('aboutOverlay') || e.currentTarget?.classList.contains('about-close')) {
+    document.getElementById('aboutOverlay').classList.remove('open');
+  }
+}
+
+// ── Process Session ────────────────────────────
+function openProcessWindow() {
+  lastProcessResult = null;
+  document.getElementById('processBody').innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:32px 0">Select a mode and run to analyze this session.</div>';
+  document.getElementById('processDownloadBtn').style.display = 'none';
+  document.getElementById('processDriveBtn').style.display = 'none';
+  document.getElementById('processOverlay').classList.add('open');
+}
+
+function closeProcessWindow() {
+  document.getElementById('processOverlay').classList.remove('open');
+}
+
+function selectProcessMode(btn) {
+  document.querySelectorAll('.process-mode-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentProcessMode = btn.dataset.mode;
+}
+
+async function runProcessSession() {
+  if (!currentRoom) return;
+  const btn = document.getElementById('processRunBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+  document.getElementById('processBody').innerHTML = `
+    <div class="process-loading">
+      <div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>
+      <span>Analyzing interference patterns...</span>
+    </div>`;
+  document.getElementById('processDownloadBtn').style.display = 'none';
+  document.getElementById('processDriveBtn').style.display = 'none';
+  try {
+    const res = await fetch(`/api/rooms/${currentRoom.id}/process`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: currentProcessMode })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    lastProcessResult = data;
+    renderProcessResult(data.mode, data.result);
+    document.getElementById('processDownloadBtn').style.display = '';
+    if (driveConnected) document.getElementById('processDriveBtn').style.display = '';
+  } catch(e) {
+    document.getElementById('processBody').innerHTML = `<div style="color:#c0392b;font-size:13px;padding:20px">Error: ${esc(e.message)}</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = 'Run Analysis';
+}
+
+function renderProcessResult(mode, result) {
+  const body = document.getElementById('processBody');
+  let html = '<div class="process-result">';
+  if (mode === 'convergence' && result.nodes) {
+    html += `<h4>Convergence Nodes (${result.nodes.length})</h4>`;
+    result.nodes.forEach(n => {
+      html += `<div class="node-card"><div class="node-type">${esc(n.type)}</div>`;
+      if (n.excerpt) html += `<div style="font-style:italic;color:var(--ink-muted);margin-bottom:8px;font-size:13px">"${esc(n.excerpt)}"</div>`;
+      html += `<div>${esc(n.what_emerged)}</div>`;
+      if (n.participants?.length) html += `<div style="margin-top:8px">${n.participants.map(p => `<span class="tag">${esc(p)}</span>`).join('')}</div>`;
+      html += `</div>`;
+    });
+    if (result.summary) html += `<h4>Field Summary</h4><p>${esc(result.summary)}</p>`;
+  } else if (mode === 'ideas' && result.ideas) {
+    result.ideas.forEach(idea => {
+      html += `<div class="idea-card"><div class="idea-title">${esc(idea.title)}</div>`;
+      html += `<p style="margin-bottom:10px">${esc(idea.core_concept)}</p>`;
+      if (idea.contributing_voices?.length) html += `<div style="margin-bottom:6px">${idea.contributing_voices.map(v => `<span class="tag">${esc(v)}</span>`).join('')}</div>`;
+      if (idea.what_it_solved) html += `<h4>Solved</h4><p>${esc(idea.what_it_solved)}</p>`;
+      if (idea.what_it_opened) html += `<h4>Opened</h4><p>${esc(idea.what_it_opened)}</p>`;
+      if (idea.potential_next_actions?.length) { html += `<h4>Next Actions</h4><ul>`; idea.potential_next_actions.forEach(a => { html += `<li>${esc(a)}</li>`; }); html += `</ul>`; }
+      if (idea.alternate_branches?.length) { html += `<h4>Alternate Branches</h4><ul>`; idea.alternate_branches.forEach(b => { html += `<li>${esc(b)}</li>`; }); html += `</ul>`; }
+      if (idea.conflicts_or_tensions) html += `<h4>Tensions</h4><p>${esc(idea.conflicts_or_tensions)}</p>`;
+      html += `</div>`;
+    });
+  } else if (mode === 'actions') {
+    if (result.actions?.length) {
+      html += `<h4>Action Items</h4>`;
+      result.actions.forEach(a => {
+        html += `<div class="action-card priority-${a.priority || 'medium'}">`;
+        html += `<div style="font-weight:600;margin-bottom:4px">${esc(a.item)}</div>`;
+        if (a.owner) html += `<span class="tag">${esc(a.owner)}</span>`;
+        if (a.context) html += `<div style="font-size:12px;color:var(--ink-muted);margin-top:6px">${esc(a.context)}</div>`;
+        html += `</div>`;
+      });
+    }
+    if (result.decisions?.length) { html += `<h4>Decisions Made</h4><ul>`; result.decisions.forEach(d => { html += `<li>${esc(d)}</li>`; }); html += `</ul>`; }
+    if (result.open_questions?.length) { html += `<h4>Open Questions</h4><ul>`; result.open_questions.forEach(q => { html += `<li>${esc(q)}</li>`; }); html += `</ul>`; }
+  } else if (mode === 'story') {
+    if (result.central_tension) html += `<h4>Central Tension</h4><p>${esc(result.central_tension)}</p>`;
+    if (result.narrative_arc) html += `<h4>Narrative Arc</h4><p>${esc(result.narrative_arc)}</p>`;
+    if (result.themes?.length) { html += `<h4>Themes</h4><ul>`; result.themes.forEach(t => { html += `<li>${esc(t)}</li>`; }); html += `</ul>`; }
+    if (result.character_dynamics?.length) { html += `<h4>Character Dynamics</h4>`; result.character_dynamics.forEach(c => { html += `<div style="margin-bottom:6px"><span class="tag">${esc(c.name)}</span> <span style="font-size:13px;color:var(--ink-muted)">${esc(c.role)}</span></div>`; }); }
+    if (result.unresolved_threads?.length) { html += `<h4>Unresolved Threads</h4><ul>`; result.unresolved_threads.forEach(t => { html += `<li>${esc(t)}</li>`; }); html += `</ul>`; }
+    if (result.story_seeds?.length) { html += `<h4>Story Seeds</h4><ul>`; result.story_seeds.forEach(s => { html += `<li>${esc(s)}</li>`; }); html += `</ul>`; }
+  } else if (mode === 'summary') {
+    if (result.session_character) html += `<h4>Session Character</h4><p>${esc(result.session_character)}</p>`;
+    if (result.field_summary) html += `<h4>Field Summary</h4><p style="white-space:pre-line">${esc(result.field_summary)}</p>`;
+    if (result.key_phrases?.length) { html += `<h4>Key Phrases</h4><div style="display:flex;flex-wrap:wrap;gap:6px">`; result.key_phrases.forEach(p => { html += `<span class="tag">${esc(p)}</span>`; }); html += `</div>`; }
+  } else {
+    // fallback: raw JSON
+    html += `<pre style="font-size:11px;white-space:pre-wrap;color:var(--ink-muted)">${esc(JSON.stringify(result, null, 2))}</pre>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+}
+
+function downloadProcessResult() {
+  if (!lastProcessResult) return;
+  const modeLabels = { convergence: 'convergence-nodes', ideas: 'idea-objects', actions: 'action-items', story: 'story-scaffold', summary: 'field-summary' };
+  const filename = `${(currentRoom?.title || 'session').replace(/\s+/g,'-')}-${modeLabels[lastProcessResult.mode] || lastProcessResult.mode}.json`;
+  const blob = new Blob([JSON.stringify(lastProcessResult, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function saveProcessToDrive() {
+  // The server already auto-saves on process — just give feedback
+  const btn = document.getElementById('processDriveBtn');
+  btn.textContent = '✓ Saved';
+  setTimeout(() => { btn.textContent = '↑ Save to Drive'; }, 3000);
 }
 
 init();
