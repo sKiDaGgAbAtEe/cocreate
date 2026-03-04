@@ -220,7 +220,53 @@
     body.dark .chat-input-row { background: rgba(13,13,20,0.6); border-color: #1e1c28; }
 
 
-    .theme-toggle { background: none; border: 1px solid var(--border2); border-radius: 20px; padding: 4px 10px; font-size: 12px; cursor: pointer; color: var(--ink-muted); font-family: 'Cinzel', serif; letter-spacing: 0.06em; transition: all 0.2s; flex-shrink: 0; }
+    /* ── FIELD PANEL ──────────────── */
+    .field-panel-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-faint); font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.12em; padding: 4px 9px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .field-panel-toggle:hover, .field-panel-toggle.active { border-color: var(--gold); color: var(--gold); }
+    .field-panel { width: 0; flex-shrink: 0; overflow: hidden; transition: width 0.35s cubic-bezier(0.4,0,0.2,1); border-left: 0px solid var(--border); background: rgba(255,255,255,0.25); display: flex; flex-direction: column; }
+    .field-panel.open { width: 260px; border-left-width: 1px; }
+    body.dark .field-panel { background: rgba(10,10,15,0.5); }
+    .field-panel-inner { width: 260px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+    .field-panel-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .field-panel-title { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
+    .field-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: background 0.5s; }
+    .field-status-dot.live { background: var(--gold); animation: fieldPulse 2s ease-in-out infinite; }
+    .interference-wrap { flex: 1; position: relative; overflow: hidden; min-height: 180px; }
+    #interferenceCanvas { width: 100%; height: 100%; display: block; }
+    .field-meters { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
+    .meter-row { display: flex; align-items: center; gap: 8px; }
+    .meter-label { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); width: 28px; flex-shrink: 0; }
+    .meter-track { flex: 1; height: 3px; background: rgba(139,111,71,0.12); border-radius: 2px; position: relative; }
+    .meter-fill { height: 100%; border-radius: 2px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1), background 1.2s; min-width: 2px; }
+    .meter-fill.coherence { background: linear-gradient(90deg, rgba(201,169,97,0.4), var(--gold)); }
+    .meter-fill.variance { background: linear-gradient(90deg, rgba(139,111,71,0.3), #c47a5a); }
+    .meter-fill.tension { background: linear-gradient(90deg, rgba(139,111,71,0.2), #9e7ab5); }
+    .meter-fill.crystal { background: linear-gradient(90deg, rgba(201,169,97,0.5), #fff5cc); box-shadow: 0 0 6px rgba(201,169,97,0.6); }
+    .meter-val { font-family: 'Cinzel', serif; font-size: 8px; color: var(--ink-faint); width: 24px; text-align: right; flex-shrink: 0; }
+    .field-events { padding: 8px 16px 12px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+    .field-event-tag { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.1em; padding: 3px 7px; border-radius: 3px; border: 1px solid var(--border); color: var(--ink-faint); transition: all 0.4s; }
+    .field-event-tag.active { border-color: var(--gold); color: var(--gold); background: rgba(201,169,97,0.1); }
+    .field-event-tag.crystal.active { border-color: #fff5a0; color: #d4b800; background: rgba(255,245,100,0.08); box-shadow: 0 0 8px rgba(201,169,97,0.3); }
+    .field-event-tag.breach.active { border-color: #b5c4ff; color: #8fa0e8; background: rgba(143,160,232,0.08); }
+    .field-event-tag.decohere.active { border-color: #ff9980; color: #e06040; background: rgba(224,96,64,0.08); }
+    .field-event-tag.lock.active { border-color: #a0e8c0; color: #50c880; background: rgba(80,200,128,0.08); }
+    .delta-row { display: flex; align-items: center; gap: 6px; padding: 6px 16px 0; }
+    .delta-label { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.14em; color: var(--ink-faint); }
+    .delta-arrow { font-size: 14px; transition: all 0.8s; }
+    .delta-arrow.up { color: var(--gold); }
+    .delta-arrow.down { color: #c47a5a; }
+    .delta-arrow.flat { color: var(--ink-faint); }
+    .delta-val { font-family: 'Cinzel', serif; font-size: 9px; color: var(--ink-faint); margin-left: auto; }
+    .canvas-event-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; overflow: hidden; }
+    .crystal-pulse { position: absolute; border-radius: 50%; border: 1px solid rgba(201,169,97,0.6); animation: crystalExpand 1.8s ease-out forwards; }
+    .decohere-ripple { position: absolute; border-radius: 50%; border: 1px solid rgba(224,96,64,0.4); animation: decohereExpand 2s ease-out forwards; }
+    .breakthrough-bloom { position: absolute; border-radius: 50%; background: radial-gradient(circle, rgba(143,160,232,0.15) 0%, transparent 70%); animation: breakthroughBloom 2.5s ease-out forwards; }
+    @keyframes crystalExpand { 0%{width:20px;height:20px;margin-left:-10px;margin-top:-10px;opacity:0.9} 100%{width:320px;height:320px;margin-left:-160px;margin-top:-160px;opacity:0} }
+    @keyframes decohereExpand { 0%{width:40px;height:40px;margin-left:-20px;margin-top:-20px;opacity:0.7;filter:blur(0)} 100%{width:420px;height:420px;margin-left:-210px;margin-top:-210px;opacity:0;filter:blur(4px)} }
+    @keyframes breakthroughBloom { 0%{width:0;height:0;opacity:0} 30%{opacity:1} 100%{width:500px;height:500px;margin-left:-250px;margin-top:-250px;opacity:0} }
+    @keyframes fieldPulse { 0%,100%{opacity:0.5;transform:scale(0.9)} 50%{opacity:1;transform:scale(1.2)} }
+
+    /* ── THEME TOGGLE ─────────────── */
     .theme-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── CANVAS ───────────────────── */
@@ -547,6 +593,7 @@
       <button class="theme-toggle" onclick="toggleTheme()" id="sessionThemeBtn">◑ Dark</button>
       <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
       <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
+      <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
       <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
     </div>
   </div>
@@ -596,7 +643,8 @@
       </div>
     </div>
 
-    <div class="canvas-wrap">
+    <div class="canvas-wrap" style="position:relative">
+      <div class="canvas-event-overlay" id="canvasEventOverlay"></div>
       <div class="canvas" id="canvas">
         <div class="empty-state" id="emptyState">
           <span class="empty-glyph">◈</span>
@@ -607,9 +655,58 @@
         <textarea id="input" rows="2" placeholder="Add to the space... (Enter to send, Shift+Enter for new line)"></textarea>
         <button class="send-btn" id="sendBtn" disabled onclick="submit()">↑</button>
       </div>
+    </div><!-- end canvas-wrap -->
+
+    <!-- ── FIELD PANEL ──────────────────────── -->
+    <div class="field-panel" id="fieldPanel">
+      <div class="field-panel-inner">
+        <div class="field-panel-header">
+          <div class="field-panel-title">
+            <span>Field Monitor</span>
+            <div class="field-status-dot" id="fieldStatusDot"></div>
+          </div>
+        </div>
+        <div class="interference-wrap">
+          <canvas id="interferenceCanvas"></canvas>
+        </div>
+        <div class="delta-row">
+          <span class="delta-label">Δ</span>
+          <span class="delta-arrow flat" id="deltaArrow">→</span>
+          <span class="delta-val" id="deltaVal">0.00</span>
+        </div>
+        <div class="field-meters">
+          <div class="meter-row">
+            <span class="meter-label">H</span>
+            <div class="meter-track"><div class="meter-fill coherence" id="meterH" style="width:0%"></div></div>
+            <span class="meter-val" id="valH">—</span>
+          </div>
+          <div class="meter-row">
+            <span class="meter-label">V</span>
+            <div class="meter-track"><div class="meter-fill variance" id="meterV" style="width:0%"></div></div>
+            <span class="meter-val" id="valV">—</span>
+          </div>
+          <div class="meter-row">
+            <span class="meter-label">T</span>
+            <div class="meter-track"><div class="meter-fill tension" id="meterT" style="width:0%"></div></div>
+            <span class="meter-val" id="valT">—</span>
+          </div>
+          <div class="meter-row">
+            <span class="meter-label">◈</span>
+            <div class="meter-track"><div class="meter-fill crystal" id="meterC" style="width:0%"></div></div>
+            <span class="meter-val" id="valC">—</span>
+          </div>
+        </div>
+        <div class="field-events">
+          <span class="field-event-tag crystal" id="evCrystal">Crystal</span>
+          <span class="field-event-tag lock" id="evLock">Lock</span>
+          <span class="field-event-tag breach" id="evBreak">Breach</span>
+          <span class="field-event-tag decohere" id="evDecohere">Decohere</span>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
+
+  </div><!-- end main -->
+</div><!-- end session -->
 
 <script>
 // ── State ─────────────────────────────────────
@@ -626,6 +723,14 @@ let thinkingEl = null;
 let typingEl = null;
 let currentProcessMode = 'convergence';
 let lastProcessResult = null;
+
+// ── Field Monitor State ───────────────────────
+let fieldPanelOpen = false;
+let fieldMetrics = null;
+let interferenceAnimId = null;
+let interferenceTime = 0;
+// Smoothed display values
+let smoothH = 0.3, smoothV = 0.3, smoothT = 0.2, smoothC = 0.1;
 
 // ── Theme ─────────────────────────────────────
 function toggleTheme() {
@@ -671,6 +776,11 @@ async function init() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
   });
   initLobbyChat();
+
+  socket.on('room:field-metrics', (metrics) => {
+    fieldMetrics = metrics;
+    updateFieldMetrics(metrics);
+  });
 
   socket.on('room:basin-switched', ({ basin, sysMsg }) => {
     if (currentRoom) {
@@ -1421,6 +1531,276 @@ function saveProcessToDrive() {
   const btn = document.getElementById('processDriveBtn');
   btn.textContent = '✓ Saved';
   setTimeout(() => { btn.textContent = '↑ Save to Drive'; }, 3000);
+}
+
+// ── Field Monitor ─────────────────────────────
+
+function toggleFieldPanel() {
+  fieldPanelOpen = !fieldPanelOpen;
+  const panel = document.getElementById('fieldPanel');
+  const btn = document.getElementById('fieldPanelToggleBtn');
+  panel.classList.toggle('open', fieldPanelOpen);
+  btn.classList.toggle('active', fieldPanelOpen);
+  if (fieldPanelOpen) {
+    setTimeout(() => startInterferenceMap(), 360);
+  } else {
+    stopInterferenceMap();
+  }
+}
+
+function updateFieldMetrics(m) {
+  if (!m) return;
+
+  // Smooth values with lerp
+  const lerp = (a, b, t) => a + (b - a) * t;
+  smoothH = lerp(smoothH, m.H ?? smoothH, 0.35);
+  smoothV = lerp(smoothV, m.V ?? smoothV, 0.35);
+  smoothT = lerp(smoothT, m.T ?? smoothT, 0.35);
+  smoothC = lerp(smoothC, m.crystallization ?? smoothC, 0.35);
+
+  // Update bars
+  setMeter('meterH', 'valH', smoothH);
+  setMeter('meterV', 'valV', smoothV);
+  setMeter('meterT', 'valT', smoothT);
+  setMeter('meterC', 'valC', smoothC);
+
+  // Delta arrow
+  const delta = m.delta ?? 0;
+  const arrow = document.getElementById('deltaArrow');
+  const dval = document.getElementById('deltaVal');
+  if (arrow) {
+    arrow.className = 'delta-arrow ' + (delta > 0.1 ? 'up' : delta < -0.1 ? 'down' : 'flat');
+    arrow.textContent = delta > 0.1 ? '↑' : delta < -0.1 ? '↓' : '→';
+  }
+  if (dval) dval.textContent = (delta >= 0 ? '+' : '') + delta.toFixed(2);
+
+  // Status dot
+  const dot = document.getElementById('fieldStatusDot');
+  if (dot) dot.classList.add('live');
+
+  // Event tags
+  const events = m.events || {};
+  toggleEventTag('evCrystal', events.crystallization);
+  toggleEventTag('evLock', events.attractor_lock);
+  toggleEventTag('evBreak', events.emotional_breakthrough);
+  toggleEventTag('evDecohere', events.decoherence_wave);
+
+  // Canvas event animations
+  if (events.crystallization) triggerCanvasEvent('crystal');
+  else if (events.emotional_breakthrough) triggerCanvasEvent('breach');
+  else if (events.decoherence_wave) triggerCanvasEvent('decohere');
+}
+
+function setMeter(fillId, valId, value) {
+  const fill = document.getElementById(fillId);
+  const label = document.getElementById(valId);
+  if (fill) fill.style.width = Math.round(value * 100) + '%';
+  if (label) label.textContent = value.toFixed(2);
+}
+
+function toggleEventTag(id, active) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('active', !!active);
+}
+
+function triggerCanvasEvent(type) {
+  const overlay = document.getElementById('canvasEventOverlay');
+  if (!overlay) return;
+  const el = document.createElement('div');
+  const cx = overlay.offsetWidth / 2;
+  const cy = overlay.offsetHeight / 2;
+
+  if (type === 'crystal') {
+    el.className = 'crystal-pulse';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+  } else if (type === 'decohere') {
+    el.className = 'decohere-ripple';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+  } else if (type === 'breach') {
+    el.className = 'breakthrough-bloom';
+    el.style.left = cx + 'px';
+    el.style.top = cy + 'px';
+  }
+
+  overlay.appendChild(el);
+  setTimeout(() => el.remove(), 2800);
+}
+
+// ── Interference Map (Canvas) ─────────────────
+
+function startInterferenceMap() {
+  const canvas = document.getElementById('interferenceCanvas');
+  if (!canvas) return;
+  const wrap = canvas.parentElement;
+  canvas.width = wrap.offsetWidth;
+  canvas.height = wrap.offsetHeight;
+  stopInterferenceMap();
+  interferenceTime = 0;
+  drawInterference();
+}
+
+function stopInterferenceMap() {
+  if (interferenceAnimId) {
+    cancelAnimationFrame(interferenceAnimId);
+    interferenceAnimId = null;
+  }
+}
+
+function drawInterference() {
+  const canvas = document.getElementById('interferenceCanvas');
+  if (!canvas || !fieldPanelOpen) return;
+
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width;
+  const H = canvas.height;
+  const isDark = document.body.classList.contains('dark');
+
+  // Use smoothed metrics to drive the visualization
+  const h = smoothH;
+  const v = smoothV;
+  const t = smoothT;
+  const c = smoothC;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = isDark ? 'rgba(10,10,15,0.95)' : 'rgba(244,241,232,0.95)';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2;
+  const cy = H / 2;
+  const time = interferenceTime * 0.012;
+
+  // Number of wave sources scales with coherence
+  const numSources = 2 + Math.floor(h * 3);
+  const sources = [];
+  for (let i = 0; i < numSources; i++) {
+    const angle = (i / numSources) * Math.PI * 2 + time * (0.3 + i * 0.1);
+    // Orbit radius shrinks as attractor_gravity increases
+    const gravity = fieldMetrics?.attractor_gravity ?? 0.5;
+    const orbit = (0.15 + (1 - gravity) * 0.2) * Math.min(W, H);
+    sources.push({
+      x: cx + Math.cos(angle) * orbit,
+      y: cy + Math.sin(angle) * orbit,
+      freq: 0.04 + h * 0.03 + i * 0.008,
+      amp: 0.6 + h * 0.4,
+      phase: i * 1.3
+    });
+  }
+
+  // Draw interference field pixel by pixel (sampled grid)
+  const step = 4;
+  for (let px = 0; px < W; px += step) {
+    for (let py = 0; py < H; py += step) {
+      let sum = 0;
+      for (const s of sources) {
+        const dx = px - s.x;
+        const dy = py - s.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        sum += s.amp * Math.sin(dist * s.freq - time * (1 + h) + s.phase);
+      }
+      const norm = sum / numSources; // -1 to +1
+
+      // Color mapping
+      let r, g, b, a;
+      if (isDark) {
+        // Dark: ember/gold interference
+        const intensity = (norm + 1) / 2;
+        if (intensity > 0.55) {
+          // Constructive — gold/amber
+          r = 201 + (intensity - 0.55) * 100;
+          g = 169 * intensity;
+          b = 40 * intensity;
+          a = 0.15 + intensity * 0.45;
+        } else {
+          // Destructive — deep blue-gray
+          r = 20;
+          g = 20 + intensity * 30;
+          b = 40 + intensity * 60;
+          a = 0.05 + intensity * 0.2;
+        }
+      } else {
+        // Light: parchment gold
+        const intensity = (norm + 1) / 2;
+        if (intensity > 0.55) {
+          r = 201;
+          g = 160 + intensity * 20;
+          b = 50 + intensity * 40;
+          a = 0.08 + intensity * 0.3;
+        } else {
+          r = 139;
+          g = 111;
+          b = 71;
+          a = 0.02 + intensity * 0.1;
+        }
+      }
+
+      // Boost brightness at crystallization
+      a *= (1 + c * 0.8);
+
+      ctx.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${Math.min(a,1)})`;
+      ctx.fillRect(px, py, step, step);
+    }
+  }
+
+  // Draw variance as noise overlay
+  if (v > 0.3) {
+    const noiseCount = Math.floor(v * 40);
+    ctx.fillStyle = isDark
+      ? `rgba(200,100,60,${v * 0.12})`
+      : `rgba(180,80,40,${v * 0.08})`;
+    for (let i = 0; i < noiseCount; i++) {
+      const nx = Math.random() * W;
+      const ny = Math.random() * H;
+      const ns = Math.random() * 3 + 1;
+      ctx.fillRect(nx, ny, ns, ns);
+    }
+  }
+
+  // Draw tension rings (compression bands)
+  if (t > 0.25) {
+    const rings = Math.floor(t * 4);
+    for (let i = 0; i < rings; i++) {
+      const progress = ((time * 0.4 + i / rings) % 1);
+      const radius = progress * Math.min(W, H) * 0.5;
+      const opacity = (1 - progress) * t * 0.25;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = isDark
+        ? `rgba(158,122,181,${opacity})`
+        : `rgba(120,80,160,${opacity * 0.7})`;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
+  // Crystallization — bright convergence glow at center
+  if (c > 0.5) {
+    const glowRadius = 20 + c * 40;
+    const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius);
+    grd.addColorStop(0, `rgba(255,245,180,${c * 0.7})`);
+    grd.addColorStop(0.4, `rgba(201,169,97,${c * 0.3})`);
+    grd.addColorStop(1, 'rgba(201,169,97,0)');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw the ◈ glyph at center when crystallizing
+    ctx.font = `${14 + c * 10}px 'Cinzel', serif`;
+    ctx.fillStyle = isDark
+      ? `rgba(255,245,180,${c * 0.9})`
+      : `rgba(139,100,20,${c * 0.8})`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('◈', cx, cy);
+  }
+
+  interferenceTime++;
+  interferenceAnimId = requestAnimationFrame(drawInterference);
 }
 
 init();

@@ -441,6 +441,76 @@ function sanitizeRoom(room) {
   };
 }
 
+// ── Resonance Metrics Engine ───────────────────────────
+async function computeFieldMetrics(contributions, basin) {
+  const recentContribs = contributions
+    .filter(c => c.type !== 'system')
+    .slice(-12)
+    .map(c => `[${c.author}]: ${c.text}`)
+    .join('\n\n');
+
+  if (!recentContribs.trim()) return null;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 400,
+      system: `You are a field resonance analyzer. Given a conversation excerpt, output ONLY a JSON object with these exact fields — no markdown, no explanation:
+{
+  "H": 0.0,
+  "V": 0.0,
+  "delta": 0.0,
+  "T": 0.0,
+  "drift": 0.0,
+  "resonance_window": 0.0,
+  "attractor_gravity": 0.0,
+  "crystallization": 0.0,
+  "valence": 0.0,
+  "arousal": 0.0,
+  "events": {
+    "crystallization": false,
+    "decoherence_wave": false,
+    "attractor_lock": false,
+    "emotional_breakthrough": false,
+    "conflict_resolution": false
+  }
+}
+
+Rules:
+- H (Harmonic Coherence 0-1): how aligned, focused and coherent the conversation is
+- V (Variance Pressure 0-1): fragmentation, contradiction, noise
+- delta (Harmonic Shift -1 to +1): is field moving toward coherence (+) or chaos (-)
+- T (Tension 0-1): productive compression, buildup before insight
+- drift (-1 to +1): longitudinal movement from baseline
+- resonance_window (0-1): how ready the field is for breakthrough
+- attractor_gravity (0-1): how strongly ideas are converging on a center
+- crystallization (0-1): how close to a moment of insight formation
+- valence (-1 to +1): emotional tone negative to positive
+- arousal (0-1): calm to activated
+- events: boolean flags for special moments. crystallization=true when crystallization>0.8 AND H rising AND V falling`,
+      messages: [{
+        role: 'user',
+        content: `Analyze this conversation field:\n\n${recentContribs}`
+      }]
+    })
+  });
+
+  const data = await response.json();
+  if (data.error) return null;
+  const raw = data.content?.[0]?.text || '{}';
+  try {
+    return JSON.parse(raw.replace(/```json|```/g, '').trim());
+  } catch(e) {
+    return null;
+  }
+}
+
 // ── Claude Resonance ───────────────────────────────────
 async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction) {
   let knowledgeContext = '';
@@ -643,6 +713,17 @@ io.on('connection', (socket) => {
       room.updatedAt = new Date().toISOString();
       io.to(roomId).emit('room:thinking', false);
       io.to(roomId).emit('room:contribution', resonance);
+
+      // Compute and emit field metrics every response
+      try {
+        const metrics = await computeFieldMetrics(room.contributions, room.basin);
+        if (metrics) {
+          room.lastMetrics = metrics;
+          io.to(roomId).emit('room:field-metrics', metrics);
+        }
+      } catch(e) {
+        console.error('Metrics error:', e.message);
+      }
 
       // Persist to Drive every 3 resonance responses
       const resonanceCount = room.contributions.filter(c => c.type === 'resonance').length;
