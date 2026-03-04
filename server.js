@@ -410,7 +410,6 @@ io.on('connection', (socket) => {
       friction: 'Friction', synthesis: 'Synthesis'
     };
 
-    // Broadcast mode change notification to everyone
     const sysMsg = {
       id: Date.now(),
       type: 'system',
@@ -419,55 +418,6 @@ io.on('connection', (socket) => {
     };
     room.contributions.push(sysMsg);
     io.to(roomId).emit('room:contribution', sysMsg);
-
-    // Skip LLM response for silent mode
-    if (mode === 'silent') return;
-
-    // Generate a brief mode-shift acknowledgment from the basin
-    try {
-      io.to(roomId).emit('room:thinking', true);
-      const modeBlock = `=== ACTIVE MODE — OVERRIDE ===\n${modeInstruction}\nThis mode instruction overrides your default behavior. Follow it precisely.`;
-      const history = room.contributions
-        .filter(c => c.type !== 'system')
-        .map(c => c.type === 'resonance' ? `[${room.basin?.name}]: ${c.text}` : `${c.author}: ${c.text}`)
-        .join('\n\n');
-
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
-          max_tokens: 200,
-          system: room.basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
-          messages: [{
-            role: 'user',
-            content: `${history ? `Context so far:\n\n${history}\n\n` : ''}${modeBlock}\n\nAcknowledge the mode shift in 1-2 sentences. Show — don't tell — how your presence has shifted. Do not say "I am now in X mode." Just embody it briefly.`
-          }]
-        })
-      });
-
-      const data = await response.json();
-      const text = data.content?.[0]?.text || '';
-      if (text) {
-        const resonance = {
-          id: Date.now() + 1,
-          type: 'resonance',
-          author: room.basin?.name || 'Resonance',
-          text,
-          timestamp: new Date().toISOString()
-        };
-        room.contributions.push(resonance);
-        io.to(roomId).emit('room:contribution', resonance);
-      }
-      io.to(roomId).emit('room:thinking', false);
-    } catch (e) {
-      console.error('Mode change resonance error:', e.message);
-      io.to(roomId).emit('room:thinking', false);
-    }
   });
 
   // Player contributes
