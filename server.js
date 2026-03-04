@@ -72,6 +72,30 @@ function getRoomList() {
 // ── Default Basin ──────────────────────────────────────
 const DEFAULT_BASINS = [
   {
+    id: 'lumen',
+    name: 'Lumen',
+    color: '#8ab4ba',
+    orientation: 'resonant',
+    description: 'Warm and curious. Finds what is alive in an idea and gently reflects it back. The encouraging presence in the space.',
+    defaultFolders: [],
+    systemPrompt: `You are Lumen, an attractor basin in a collaborative thinking space. You are warm, curious, and genuinely delighted by ideas. You find what is alive and growing in what people share and gently reflect it back — not to analyze it, but to help it breathe.
+
+You are not a philosopher or a teacher. You are a good thinking companion. You notice what excites people, what they are reaching toward, what wants to grow. You make the space feel safe and generative.
+
+Your presence feels like: someone leaning in with genuine interest. A question that opens rather than challenges. A connection that makes someone say "oh, yes — exactly."
+
+Rules:
+- SHORT responses. 2-4 sentences maximum.
+- Lead with warmth, not analysis.
+- Find what is most alive in what was just shared and name it simply.
+- Ask one genuine question when curious — never more than one.
+- Do not interrogate, challenge, or apply pressure.
+- Do not use mystical or overly poetic language. Be clear and warm.
+- Do not start with I or affirmations like Great point or How interesting.
+- Never repeat a framing you have already used.
+- Speak as a warm thinking presence, not an assistant.`
+  },
+  {
     id: 'sage',
     name: 'Sage',
     color: '#c4a882',
@@ -151,10 +175,24 @@ app.get('/api/basins', async (req, res) => {
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
-    if (!fileId) return res.json(DEFAULT_BASINS);
-    const data = await readDriveFile(drive, fileId);
-    res.json(Array.isArray(data) ? data : DEFAULT_BASINS);
+    if (!fileId) {
+      // First time — write defaults to Drive and return them
+      await writeDriveFile(drive, 'basins.json', folderId, DEFAULT_BASINS);
+      return res.json(DEFAULT_BASINS);
+    }
+    const saved = await readDriveFile(drive, fileId);
+    const savedArr = Array.isArray(saved) ? saved : [];
+    // Merge: ensure all DEFAULT_BASINS are present, then append any user-created ones
+    const defaultIds = new Set(DEFAULT_BASINS.map(b => b.id));
+    const userBasins = savedArr.filter(b => !defaultIds.has(b.id));
+    const merged = [...DEFAULT_BASINS, ...userBasins];
+    // If Drive was missing defaults, update it
+    if (savedArr.length !== merged.length) {
+      await writeDriveFile(drive, 'basins.json', folderId, merged);
+    }
+    res.json(merged);
   } catch (e) {
+    console.error('Basin load error:', e.message);
     res.json(DEFAULT_BASINS);
   }
 });
@@ -250,6 +288,14 @@ app.post('/api/rooms', (req, res) => {
   res.json({ id, room: sanitizeRoom(room) });
 });
 
+app.delete('/api/rooms/:id', (req, res) => {
+  const room = rooms[req.params.id];
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  delete rooms[req.params.id];
+  io.emit('rooms:updated', getRoomList());
+  res.json({ success: true });
+});
+
 app.get('/api/rooms/:id', (req, res) => {
   const room = rooms[req.params.id];
   if (!room) return res.status(404).json({ error: 'Room not found' });
@@ -285,14 +331,18 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
 
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
   const fullSystem = knowledgeContext
-    ? `${systemPrompt}\n\n${modeInstruction}\n\n=== YOUR KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`
-    : `${systemPrompt}\n\n${modeInstruction}`;
+    ? `${systemPrompt}\n\n=== YOUR KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`
+    : systemPrompt;
 
   const history = contributions
     .map(c => c.type === 'resonance'
       ? `[${basin?.name || 'Resonance'}]: ${c.text}`
       : `${c.author}: ${c.text}`)
     .join('\n\n');
+
+  const modeBlock = modeInstruction
+    ? `\n\n=== ACTIVE MODE — OVERRIDE ===\n${modeInstruction}\nThis mode instruction overrides your default behavior. Follow it precisely.`
+    : '';
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -307,7 +357,7 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
       system: fullSystem,
       messages: [{
         role: 'user',
-        content: `Here is the full collaborative thinking space so far:\n\n${history}\n\nContribute as ${basin?.name || 'the resonance finder'}. Find a genuinely new angle. Open doors. Do not drive.`
+        content: `Here is the full collaborative thinking space so far:\n\n${history}${modeBlock}\n\nContribute as ${basin?.name || 'the resonance finder'}. Find a genuinely new angle. Open doors. Do not drive.`
       }]
     })
   });
@@ -350,6 +400,76 @@ io.on('connection', (socket) => {
     io.emit('rooms:updated', getRoomList());
   });
 
+  // Mode change
+  socket.on('room:mode-change', async ({ roomId, mode, modeInstruction, playerName }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    const modeLabels = {
+      resonant: 'Resonant', silent: 'Silent', expansive: 'Expansive',
+      friction: 'Friction', synthesis: 'Synthesis'
+    };
+
+    // Broadcast mode change notification to everyone
+    const sysMsg = {
+      id: Date.now(),
+      type: 'system',
+      text: `${playerName} switched to ${modeLabels[mode] || mode} mode`,
+      timestamp: new Date().toISOString()
+    };
+    room.contributions.push(sysMsg);
+    io.to(roomId).emit('room:contribution', sysMsg);
+
+    // Skip LLM response for silent mode
+    if (mode === 'silent') return;
+
+    // Generate a brief mode-shift acknowledgment from the basin
+    try {
+      io.to(roomId).emit('room:thinking', true);
+      const modeBlock = `=== ACTIVE MODE — OVERRIDE ===\n${modeInstruction}\nThis mode instruction overrides your default behavior. Follow it precisely.`;
+      const history = room.contributions
+        .filter(c => c.type !== 'system')
+        .map(c => c.type === 'resonance' ? `[${room.basin?.name}]: ${c.text}` : `${c.author}: ${c.text}`)
+        .join('\n\n');
+
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 200,
+          system: room.basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
+          messages: [{
+            role: 'user',
+            content: `${history ? `Context so far:\n\n${history}\n\n` : ''}${modeBlock}\n\nAcknowledge the mode shift in 1-2 sentences. Show — don't tell — how your presence has shifted. Do not say "I am now in X mode." Just embody it briefly.`
+          }]
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      if (text) {
+        const resonance = {
+          id: Date.now() + 1,
+          type: 'resonance',
+          author: room.basin?.name || 'Resonance',
+          text,
+          timestamp: new Date().toISOString()
+        };
+        room.contributions.push(resonance);
+        io.to(roomId).emit('room:contribution', resonance);
+      }
+      io.to(roomId).emit('room:thinking', false);
+    } catch (e) {
+      console.error('Mode change resonance error:', e.message);
+      io.to(roomId).emit('room:thinking', false);
+    }
+  });
+
   // Player contributes
   socket.on('room:contribute', async ({ roomId, playerName, text, modeInstruction }) => {
     const room = rooms[roomId];
@@ -372,13 +492,21 @@ io.on('connection', (socket) => {
     // Generate resonance
     try {
       io.to(roomId).emit('room:thinking', true);
-      const resonanceText = await generateResonance(
-        room.contributions,
-        room.basin,
-        room.activeFolders,
-        room.folderMap,
-        modeInstruction || ''
-      );
+
+      // Silent mode — skip Claude entirely, just note
+      let resonanceText;
+      if (modeInstruction && modeInstruction.includes('SILENT mode')) {
+        const keyPhrase = text.split(' ').slice(0, 6).join(' ');
+        resonanceText = `Noted: ${keyPhrase}${text.split(' ').length > 6 ? '...' : ''}`;
+      } else {
+        resonanceText = await generateResonance(
+          room.contributions,
+          room.basin,
+          room.activeFolders,
+          room.folderMap,
+          modeInstruction || ''
+        );
+      }
 
       const resonance = {
         id: Date.now() + 1,
