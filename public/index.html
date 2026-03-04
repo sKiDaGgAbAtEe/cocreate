@@ -1273,56 +1273,119 @@ async function runProcessSession() {
 function renderProcessResult(mode, result) {
   const body = document.getElementById('processBody');
   let html = '<div class="process-result">';
-  if (mode === 'convergence' && result.nodes) {
-    html += `<h4>Convergence Nodes (${result.nodes.length})</h4>`;
-    result.nodes.forEach(n => {
-      html += `<div class="node-card"><div class="node-type">${esc(n.type)}</div>`;
-      if (n.excerpt) html += `<div style="font-style:italic;color:var(--ink-muted);margin-bottom:8px;font-size:13px">"${esc(n.excerpt)}"</div>`;
-      html += `<div>${esc(n.what_emerged)}</div>`;
-      if (n.participants?.length) html += `<div style="margin-top:8px">${n.participants.map(p => `<span class="tag">${esc(p)}</span>`).join('')}</div>`;
-      html += `</div>`;
-    });
-    if (result.summary) html += `<h4>Field Summary</h4><p>${esc(result.summary)}</p>`;
-  } else if (mode === 'ideas' && result.ideas) {
-    result.ideas.forEach(idea => {
-      html += `<div class="idea-card"><div class="idea-title">${esc(idea.title)}</div>`;
-      html += `<p style="margin-bottom:10px">${esc(idea.core_concept)}</p>`;
-      if (idea.contributing_voices?.length) html += `<div style="margin-bottom:6px">${idea.contributing_voices.map(v => `<span class="tag">${esc(v)}</span>`).join('')}</div>`;
-      if (idea.what_it_solved) html += `<h4>Solved</h4><p>${esc(idea.what_it_solved)}</p>`;
-      if (idea.what_it_opened) html += `<h4>Opened</h4><p>${esc(idea.what_it_opened)}</p>`;
-      if (idea.potential_next_actions?.length) { html += `<h4>Next Actions</h4><ul>`; idea.potential_next_actions.forEach(a => { html += `<li>${esc(a)}</li>`; }); html += `</ul>`; }
-      if (idea.alternate_branches?.length) { html += `<h4>Alternate Branches</h4><ul>`; idea.alternate_branches.forEach(b => { html += `<li>${esc(b)}</li>`; }); html += `</ul>`; }
-      if (idea.conflicts_or_tensions) html += `<h4>Tensions</h4><p>${esc(idea.conflicts_or_tensions)}</p>`;
-      html += `</div>`;
-    });
-  } else if (mode === 'actions') {
-    if (result.actions?.length) {
-      html += `<h4>Action Items</h4>`;
-      result.actions.forEach(a => {
-        html += `<div class="action-card priority-${a.priority || 'medium'}">`;
-        html += `<div style="font-weight:600;margin-bottom:4px">${esc(a.item)}</div>`;
-        if (a.owner) html += `<span class="tag">${esc(a.owner)}</span>`;
-        if (a.context) html += `<div style="font-size:12px;color:var(--ink-muted);margin-top:6px">${esc(a.context)}</div>`;
+  let rendered = false;
+
+  // Normalize: find arrays/strings regardless of exact key names
+  function findArray(obj, ...keys) {
+    for (const k of keys) {
+      if (obj[k] && Array.isArray(obj[k]) && obj[k].length) return obj[k];
+    }
+    // deep search for first non-empty array
+    for (const v of Object.values(obj)) {
+      if (Array.isArray(v) && v.length) return v;
+    }
+    return null;
+  }
+  function findString(obj, ...keys) {
+    for (const k of keys) {
+      if (obj[k] && typeof obj[k] === 'string') return obj[k];
+    }
+    return null;
+  }
+
+  if (mode === 'convergence') {
+    const nodes = findArray(result, 'nodes', 'convergence_nodes');
+    if (nodes) {
+      html += `<h4>Convergence Nodes (${nodes.length})</h4>`;
+      nodes.forEach(n => {
+        html += `<div class="node-card"><div class="node-type">${esc(n.type || n.node_type || 'Node')}</div>`;
+        const excerpt = n.excerpt || n.quote || n.moment;
+        if (excerpt) html += `<div style="font-style:italic;color:var(--ink-muted);margin-bottom:8px;font-size:13px">"${esc(excerpt)}"</div>`;
+        const emerged = n.what_emerged || n.emergence || n.description || n.insight || '';
+        if (emerged) html += `<div>${esc(emerged)}</div>`;
+        const people = n.participants || n.contributors || n.voices || [];
+        if (people.length) html += `<div style="margin-top:8px">${people.map(p => `<span class="tag">${esc(p)}</span>`).join('')}</div>`;
         html += `</div>`;
       });
+      rendered = true;
     }
-    if (result.decisions?.length) { html += `<h4>Decisions Made</h4><ul>`; result.decisions.forEach(d => { html += `<li>${esc(d)}</li>`; }); html += `</ul>`; }
-    if (result.open_questions?.length) { html += `<h4>Open Questions</h4><ul>`; result.open_questions.forEach(q => { html += `<li>${esc(q)}</li>`; }); html += `</ul>`; }
+    const summary = findString(result, 'summary', 'field_summary', 'overview');
+    if (summary) { html += `<h4>Field Summary</h4><p>${esc(summary)}</p>`; rendered = true; }
+
+  } else if (mode === 'ideas') {
+    const ideas = findArray(result, 'ideas', 'idea_objects', 'concepts');
+    if (ideas) {
+      ideas.forEach(idea => {
+        html += `<div class="idea-card"><div class="idea-title">${esc(idea.title || idea.name || 'Untitled')}</div>`;
+        const concept = idea.core_concept || idea.concept || idea.description || '';
+        if (concept) html += `<p style="margin-bottom:10px">${esc(concept)}</p>`;
+        const voices = idea.contributing_voices || idea.contributors || idea.voices || [];
+        if (voices.length) html += `<div style="margin-bottom:6px">${voices.map(v => `<span class="tag">${esc(v)}</span>`).join('')}</div>`;
+        const solved = idea.what_it_solved || idea.solved || idea.problem_solved || '';
+        if (solved) html += `<h4>Solved</h4><p>${esc(solved)}</p>`;
+        const opened = idea.what_it_opened || idea.opened || idea.new_questions || '';
+        if (opened) html += `<h4>Opened</h4><p>${esc(opened)}</p>`;
+        const actions = idea.potential_next_actions || idea.next_actions || idea.actions || [];
+        if (actions.length) { html += `<h4>Next Actions</h4><ul>`; actions.forEach(a => { html += `<li>${esc(a)}</li>`; }); html += `</ul>`; }
+        const branches = idea.alternate_branches || idea.branches || idea.alternatives || [];
+        if (branches.length) { html += `<h4>Alternate Branches</h4><ul>`; branches.forEach(b => { html += `<li>${esc(b)}</li>`; }); html += `</ul>`; }
+        const tensions = idea.conflicts_or_tensions || idea.tensions || idea.conflicts || '';
+        if (tensions) html += `<h4>Tensions</h4><p>${esc(tensions)}</p>`;
+        html += `</div>`;
+      });
+      rendered = true;
+    }
+
+  } else if (mode === 'actions') {
+    const actions = findArray(result, 'actions', 'action_items', 'tasks');
+    if (actions) {
+      html += `<h4>Action Items</h4>`;
+      actions.forEach(a => {
+        const item = a.item || a.action || a.task || a.description || JSON.stringify(a);
+        const priority = a.priority || 'medium';
+        html += `<div class="action-card priority-${priority}">`;
+        html += `<div style="font-weight:600;margin-bottom:4px">${esc(item)}</div>`;
+        const owner = a.owner || a.assignee || a.person || '';
+        if (owner) html += `<span class="tag">${esc(owner)}</span>`;
+        const context = a.context || a.notes || a.detail || '';
+        if (context) html += `<div style="font-size:12px;color:var(--ink-muted);margin-top:6px">${esc(context)}</div>`;
+        html += `</div>`;
+      });
+      rendered = true;
+    }
+    const decisions = findArray(result, 'decisions');
+    if (decisions) { html += `<h4>Decisions Made</h4><ul>`; decisions.forEach(d => { html += `<li>${esc(typeof d === 'string' ? d : JSON.stringify(d))}</li>`; }); html += `</ul>`; rendered = true; }
+    const questions = findArray(result, 'open_questions', 'questions', 'unresolved');
+    if (questions) { html += `<h4>Open Questions</h4><ul>`; questions.forEach(q => { html += `<li>${esc(typeof q === 'string' ? q : JSON.stringify(q))}</li>`; }); html += `</ul>`; rendered = true; }
+
   } else if (mode === 'story') {
-    if (result.central_tension) html += `<h4>Central Tension</h4><p>${esc(result.central_tension)}</p>`;
-    if (result.narrative_arc) html += `<h4>Narrative Arc</h4><p>${esc(result.narrative_arc)}</p>`;
-    if (result.themes?.length) { html += `<h4>Themes</h4><ul>`; result.themes.forEach(t => { html += `<li>${esc(t)}</li>`; }); html += `</ul>`; }
-    if (result.character_dynamics?.length) { html += `<h4>Character Dynamics</h4>`; result.character_dynamics.forEach(c => { html += `<div style="margin-bottom:6px"><span class="tag">${esc(c.name)}</span> <span style="font-size:13px;color:var(--ink-muted)">${esc(c.role)}</span></div>`; }); }
-    if (result.unresolved_threads?.length) { html += `<h4>Unresolved Threads</h4><ul>`; result.unresolved_threads.forEach(t => { html += `<li>${esc(t)}</li>`; }); html += `</ul>`; }
-    if (result.story_seeds?.length) { html += `<h4>Story Seeds</h4><ul>`; result.story_seeds.forEach(s => { html += `<li>${esc(s)}</li>`; }); html += `</ul>`; }
+    const tension = findString(result, 'central_tension', 'tension', 'conflict');
+    if (tension) { html += `<h4>Central Tension</h4><p>${esc(tension)}</p>`; rendered = true; }
+    const arc = findString(result, 'narrative_arc', 'arc', 'story_arc');
+    if (arc) { html += `<h4>Narrative Arc</h4><p>${esc(arc)}</p>`; rendered = true; }
+    const themes = findArray(result, 'themes');
+    if (themes) { html += `<h4>Themes</h4><ul>`; themes.forEach(t => { html += `<li>${esc(typeof t === 'string' ? t : JSON.stringify(t))}</li>`; }); html += `</ul>`; rendered = true; }
+    const chars = findArray(result, 'character_dynamics', 'characters');
+    if (chars) { html += `<h4>Character Dynamics</h4>`; chars.forEach(c => { const name = c.name || c; const role = c.role || ''; html += `<div style="margin-bottom:6px"><span class="tag">${esc(name)}</span>${role ? ` <span style="font-size:13px;color:var(--ink-muted)">${esc(role)}</span>` : ''}</div>`; }); rendered = true; }
+    const threads = findArray(result, 'unresolved_threads', 'threads', 'unresolved');
+    if (threads) { html += `<h4>Unresolved Threads</h4><ul>`; threads.forEach(t => { html += `<li>${esc(typeof t === 'string' ? t : JSON.stringify(t))}</li>`; }); html += `</ul>`; rendered = true; }
+    const seeds = findArray(result, 'story_seeds', 'seeds', 'ideas');
+    if (seeds) { html += `<h4>Story Seeds</h4><ul>`; seeds.forEach(s => { html += `<li>${esc(typeof s === 'string' ? s : JSON.stringify(s))}</li>`; }); html += `</ul>`; rendered = true; }
+
   } else if (mode === 'summary') {
-    if (result.session_character) html += `<h4>Session Character</h4><p>${esc(result.session_character)}</p>`;
-    if (result.field_summary) html += `<h4>Field Summary</h4><p style="white-space:pre-line">${esc(result.field_summary)}</p>`;
-    if (result.key_phrases?.length) { html += `<h4>Key Phrases</h4><div style="display:flex;flex-wrap:wrap;gap:6px">`; result.key_phrases.forEach(p => { html += `<span class="tag">${esc(p)}</span>`; }); html += `</div>`; }
-  } else {
-    // fallback: raw JSON
-    html += `<pre style="font-size:11px;white-space:pre-wrap;color:var(--ink-muted)">${esc(JSON.stringify(result, null, 2))}</pre>`;
+    const character = findString(result, 'session_character', 'character', 'tone');
+    if (character) { html += `<h4>Session Character</h4><p>${esc(character)}</p>`; rendered = true; }
+    const summary = findString(result, 'field_summary', 'summary', 'overview');
+    if (summary) { html += `<h4>Field Summary</h4><p style="white-space:pre-line">${esc(summary)}</p>`; rendered = true; }
+    const phrases = findArray(result, 'key_phrases', 'phrases', 'keywords');
+    if (phrases) { html += `<h4>Key Phrases</h4><div style="display:flex;flex-wrap:wrap;gap:6px">`; phrases.forEach(p => { html += `<span class="tag">${esc(typeof p === 'string' ? p : JSON.stringify(p))}</span>`; }); html += `</div>`; rendered = true; }
   }
+
+  // Universal fallback — always show something
+  if (!rendered) {
+    html += `<h4>Raw Output</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--ink-muted);line-height:1.6">${esc(JSON.stringify(result, null, 2))}</pre>`;
+  }
+
   html += '</div>';
   body.innerHTML = html;
 }
