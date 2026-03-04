@@ -13,6 +13,15 @@ const io = new Server(httpServer);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Prevent browser caching of index.html so updates always load fresh
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.use(express.static('public'));
 
 // ── Google OAuth ───────────────────────────────────────
