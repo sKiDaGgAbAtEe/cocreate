@@ -49,8 +49,8 @@ app.get('/auth/google/callback', async (req, res) => {
 
 app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
 
-// ── Room State (in-memory, persisted to Drive) ─────────
-const rooms = {}; // roomId -> { id, title, basin, contributions, members, activeFolders, folderMap, createdAt, updatedAt }
+// ── Room State (persisted to Drive) ────────────────────
+const rooms = {};
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -62,11 +62,41 @@ function getRoomList() {
     title: r.title,
     basin: r.basin?.name || 'Unknown',
     basinColor: r.basin?.color || '#c4a882',
-    memberCount: r.members ? r.members.length : 0,
+    memberCount: 0, // reset on restart - sockets are gone
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   }));
+}
+
+async function loadRoomsFromDrive() {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'rooms.json', folderId);
+    if (!fileId) return;
+    const saved = await readDriveFile(drive, fileId);
+    if (saved && typeof saved === 'object') {
+      Object.entries(saved).forEach(([id, room]) => {
+        rooms[id] = { ...room, members: [] }; // clear members on restart
+      });
+      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive`);
+    }
+  } catch (e) {
+    console.error('Could not load rooms from Drive:', e.message);
+  }
+}
+
+async function persistRoomsToDrive() {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    await writeDriveFile(drive, 'rooms.json', folderId, rooms);
+  } catch (e) {
+    console.error('Could not persist rooms to Drive:', e.message);
+  }
 }
 
 // ── Default Basin ──────────────────────────────────────
@@ -284,6 +314,7 @@ app.post('/api/rooms', (req, res) => {
     updatedAt: new Date().toISOString()
   };
   rooms[id] = room;
+  persistRoomsToDrive();
   io.emit('rooms:updated', getRoomList());
   res.json({ id, room: sanitizeRoom(room) });
 });
@@ -292,6 +323,7 @@ app.delete('/api/rooms/:id', (req, res) => {
   const room = rooms[req.params.id];
   if (!room) return res.status(404).json({ error: 'Room not found' });
   delete rooms[req.params.id];
+  persistRoomsToDrive();
   io.emit('rooms:updated', getRoomList());
   res.json({ success: true });
 });
@@ -441,13 +473,28 @@ io.on('connection', (socket) => {
 
     // Generate resonance
     try {
+      // Silent mode — only respond if @BasinName is in the message
+      if (modeInstruction && modeInstruction.includes('SILENT mode')) {
+        const basinName = room.basin?.name || '';
+        const isTagged = basinName && text.toLowerCase().includes(`@${basinName.toLowerCase()}`);
+        if (!isTagged) {
+          io.to(roomId).emit('room:thinking', false);
+          return;
+        }
+      }
+
       io.to(roomId).emit('room:thinking', true);
 
-      // Silent mode — skip Claude entirely, just note
       let resonanceText;
       if (modeInstruction && modeInstruction.includes('SILENT mode')) {
-        const keyPhrase = text.split(' ').slice(0, 6).join(' ');
-        resonanceText = `Noted: ${keyPhrase}${text.split(' ').length > 6 ? '...' : ''}`;
+        // Tagged in silent mode — respond briefly
+        resonanceText = await generateResonance(
+          room.contributions,
+          room.basin,
+          room.activeFolders,
+          room.folderMap,
+          'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.'
+        );
       } else {
         resonanceText = await generateResonance(
           room.contributions,
@@ -471,10 +518,10 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('room:thinking', false);
       io.to(roomId).emit('room:contribution', resonance);
 
-      // Auto-save every 3 resonance responses
+      // Persist to Drive every 3 resonance responses
       const resonanceCount = room.contributions.filter(c => c.type === 'resonance').length;
       if (resonanceCount % 3 === 0) {
-        saveRoomToDrive(room);
+        persistRoomsToDrive();
       }
     } catch (e) {
       console.error('Resonance error:', e.message);
@@ -570,4 +617,6 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`\n◈ CoCreate is running`);
   console.log(`  Open: http://localhost:${PORT}\n`);
+  // Load persisted rooms after a short delay to allow OAuth to be ready
+  setTimeout(loadRoomsFromDrive, 3000);
 });
