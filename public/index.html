@@ -749,7 +749,7 @@ async function refreshFolders() {
 }
 
 async function loadFolders() {
-  const res = await fetch('/api/drive/folders');
+  const res = await fetch('/api/drive/folders?t=' + Date.now());
   const data = await res.json();
   allFolders = data.folders || [];
   folderMap = {};

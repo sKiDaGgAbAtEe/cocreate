@@ -326,6 +326,7 @@ app.post('/api/basins', async (req, res) => {
 
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   const drive = await getDrive();
   if (!drive) return res.json({ folders: [] });
   try {
@@ -336,7 +337,8 @@ app.get('/api/drive/folders', async (req, res) => {
     });
     res.json({ folders: result.data.files });
   } catch (e) {
-    res.json({ folders: [] });
+    console.error('Folder list error:', e.message);
+    res.json({ folders: [], error: e.message });
   }
 });
 
