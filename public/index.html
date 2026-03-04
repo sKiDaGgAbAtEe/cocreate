@@ -645,6 +645,14 @@ function setMode(mode, btn) {
   currentMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+  if (currentRoom) {
+    socket.emit('room:mode-change', {
+      roomId: currentRoom.id,
+      mode,
+      modeInstruction: getModeInstruction(),
+      playerName
+    });
+  }
 }
 
 // ── Folder Toggles ────────────────────────────
