@@ -264,11 +264,11 @@
       <div class="sidebar-section">
         <div class="sidebar-label">Mode</div>
         <div class="mode-btns">
-          <button class="mode-btn active" onclick="setMode('resonant',this)">◈ Resonant</button>
-          <button class="mode-btn" onclick="setMode('silent',this)">○ Silent</button>
-          <button class="mode-btn" onclick="setMode('expansive',this)">↗ Expansive</button>
-          <button class="mode-btn" onclick="setMode('friction',this)">⚡ Friction</button>
-          <button class="mode-btn" onclick="setMode('synthesis',this)">⊕ Synthesis</button>
+          <button class="mode-btn active" data-mode="resonant" onclick="setMode('resonant',this)">◈ Resonant</button>
+          <button class="mode-btn" data-mode="silent" onclick="setMode('silent',this)">○ Silent</button>
+          <button class="mode-btn" data-mode="expansive" onclick="setMode('expansive',this)">↗ Expansive</button>
+          <button class="mode-btn" data-mode="friction" onclick="setMode('friction',this)">⚡ Friction</button>
+          <button class="mode-btn" data-mode="synthesis" onclick="setMode('synthesis',this)">⊕ Synthesis</button>
         </div>
       </div>
       <div class="sidebar-section">
@@ -440,7 +440,10 @@ function renderRooms(rooms) {
       </div>
       <div class="room-card-footer">
         <span>${r.contributionCount} contributions</span>
-        <span style="letter-spacing:0.12em;color:var(--gold);opacity:0.7">${r.id}</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="letter-spacing:0.12em;color:var(--gold);opacity:0.7">${r.id}</span>
+          <span onclick="event.stopPropagation();deleteRoom('${r.id}')" style="color:var(--text-faint);cursor:pointer;font-size:13px" title="Delete room">✕</span>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -466,6 +469,12 @@ async function createRoom() {
   const data = await res.json();
   closeNewRoomModal();
   joinRoom(data.id);
+}
+
+async function deleteRoom(roomId) {
+  if (!confirm('Delete this space? This cannot be undone.')) return;
+  await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
+  loadRoomList();
 }
 
 async function joinByCode() {
@@ -560,7 +569,7 @@ function submit() {
 function setMode(mode, btn) {
   currentMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
 }
 
 // ── Folder Toggles ────────────────────────────
