@@ -101,7 +101,12 @@ const rooms = {};
 
 // ── Lobby Chat ─────────────────────────────────────────
 const lobbyChat = []; // rolling message board, max 200 messages
-const lobbyMembers = new Set(); // currently online in lobby
+const lobbySocketMap = new Map(); // socketId → playerName
+
+function lobbyMemberNames() {
+  // unique names only
+  return [...new Set(lobbySocketMap.values())];
+}
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -116,11 +121,17 @@ function getRoomList() {
     notes: r.notes || '',
     basin: r.basin?.name || 'Unknown',
     basinColor: r.basin?.color || '#c4a882',
-    memberCount: 0, // reset on restart - sockets are gone
+    memberCount: uniqueMembers(r).length,
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   }));
+}
+
+// Returns unique player names currently in a room based on live socket map
+function uniqueMembers(room) {
+  if (!room.socketMap) return [];
+  return [...new Set(Object.values(room.socketMap))];
 }
 
 async function loadRoomsFromDrive() {
@@ -133,7 +144,7 @@ async function loadRoomsFromDrive() {
     const saved = await readDriveFile(drive, fileId);
     if (saved && typeof saved === 'object') {
       Object.entries(saved).forEach(([id, room]) => {
-        rooms[id] = { ...room, members: [] }; // clear members on restart
+        rooms[id] = { ...room, socketMap: {} }; // clear live socket state on restart
       });
       console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive`);
     }
@@ -384,7 +395,8 @@ app.post('/api/rooms', (req, res) => {
     notes: req.body.notes || '',
     basin: req.body.basin || DEFAULT_BASINS[0],
     contributions: [],
-    members: [],
+    members: [],       // kept for Drive persistence of names
+    socketMap: {},     // socketId → playerName (live only, not persisted)
     activeFolders: req.body.activeFolders || [],
     folderMap: req.body.folderMap || {},
     saveFolderId: req.body.saveFolderId || null,
@@ -421,7 +433,7 @@ function sanitizeRoom(room) {
     notes: room.notes || '',
     basin: room.basin,
     contributions: room.contributions,
-    members: room.members,
+    members: uniqueMembers(room),
     activeFolders: room.activeFolders,
     folderMap: room.folderMap,
     createdAt: room.createdAt,
@@ -487,31 +499,24 @@ io.on('connection', (socket) => {
 
   // ── Lobby presence ──────────────────────────────────
   socket.on('lobby:join', ({ playerName: pName }) => {
-    lobbyMembers.add(pName);
+    lobbySocketMap.set(socket.id, pName);
     socket.join('__lobby__');
-    // Send history to joining member
-    socket.emit('lobby:history', { messages: lobbyChat, members: [...lobbyMembers] });
-    // Announce to others
+    socket.emit('lobby:history', { messages: lobbyChat, members: lobbyMemberNames() });
     socket.to('__lobby__').emit('lobby:member-joined', { playerName: pName });
-    io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+    io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
   });
 
   socket.on('lobby:leave', ({ playerName: pName }) => {
-    lobbyMembers.delete(pName);
+    lobbySocketMap.delete(socket.id);
     socket.leave('__lobby__');
     io.to('__lobby__').emit('lobby:member-left', { playerName: pName });
-    io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+    io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
   });
 
   socket.on('lobby:message', ({ playerName: pName, text }) => {
-    const msg = {
-      id: Date.now(),
-      author: pName,
-      text,
-      timestamp: new Date().toISOString()
-    };
+    const msg = { id: Date.now(), author: pName, text, timestamp: new Date().toISOString() };
     lobbyChat.push(msg);
-    if (lobbyChat.length > 200) lobbyChat.shift(); // rolling window
+    if (lobbyChat.length > 200) lobbyChat.shift();
     io.to('__lobby__').emit('lobby:message', msg);
   });
 
@@ -522,28 +527,17 @@ io.on('connection', (socket) => {
   // Join a room
   socket.on('room:join', ({ roomId, playerName }) => {
     const room = rooms[roomId];
-    if (!room) {
-      socket.emit('error', { message: 'Room not found' });
-      return;
-    }
+    if (!room) { socket.emit('error', { message: 'Room not found' }); return; }
 
     currentRoom = roomId;
     currentPlayer = playerName;
 
+    if (!room.socketMap) room.socketMap = {};
+    room.socketMap[socket.id] = playerName;
+
     socket.join(roomId);
-
-    // Add member if not already present
-    if (!room.members.includes(playerName)) {
-      room.members.push(playerName);
-    }
-
-    // Send full room state to the joining player
     socket.emit('room:state', sanitizeRoom(room));
-
-    // Notify others
     socket.to(roomId).emit('room:member-joined', { playerName });
-
-    // Update room list for everyone
     io.emit('rooms:updated', getRoomList());
   });
 
@@ -719,14 +713,31 @@ io.on('connection', (socket) => {
 
   // Disconnect
   socket.on('disconnect', () => {
-    if (currentPlayer) {
-      lobbyMembers.delete(currentPlayer);
-      io.to('__lobby__').emit('lobby:member-left', { playerName: currentPlayer });
-      io.to('__lobby__').emit('lobby:members', [...lobbyMembers]);
+    // Clean up lobby
+    if (lobbySocketMap.has(socket.id)) {
+      const pName = lobbySocketMap.get(socket.id);
+      lobbySocketMap.delete(socket.id);
+      // Only announce leave if no other sockets have this name
+      const stillPresent = [...lobbySocketMap.values()].includes(pName);
+      if (!stillPresent) {
+        io.to('__lobby__').emit('lobby:member-left', { playerName: pName });
+      }
+      io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
     }
-    if (currentRoom && currentPlayer && rooms[currentRoom]) {
-      rooms[currentRoom].members = rooms[currentRoom].members.filter(m => m !== currentPlayer);
-      socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
+
+    // Clean up room
+    if (currentRoom && rooms[currentRoom]) {
+      const room = rooms[currentRoom];
+      if (room.socketMap) delete room.socketMap[socket.id];
+
+      // Only announce leave if no other sockets have this name in this room
+      const stillInRoom = room.socketMap
+        ? Object.values(room.socketMap).includes(currentPlayer)
+        : false;
+
+      if (!stillInRoom && currentPlayer) {
+        socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
+      }
       io.emit('rooms:updated', getRoomList());
     }
   });
