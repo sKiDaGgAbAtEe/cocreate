@@ -12,10 +12,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
 // ── Google OAuth ───────────────────────────────────────
+const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  `http://localhost:${process.env.PORT || 3000}/auth/google/callback`
+  `${BASE_URL}/auth/google/callback`
 );
 
 let userTokens = null;
