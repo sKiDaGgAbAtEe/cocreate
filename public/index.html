@@ -588,7 +588,10 @@
         </div>
       </div>
       <div class="sidebar-section" style="flex:1">
-        <div class="sidebar-label">Knowledge Folders</div>
+        <div class="sidebar-label" style="display:flex;align-items:center;justify-content:space-between">
+          <span>Knowledge Folders</span>
+          <button onclick="refreshFolders()" title="Refresh folder list" style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:11px;padding:0;font-family:'Cinzel',serif;letter-spacing:0.06em" id="folderRefreshBtn">↺</button>
+        </div>
         <div class="folder-list" id="folderList"><div style="font-size:11px;color:var(--text-faint);font-style:italic">Connect Drive to enable</div></div>
       </div>
     </div>
@@ -735,6 +738,14 @@ function updateBasinPreview() {
   const sel = document.getElementById('newRoomBasin');
   const basin = basins.find(b => b.id === sel.value);
   document.getElementById('basinPreviewBox').textContent = basin?.description || '';
+}
+
+async function refreshFolders() {
+  const btn = document.getElementById('folderRefreshBtn');
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
+  await loadFolders();
+  if (currentRoom) renderFolderToggles(currentRoom);
+  if (btn) { btn.textContent = '↺'; btn.disabled = false; }
 }
 
 async function loadFolders() {
