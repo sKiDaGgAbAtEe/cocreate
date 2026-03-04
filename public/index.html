@@ -390,7 +390,7 @@
     <div class="drive-row">
       <div class="dot" id="driveDot"></div>
       <span id="driveLabel">Not connected</span>
-      <a class="drive-link" id="driveLink" href="/auth/google">Connect →</a>
+      <span id="driveLink" style="margin-left:auto"><a href="/auth/google" class="drive-link">Connect →</a></span>
     </div>
     <div class="landing-actions" style="margin-top:4px">
       <button class="btn-ghost" onclick="openAbout()" style="flex:0 0 auto;padding:11px 16px">About</button>
@@ -667,9 +667,6 @@ async function init() {
   document.getElementById('input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
   });
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('auth') === 'success') window.history.replaceState({}, '', '/');
-
   initLobbyChat();
 
   socket.on('room:basin-switched', ({ basin, sysMsg }) => {
@@ -705,15 +702,23 @@ async function init() {
 }
 
 async function checkAuth() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('auth') === 'logout') {
+    window.history.replaceState({}, '', '/');
+  }
+
   const res = await fetch('/auth/status');
   const data = await res.json();
   driveConnected = data.connected;
   document.getElementById('driveDot').classList.toggle('on', driveConnected);
-  document.getElementById('driveLabel').textContent = driveConnected ? 'Connected' : 'Not connected';
+
   if (driveConnected) {
-    document.getElementById('driveLink').textContent = '✓';
-    document.getElementById('driveLink').onclick = e => e.preventDefault();
+    document.getElementById('driveLabel').textContent = 'Connected';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
     await loadFolders();
+  } else {
+    document.getElementById('driveLabel').textContent = 'Not connected';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/google" style="color:var(--accent);font-size:13px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Connect →</a>';
   }
 }
 

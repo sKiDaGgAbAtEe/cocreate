@@ -56,6 +56,12 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
+app.get('/auth/logout', (req, res) => {
+  userTokens = null;
+  oauth2Client.revokeCredentials().catch(() => {}); // best effort
+  res.redirect('/?auth=logout');
+});
+
 app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
 
 // ── Room State (persisted to Drive) ────────────────────
@@ -211,6 +217,23 @@ async function writeDriveFile(drive, fileName, parentId, content) {
 async function getDrive() {
   if (!userTokens) return null;
   oauth2Client.setCredentials(userTokens);
+
+  // Auto-refresh if token is expired or expires within 5 minutes
+  const expiryDate = userTokens.expiry_date;
+  const fiveMin = 5 * 60 * 1000;
+  if (expiryDate && Date.now() > expiryDate - fiveMin) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      userTokens = credentials;
+      oauth2Client.setCredentials(credentials);
+      console.log('OAuth token refreshed');
+    } catch (e) {
+      console.error('Token refresh failed:', e.message);
+      userTokens = null;
+      return null;
+    }
+  }
+
   return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
