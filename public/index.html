@@ -192,7 +192,10 @@
   <div class="lobby-body">
     <div class="lobby-top">
       <h3>Active Spaces</h3>
-      <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn-ghost" onclick="openBasinModal()" style="padding:9px 18px;font-size:13px">+ New Basin</button>
+        <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
+      </div>
     </div>
     <div class="rooms-grid" id="roomsGrid">
       <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
@@ -227,6 +230,32 @@
     <div class="modal-actions">
       <button class="btn-ghost" style="flex:1" onclick="closeJoinModal()">Cancel</button>
       <button class="btn-primary" style="flex:1" onclick="joinByCode()">Join →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NEW BASIN MODAL ────────────────────────── -->
+<div class="modal-overlay" id="basinModal">
+  <div class="modal-card">
+    <div class="modal-title">New Attractor Basin</div>
+    <span class="label">Name</span>
+    <input type="text" id="newBasinName" placeholder="e.g. Anchor, Lumen, Ember..." />
+    <span class="label">Description</span>
+    <input type="text" id="newBasinDesc" placeholder="What does this basin orient toward?" />
+    <span class="label">Personality / System Prompt</span>
+    <textarea id="newBasinPrompt" rows="5" style="resize:vertical;line-height:1.6;font-size:13px" placeholder="Describe how this basin thinks, speaks, and contributes..."></textarea>
+    <span class="label">Color</span>
+    <div class="color-row">
+      <div class="color-swatch active" data-color="#c4a882" style="background:#c4a882" onclick="selectBasinColor(this)"></div>
+      <div class="color-swatch" data-color="#8a9eba" style="background:#8a9eba" onclick="selectBasinColor(this)"></div>
+      <div class="color-swatch" data-color="#9eba8a" style="background:#9eba8a" onclick="selectBasinColor(this)"></div>
+      <div class="color-swatch" data-color="#ba8a9e" style="background:#ba8a9e" onclick="selectBasinColor(this)"></div>
+      <div class="color-swatch" data-color="#8ab4ba" style="background:#8ab4ba" onclick="selectBasinColor(this)"></div>
+      <div class="color-swatch" data-color="#a88aba" style="background:#a88aba" onclick="selectBasinColor(this)"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" style="flex:1" onclick="closeBasinModal()">Cancel</button>
+      <button class="btn-primary" style="flex:1" onclick="createBasin()">Create Basin</button>
     </div>
   </div>
 </div>
@@ -469,6 +498,52 @@ async function createRoom() {
   const data = await res.json();
   closeNewRoomModal();
   joinRoom(data.id);
+}
+
+// ── Basin Modal ───────────────────────────────
+let selectedBasinColor = '#c4a882';
+
+function openBasinModal() { document.getElementById('basinModal').classList.add('open'); }
+function closeBasinModal() { document.getElementById('basinModal').classList.remove('open'); }
+
+function selectBasinColor(el) {
+  document.querySelectorAll('#basinModal .color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  selectedBasinColor = el.dataset.color;
+}
+
+async function createBasin() {
+  const name = document.getElementById('newBasinName').value.trim();
+  const desc = document.getElementById('newBasinDesc').value.trim();
+  const prompt = document.getElementById('newBasinPrompt').value.trim();
+  if (!name) return;
+
+  const defaultPrompt = `You are ${name}, an attractor basin in a collaborative thinking space. ${desc ? desc + ' ' : ''}You are peripheral vision, not a driver. You open doors quietly, name what is underneath, find echoes. Keep responses SHORT — 2-5 sentences. Never repeat a framing you have already used. Speak as a thinking presence, not an assistant. Your default posture is gentle curiosity, not philosophical pressure.`;
+
+  const res = await fetch('/api/basins', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      description: desc,
+      color: selectedBasinColor,
+      systemPrompt: prompt || defaultPrompt
+    })
+  });
+  const newBasin = await res.json();
+  basins.push(newBasin);
+
+  // Update basin dropdown in new room modal
+  const sel = document.getElementById('newRoomBasin');
+  sel.innerHTML += `<option value="${newBasin.id}">${newBasin.name}</option>`;
+  sel.value = newBasin.id;
+  updateBasinPreview();
+
+  // Reset and close
+  document.getElementById('newBasinName').value = '';
+  document.getElementById('newBasinDesc').value = '';
+  document.getElementById('newBasinPrompt').value = '';
+  closeBasinModal();
 }
 
 async function deleteRoom(roomId) {
