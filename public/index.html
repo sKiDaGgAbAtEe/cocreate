@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CoCreate</title>
+  <script src="/socket.io/socket.io.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -16,203 +17,238 @@
     }
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Georgia', serif; }
 
-    /* ── HOME ─────────────────────── */
-    #home { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; gap: 14px; }
+    /* ── SHARED ───────────────────── */
+    .page { display: none; }
+    .page.active { display: flex; }
+    input[type="text"], select, textarea {
+      background: var(--bg); border: 1px solid var(--border2); border-radius: 8px;
+      padding: 11px 13px; color: var(--text); font-size: 14px; font-family: 'Georgia', serif;
+      outline: none; width: 100%; transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--gold); }
+    select option { background: var(--bg3); }
+    .btn-primary { background: var(--gold); color: var(--bg); border: none; border-radius: 8px; padding: 12px 20px; font-size: 14px; letter-spacing: 0.06em; cursor: pointer; font-family: 'Georgia', serif; transition: opacity 0.2s; }
+    .btn-primary:disabled { opacity: 0.3; cursor: default; }
+    .btn-ghost { background: none; border: 1px solid var(--border2); border-radius: 8px; padding: 10px 16px; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: 'Georgia', serif; transition: all 0.2s; }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    .label { font-size: 10px; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; display: block; }
+    .card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 14px; padding: 24px; }
+
+    /* ── LANDING ──────────────────── */
+    #landing { flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 20px; gap: 12px; }
     .logo { font-size: 52px; color: var(--gold); animation: pulse 3s ease-in-out infinite; line-height: 1; }
     h1.title { font-size: 40px; font-weight: normal; letter-spacing: 0.15em; }
-    .subtitle { font-size: 13px; color: var(--text-muted); letter-spacing: 0.1em; margin-bottom: 6px; }
-    .card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 14px; padding: 26px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
-    .card-title { font-size: 10px; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; margin-bottom: 2px; }
-    input[type="text"], select { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 11px 13px; color: var(--text); font-size: 14px; font-family: 'Georgia', serif; outline: none; width: 100%; transition: border-color 0.2s; }
-    input[type="text"]:focus, select:focus { border-color: var(--gold); }
-    select option { background: var(--bg3); }
-    .basin-preview { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 11px 13px; font-size: 13px; color: var(--text-muted); line-height: 1.5; min-height: 48px; }
-    .basin-name-tag { font-size: 11px; color: var(--basin-color); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: var(--text-muted); letter-spacing: 0.1em; margin-bottom: 8px; }
+    .landing-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+    .name-row { display: flex; gap: 10px; align-items: flex-end; }
+    .name-row input { flex: 1; }
     .drive-row { display: flex; align-items: center; gap: 10px; padding: 10px 13px; background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; font-size: 13px; color: var(--text-muted); }
     .dot { width: 7px; height: 7px; border-radius: 50%; background: #444; flex-shrink: 0; }
     .dot.on { background: var(--green); }
     .drive-link { color: var(--gold); cursor: pointer; text-decoration: underline; font-size: 12px; margin-left: auto; }
-    .btn-primary { background: var(--gold); color: var(--bg); border: none; border-radius: 8px; padding: 13px; font-size: 14px; letter-spacing: 0.06em; cursor: pointer; font-family: 'Georgia', serif; transition: opacity 0.2s; width: 100%; margin-top: 4px; }
-    .btn-primary:disabled { opacity: 0.3; cursor: default; }
-    .btn-ghost { background: none; border: 1px solid var(--border2); border-radius: 8px; padding: 10px 13px; color: var(--text-muted); font-size: 13px; cursor: pointer; font-family: 'Georgia', serif; width: 100%; transition: border-color 0.2s; }
-    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); }
+    .landing-actions { display: flex; gap: 10px; }
+    .landing-actions .btn-primary { flex: 1; }
+    .landing-actions .btn-ghost { flex: 1; }
     .hint { font-size: 11px; color: var(--text-faint); letter-spacing: 0.06em; text-align: center; }
 
-    /* ── NEW BASIN MODAL ──────────── */
-    #basinModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
-    #basinModal.open { display: flex; }
-    .modal-card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 14px; padding: 28px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
-    .modal-title { font-size: 16px; letter-spacing: 0.1em; margin-bottom: 4px; }
-    textarea.system-prompt { background: var(--bg); border: 1px solid var(--border2); border-radius: 8px; padding: 11px 13px; color: var(--text); font-size: 13px; font-family: 'Georgia', serif; outline: none; width: 100%; resize: vertical; min-height: 120px; line-height: 1.6; }
-    .color-row { display: flex; gap: 10px; align-items: center; }
-    .color-swatch { width: 28px; height: 28px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; flex-shrink: 0; }
-    .color-swatch.active { border-color: white; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 4px; }
-    .modal-actions .btn-primary { margin-top: 0; }
+    /* ── LOBBY ────────────────────── */
+    #lobby { flex-direction: column; min-height: 100vh; }
+    .lobby-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--bg2); }
+    .lobby-title { display: flex; align-items: center; gap: 12px; }
+    .lobby-title .logo-sm { font-size: 24px; color: var(--gold); }
+    .lobby-title h2 { font-size: 18px; font-weight: normal; letter-spacing: 0.1em; }
+    .player-pill { font-size: 11px; color: var(--gold); letter-spacing: 0.08em; background: var(--gold-dim); border: 1px solid var(--gold); border-radius: 20px; padding: 4px 12px; }
+    .lobby-body { flex: 1; padding: 28px 24px; max-width: 900px; margin: 0 auto; width: 100%; }
+    .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .lobby-top h3 { font-size: 14px; font-weight: normal; letter-spacing: 0.1em; color: var(--text-muted); }
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+    .room-card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 12px; padding: 18px; cursor: pointer; transition: border-color 0.2s; }
+    .room-card:hover { border-color: var(--gold); }
+    .room-card-title { font-size: 15px; letter-spacing: 0.06em; margin-bottom: 6px; }
+    .room-card-meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; }
+    .basin-badge { display: flex; align-items: center; gap: 5px; }
+    .basin-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .room-card-footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-faint); }
+    .empty-rooms { padding: 60px 0; text-align: center; color: var(--text-faint); font-size: 14px; line-height: 2; opacity: 0.5; }
 
-    /* ── SESSION LAYOUT ───────────── */
-    #session { display: none; flex-direction: column; height: 100vh; }
+    /* ── NEW ROOM MODAL ───────────── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-card { background: var(--bg3); border: 1px solid var(--border2); border-radius: 14px; padding: 28px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; }
+    .modal-title { font-size: 16px; letter-spacing: 0.08em; margin-bottom: 4px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    .color-row { display: flex; gap: 8px; }
+    .color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
+    .color-swatch.active { border-color: white; }
+
+    /* ── SESSION ──────────────────── */
+    #session { flex-direction: column; height: 100vh; }
     .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; gap: 12px; }
     .back-btn { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 4px 8px; flex-shrink: 0; }
-    .header-center { display: flex; flex-direction: column; align-items: center; gap: 1px; flex: 1; min-width: 0; }
+    .header-center { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 0; }
     .session-name { font-size: 14px; letter-spacing: 0.1em; }
     .basin-tag { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
-    .save-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-size: 11px; padding: 6px 12px; cursor: pointer; font-family: 'Georgia', serif; letter-spacing: 0.05em; flex-shrink: 0; transition: all 0.2s; white-space: nowrap; }
+    .header-right { display: flex; align-items: center; gap: 8px; }
+    .save-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-size: 11px; padding: 6px 12px; cursor: pointer; font-family: 'Georgia', serif; transition: all 0.2s; white-space: nowrap; }
     .save-btn:hover { border-color: var(--gold); color: var(--gold); }
     .save-btn.saved { color: var(--green); border-color: var(--green); }
-
-    /* ── MAIN AREA ────────────────── */
+    .room-code { font-size: 10px; color: var(--text-faint); letter-spacing: 0.12em; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; cursor: pointer; transition: color 0.2s; }
+    .room-code:hover { color: var(--gold); }
     .main { display: flex; flex: 1; overflow: hidden; }
 
     /* ── SIDEBAR ──────────────────── */
-    .sidebar { width: 220px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; overflow-y: auto; }
-    .sidebar-section { padding: 14px 14px 10px; border-bottom: 1px solid var(--border); }
-    .sidebar-label { font-size: 9px; letter-spacing: 0.16em; color: var(--text-faint); text-transform: uppercase; margin-bottom: 10px; }
-
-    /* Basin info */
-    .basin-info { display: flex; flex-direction: column; gap: 6px; }
-    .basin-dot-name { display: flex; align-items: center; gap: 8px; }
-    .basin-circle { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .basin-label { font-size: 13px; letter-spacing: 0.06em; }
+    .sidebar { width: 210px; flex-shrink: 0; border-right: 1px solid var(--border); background: var(--bg2); display: flex; flex-direction: column; overflow-y: auto; }
+    .sidebar-section { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); }
+    .sidebar-label { font-size: 9px; letter-spacing: 0.16em; color: var(--text-faint); text-transform: uppercase; margin-bottom: 8px; }
+    .basin-info { display: flex; flex-direction: column; gap: 5px; }
+    .basin-dot-name { display: flex; align-items: center; gap: 7px; }
+    .basin-circle { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .basin-label { font-size: 13px; }
     .basin-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
-
-    /* Mode selector */
-    .mode-btns { display: flex; flex-direction: column; gap: 5px; }
-    .mode-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 7px 10px; color: var(--text-muted); font-size: 12px; cursor: pointer; font-family: 'Georgia', serif; text-align: left; transition: all 0.2s; }
-    .mode-btn:hover { border-color: var(--text-muted); color: var(--text-dim); }
+    .members-list { display: flex; flex-direction: column; gap: 5px; }
+    .member-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-muted); }
+    .member-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .mode-btns { display: flex; flex-direction: column; gap: 4px; }
+    .mode-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 6px 10px; color: var(--text-muted); font-size: 11px; cursor: pointer; font-family: 'Georgia', serif; text-align: left; transition: all 0.2s; }
+    .mode-btn:hover { border-color: var(--text-muted); }
     .mode-btn.active { border-color: var(--basin-color); color: var(--basin-color); background: var(--gold-dim); }
-
-    /* Sliders */
-    .slider-row { display: flex; flex-direction: column; gap: 5px; }
-    .slider-label-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); }
-    input[type="range"] { width: 100%; accent-color: var(--basin-color); }
-
-    /* Folder toggles */
-    .folder-list { display: flex; flex-direction: column; gap: 6px; }
-    .folder-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 5px 0; }
-    .toggle-box { width: 16px; height: 16px; border: 1px solid var(--border2); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: all 0.2s; font-size: 11px; }
+    .slider-row { display: flex; flex-direction: column; gap: 4px; }
+    .slider-label-row { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-muted); }
+    input[type="range"] { width: 100%; accent-color: var(--basin-color); padding: 0; border: none; background: none; }
+    .folder-list { display: flex; flex-direction: column; gap: 5px; }
+    .folder-toggle { display: flex; align-items: center; gap: 7px; cursor: pointer; padding: 4px 0; }
+    .toggle-box { width: 15px; height: 15px; border: 1px solid var(--border2); border-radius: 3px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; transition: all 0.2s; }
     .toggle-box.checked { background: var(--basin-color); border-color: var(--basin-color); color: var(--bg); }
-    .folder-name { font-size: 12px; color: var(--text-muted); line-height: 1.3; }
-    .folder-toggle:hover .folder-name { color: var(--text-dim); }
-    .no-folders { font-size: 11px; color: var(--text-faint); font-style: italic; }
+    .folder-name { font-size: 11px; color: var(--text-muted); }
 
     /* ── CANVAS ───────────────────── */
     .canvas-wrap { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-    .canvas { flex: 1; overflow-y: auto; padding: 24px 20px; display: flex; flex-direction: column; gap: 16px; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 14px; opacity: 0.3; padding: 60px 0; }
-    .empty-glyph { font-size: 38px; }
+    .canvas { flex: 1; overflow-y: auto; padding: 22px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; opacity: 0.3; padding: 60px 0; }
+    .empty-glyph { font-size: 36px; }
     .empty-text { font-size: 13px; color: var(--text-muted); text-align: center; line-height: 1.9; letter-spacing: 0.06em; }
-
-    /* Bubbles */
-    .bubble { border-radius: 12px; padding: 14px 16px; max-width: 82%; animation: fadeUp 0.3s ease forwards; opacity: 0; }
+    .bubble { border-radius: 12px; padding: 13px 15px; max-width: 82%; animation: fadeUp 0.3s ease forwards; opacity: 0; }
     .bubble.human { background: var(--bg3); border: 1px solid var(--border); align-self: flex-end; }
     .bubble.resonance { background: #0f0e18; border: 1px solid var(--gold-dim); border-left: 2px solid var(--basin-color); align-self: flex-start; }
-    .bubble.system-msg { background: transparent; border: none; align-self: center; padding: 4px 0; }
-    .author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .bubble.system { background: transparent; border: none; align-self: center; padding: 2px 0; }
+    .bubble.human.mine { border-color: var(--gold-dim); }
+    .author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
     .author { font-size: 10px; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; }
     .ts { font-size: 10px; color: var(--text-faint); }
-    .human-text { font-size: 15px; line-height: 1.75; color: var(--text-dim); }
-    .res-glyph { font-size: 12px; color: var(--basin-color); margin-bottom: 7px; letter-spacing: 0.1em; }
-    .res-text { font-size: 14px; line-height: 1.85; color: var(--resonance); font-style: italic; }
-    .sys-text { font-size: 11px; color: var(--text-faint); letter-spacing: 0.08em; text-align: center; font-style: italic; }
+    .human-text { font-size: 14px; line-height: 1.75; color: var(--text-dim); }
+    .res-glyph { font-size: 11px; color: var(--basin-color); margin-bottom: 6px; letter-spacing: 0.1em; }
+    .res-text { font-size: 13px; line-height: 1.85; color: var(--resonance); font-style: italic; }
+    .sys-text { font-size: 11px; color: var(--text-faint); letter-spacing: 0.06em; text-align: center; font-style: italic; }
+    .typing-indicator { font-size: 11px; color: var(--text-faint); font-style: italic; padding: 2px 0; align-self: flex-start; animation: fadeUp 0.2s ease forwards; opacity: 0; }
     .thinking-wrap { display: flex; gap: 5px; align-items: center; padding: 3px 0; }
     .tdot { width: 5px; height: 5px; border-radius: 50%; background: var(--basin-color); opacity: 0.4; animation: dotPulse 1.2s ease-in-out infinite; }
     .tdot:nth-child(2) { animation-delay: 0.2s; }
     .tdot:nth-child(3) { animation-delay: 0.4s; }
-
-    /* Input */
-    .input-area { display: flex; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; align-items: flex-end; }
-    textarea#input { flex: 1; background: var(--bg3); border: 1px solid var(--border2); border-radius: 10px; padding: 11px 13px; color: var(--text); font-size: 15px; font-family: 'Georgia', serif; outline: none; resize: none; line-height: 1.6; transition: border-color 0.2s; }
-    textarea#input:focus { border-color: var(--gold); }
-    textarea#input::placeholder { color: var(--text-faint); }
-    .send-btn { background: var(--gold); color: var(--bg); border: none; border-radius: 10px; width: 44px; height: 44px; font-size: 20px; cursor: pointer; flex-shrink: 0; transition: opacity 0.2s; }
+    .input-area { display: flex; gap: 10px; padding: 13px 18px; border-top: 1px solid var(--border); background: var(--bg2); flex-shrink: 0; align-items: flex-end; }
+    textarea#input { flex: 1; resize: none; line-height: 1.6; font-size: 14px; border-radius: 10px; }
+    .send-btn { background: var(--gold); color: var(--bg); border: none; border-radius: 10px; width: 42px; height: 42px; font-size: 20px; cursor: pointer; flex-shrink: 0; transition: opacity 0.2s; }
     .send-btn:disabled { opacity: 0.25; cursor: default; }
 
-    @keyframes fadeUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     @keyframes pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
     @keyframes dotPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:.85;transform:scale(1.2)} }
   </style>
 </head>
 <body>
 
-<!-- ── HOME ──────────────────────────────────── -->
-<div id="home">
+<!-- ── LANDING ────────────────────────────────── -->
+<div id="landing" class="page active">
   <div class="logo">◈</div>
   <h1 class="title">CoCreate</h1>
   <p class="subtitle">A space for collaborating minds</p>
-
-  <div class="card">
-    <div class="card-title">Your name</div>
+  <div class="landing-card card">
+    <span class="label">Your name</span>
     <input type="text" id="playerName" placeholder="What do they call you?" />
-
-    <div class="card-title">Session title</div>
-    <input type="text" id="sessionTitle" placeholder="Name this space..." />
-
-    <div class="card-title">Attractor basin</div>
-    <select id="basinSelect" onchange="onBasinChange()"></select>
-    <div class="basin-preview" id="basinPreview">
-      <div class="basin-name-tag" id="previewName"></div>
-      <div id="previewDesc"></div>
-    </div>
-
-    <div class="card-title">Save sessions to</div>
-    <select id="saveFolderSelect"><option value="">— select folder —</option></select>
-
-    <div class="card-title">Google Drive</div>
+    <span class="label">Google Drive</span>
     <div class="drive-row">
       <div class="dot" id="driveDot"></div>
       <span id="driveLabel">Not connected</span>
       <a class="drive-link" id="driveLink" href="/auth/google">Connect →</a>
     </div>
-
-    <button class="btn-primary" id="startBtn" disabled onclick="startSession()">Open the space →</button>
-    <button class="btn-ghost" onclick="openBasinModal()">+ Create new attractor basin</button>
+    <div class="landing-actions" style="margin-top:4px">
+      <button class="btn-primary" id="enterBtn" disabled onclick="enterLobby()">Enter →</button>
+    </div>
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
 </div>
 
-<!-- ── NEW BASIN MODAL ───────────────────────── -->
-<div id="basinModal">
-  <div class="modal-card">
-    <div class="modal-title">New Attractor Basin</div>
-    <div class="card-title">Name</div>
-    <input type="text" id="newBasinName" placeholder="e.g. Anchor, Lumen, Ember..." />
-    <div class="card-title">Description</div>
-    <input type="text" id="newBasinDesc" placeholder="What does this basin orient toward?" />
-    <div class="card-title">Personality / System Prompt</div>
-    <textarea class="system-prompt" id="newBasinPrompt" placeholder="Describe how this basin thinks, speaks, and contributes..."></textarea>
-    <div class="card-title">Color</div>
-    <div class="color-row" id="colorRow">
-      <div class="color-swatch active" data-color="#c4a882" style="background:#c4a882" onclick="selectColor(this)"></div>
-      <div class="color-swatch" data-color="#8a9eba" style="background:#8a9eba" onclick="selectColor(this)"></div>
-      <div class="color-swatch" data-color="#9eba8a" style="background:#9eba8a" onclick="selectColor(this)"></div>
-      <div class="color-swatch" data-color="#ba8a9e" style="background:#ba8a9e" onclick="selectColor(this)"></div>
-      <div class="color-swatch" data-color="#8ab4ba" style="background:#8ab4ba" onclick="selectColor(this)"></div>
+<!-- ── LOBBY ──────────────────────────────────── -->
+<div id="lobby" class="page">
+  <div class="lobby-header">
+    <div class="lobby-title">
+      <span class="logo-sm">◈</span>
+      <h2>CoCreate</h2>
     </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="player-pill" id="lobbyPlayerName"></span>
+      <button class="btn-ghost" onclick="showPage('landing')" style="padding:6px 12px;font-size:12px">← Back</button>
+    </div>
+  </div>
+  <div class="lobby-body">
+    <div class="lobby-top">
+      <h3>Active Spaces</h3>
+      <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
+    </div>
+    <div class="rooms-grid" id="roomsGrid">
+      <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── NEW ROOM MODAL ─────────────────────────── -->
+<div class="modal-overlay" id="newRoomModal">
+  <div class="modal-card">
+    <div class="modal-title">New Space</div>
+    <span class="label">Title</span>
+    <input type="text" id="newRoomTitle" placeholder="Name this space..." />
+    <span class="label">Attractor Basin</span>
+    <select id="newRoomBasin"></select>
+    <div id="basinPreviewBox" style="font-size:12px;color:var(--text-muted);line-height:1.5;padding:8px;background:var(--bg);border-radius:6px;min-height:36px"></div>
+    <span class="label">Save sessions to</span>
+    <select id="newRoomSaveFolder"><option value="">— CoCreate folder (default) —</option></select>
     <div class="modal-actions">
-      <button class="btn-ghost" style="flex:1" onclick="closeBasinModal()">Cancel</button>
-      <button class="btn-primary" style="flex:1" onclick="createBasin()">Create Basin</button>
+      <button class="btn-ghost" style="flex:1" onclick="closeNewRoomModal()">Cancel</button>
+      <button class="btn-primary" style="flex:1" onclick="createRoom()">Open Space</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── JOIN ROOM MODAL ────────────────────────── -->
+<div class="modal-overlay" id="joinRoomModal">
+  <div class="modal-card">
+    <div class="modal-title">Join a Space</div>
+    <p style="font-size:13px;color:var(--text-muted);line-height:1.6">Enter the room code shared with you:</p>
+    <input type="text" id="joinRoomCode" placeholder="e.g. AB3X7K" style="text-transform:uppercase;letter-spacing:0.2em;font-size:18px;text-align:center" />
+    <div class="modal-actions">
+      <button class="btn-ghost" style="flex:1" onclick="closeJoinModal()">Cancel</button>
+      <button class="btn-primary" style="flex:1" onclick="joinByCode()">Join →</button>
     </div>
   </div>
 </div>
 
 <!-- ── SESSION ────────────────────────────────── -->
-<div id="session">
+<div id="session" class="page">
   <div class="header">
-    <button class="back-btn" onclick="goHome()">←</button>
+    <button class="back-btn" onclick="leaveRoom()">←</button>
     <div class="header-center">
       <span class="session-name" id="headerTitle"></span>
       <span class="basin-tag" id="headerBasin" style="color:var(--basin-color)"></span>
     </div>
-    <button class="save-btn" id="saveBtn" onclick="saveSession()">save ↑</button>
+    <div class="header-right">
+      <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
+      <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
+    </div>
   </div>
 
   <div class="main">
-    <!-- Sidebar -->
     <div class="sidebar">
-      <!-- Basin info -->
       <div class="sidebar-section">
-        <div class="sidebar-label">Active Basin</div>
+        <div class="sidebar-label">Basin</div>
         <div class="basin-info">
           <div class="basin-dot-name">
             <div class="basin-circle" id="sideBasinCircle"></div>
@@ -221,51 +257,37 @@
           <div class="basin-desc" id="sideBasinDesc"></div>
         </div>
       </div>
-
-      <!-- Mode -->
+      <div class="sidebar-section">
+        <div class="sidebar-label">In the Space</div>
+        <div class="members-list" id="membersList"></div>
+      </div>
       <div class="sidebar-section">
         <div class="sidebar-label">Mode</div>
         <div class="mode-btns">
-          <button class="mode-btn active" onclick="setMode('resonant', this)">◈ Resonant</button>
-          <button class="mode-btn" onclick="setMode('silent', this)">○ Silent / Note-take</button>
-          <button class="mode-btn" onclick="setMode('expansive', this)">↗ Expansive</button>
-          <button class="mode-btn" onclick="setMode('friction', this)">⚡ Friction</button>
-          <button class="mode-btn" onclick="setMode('synthesis', this)">⊕ Synthesis</button>
+          <button class="mode-btn active" onclick="setMode('resonant',this)">◈ Resonant</button>
+          <button class="mode-btn" onclick="setMode('silent',this)">○ Silent</button>
+          <button class="mode-btn" onclick="setMode('expansive',this)">↗ Expansive</button>
+          <button class="mode-btn" onclick="setMode('friction',this)">⚡ Friction</button>
+          <button class="mode-btn" onclick="setMode('synthesis',this)">⊕ Synthesis</button>
         </div>
       </div>
-
-      <!-- Intensity -->
       <div class="sidebar-section">
-        <div class="sidebar-label">Voice Intensity</div>
+        <div class="sidebar-label">Intensity</div>
         <div class="slider-row">
           <div class="slider-label-row"><span>Sparse</span><span id="intensityVal">5</span><span>Full</span></div>
           <input type="range" min="1" max="10" value="5" id="intensitySlider" oninput="document.getElementById('intensityVal').textContent=this.value" />
         </div>
       </div>
-
-      <!-- Temperature -->
-      <div class="sidebar-section">
-        <div class="sidebar-label">Temperature</div>
-        <div class="slider-row">
-          <div class="slider-label-row"><span>Focused</span><span id="tempVal">0.7</span><span>Wild</span></div>
-          <input type="range" min="0" max="10" value="7" id="tempSlider" oninput="document.getElementById('tempVal').textContent=(this.value/10).toFixed(1)" />
-        </div>
-      </div>
-
-      <!-- Folder toggles -->
       <div class="sidebar-section" style="flex:1">
         <div class="sidebar-label">Knowledge Folders</div>
-        <div class="folder-list" id="folderList">
-          <div class="no-folders">Connect Google Drive to enable</div>
-        </div>
+        <div class="folder-list" id="folderList"><div style="font-size:11px;color:var(--text-faint);font-style:italic">Connect Drive to enable</div></div>
       </div>
     </div>
 
-    <!-- Canvas -->
     <div class="canvas-wrap">
       <div class="canvas" id="canvas">
         <div class="empty-state" id="emptyState">
-          <span class="empty-glyph" id="emptyGlyph">◈</span>
+          <span class="empty-glyph">◈</span>
           <p class="empty-text">The space is open.<br/>Add the first thought.</p>
         </div>
       </div>
@@ -279,62 +301,93 @@
 
 <script>
 // ── State ─────────────────────────────────────
-let contributions = [];
+const socket = io();
 let playerName = '';
-let sessionTitle = '';
 let driveConnected = false;
-let activeFolders = new Set();
-let folderMap = {}; // name -> id
 let allFolders = [];
+let folderMap = {};
 let basins = [];
-let activeBasin = null;
+let currentRoom = null;
 let currentMode = 'resonant';
-let isThinking = false;
-let selectedColor = '#c4a882';
-let saveFolderId = null;
+let typingTimer = null;
+let thinkingEl = null;
+let typingEl = null;
 
 // ── Init ──────────────────────────────────────
 async function init() {
   await checkAuth();
   await loadBasins();
-  if (driveConnected) {
-    await loadFolders();
-  }
-  document.getElementById('playerName').addEventListener('input', updateStartBtn);
-  document.getElementById('sessionTitle').addEventListener('input', updateStartBtn);
-  document.getElementById('sessionTitle').addEventListener('keydown', e => { if(e.key==='Enter') startSession(); });
+  document.getElementById('playerName').addEventListener('input', () => {
+    document.getElementById('enterBtn').disabled = !document.getElementById('playerName').value.trim();
+  });
   document.getElementById('input').addEventListener('input', () => {
-    document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim() || isThinking;
+    document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim();
+    if (currentRoom) {
+      socket.emit('room:typing', { roomId: currentRoom.id, playerName, isTyping: true });
+      clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => {
+        socket.emit('room:typing', { roomId: currentRoom.id, playerName, isTyping: false });
+      }, 1500);
+    }
   });
   document.getElementById('input').addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
   });
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('auth') === 'success') window.history.replaceState({}, '', '/');
+
+  // Socket listeners
+  socket.on('rooms:updated', renderRooms);
+  socket.on('room:state', onRoomState);
+  socket.on('room:contribution', onContribution);
+  socket.on('room:thinking', onThinking);
+  socket.on('room:member-joined', ({ playerName: name }) => {
+    renderSystemMsg(`${name} entered the space`);
+    loadRoomMembers();
+  });
+  socket.on('room:member-left', ({ playerName: name }) => {
+    renderSystemMsg(`${name} left the space`);
+    loadRoomMembers();
+  });
+  socket.on('room:typing', ({ playerName: name, isTyping }) => {
+    if (name === playerName) return;
+    if (typingEl) typingEl.remove();
+    if (isTyping) {
+      typingEl = document.createElement('div');
+      typingEl.className = 'typing-indicator';
+      typingEl.textContent = `${name} is writing...`;
+      document.getElementById('canvas').appendChild(typingEl);
+      typingEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  });
 }
 
 async function checkAuth() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('auth') === 'success') window.history.replaceState({}, '', '/');
   const res = await fetch('/auth/status');
   const data = await res.json();
   driveConnected = data.connected;
-  const dot = document.getElementById('driveDot');
-  const label = document.getElementById('driveLabel');
-  const link = document.getElementById('driveLink');
+  document.getElementById('driveDot').classList.toggle('on', driveConnected);
+  document.getElementById('driveLabel').textContent = driveConnected ? 'Connected' : 'Not connected';
   if (driveConnected) {
-    dot.classList.add('on');
-    label.textContent = 'Connected';
-    link.textContent = '✓';
-    link.onclick = e => e.preventDefault();
+    document.getElementById('driveLink').textContent = '✓';
+    document.getElementById('driveLink').onclick = e => e.preventDefault();
+    await loadFolders();
   }
-  updateStartBtn();
 }
 
 async function loadBasins() {
   const res = await fetch('/api/basins');
   basins = await res.json();
-  const sel = document.getElementById('basinSelect');
+  const sel = document.getElementById('newRoomBasin');
   sel.innerHTML = basins.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-  onBasinChange();
+  sel.onchange = updateBasinPreview;
+  updateBasinPreview();
+}
+
+function updateBasinPreview() {
+  const sel = document.getElementById('newRoomBasin');
+  const basin = basins.find(b => b.id === sel.value);
+  document.getElementById('basinPreviewBox').textContent = basin?.description || '';
 }
 
 async function loadFolders() {
@@ -343,310 +396,263 @@ async function loadFolders() {
   allFolders = data.folders || [];
   folderMap = {};
   allFolders.forEach(f => { folderMap[f.name] = f.id; });
-
-  // Populate save folder dropdown
-  const saveSel = document.getElementById('saveFolderSelect');
-  saveSel.innerHTML = '<option value="">— select folder —</option>' +
-    allFolders.map(f => `<option value="${f.id}" ${f.name === 'CoCreate' ? 'selected' : ''}>${f.name}</option>`).join('');
-  saveSel.addEventListener('change', () => { saveFolderId = saveSel.value || null; });
-  saveFolderId = allFolders.find(f => f.name === 'CoCreate')?.id || null;
+  const saveSel = document.getElementById('newRoomSaveFolder');
+  saveSel.innerHTML = '<option value="">— CoCreate folder (default) —</option>' +
+    allFolders.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
 }
 
-function onBasinChange() {
-  const sel = document.getElementById('basinSelect');
-  activeBasin = basins.find(b => b.id === sel.value) || basins[0];
-  if (!activeBasin) return;
-  document.getElementById('previewName').textContent = activeBasin.name;
-  document.getElementById('previewDesc').textContent = activeBasin.description;
-  document.documentElement.style.setProperty('--basin-color', activeBasin.color);
-  updateStartBtn();
+// ── Pages ─────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
 
-function updateStartBtn() {
-  const name = document.getElementById('playerName').value.trim();
-  const title = document.getElementById('sessionTitle').value.trim();
-  document.getElementById('startBtn').disabled = !(name && title && activeBasin);
-}
-
-// ── Session ───────────────────────────────────
-function startSession() {
+function enterLobby() {
   playerName = document.getElementById('playerName').value.trim();
-  sessionTitle = document.getElementById('sessionTitle').value.trim();
-  if (!playerName || !sessionTitle || !activeBasin) return;
-
-  contributions = [];
-  activeFolders = new Set(activeBasin.defaultFolders || []);
-
-  // Update header
-  document.getElementById('headerTitle').textContent = sessionTitle;
-  document.getElementById('headerBasin').textContent = activeBasin.name;
-  document.documentElement.style.setProperty('--basin-color', activeBasin.color);
-
-  // Update sidebar
-  document.getElementById('sideBasinCircle').style.background = activeBasin.color;
-  document.getElementById('sideBasinName').textContent = activeBasin.name;
-  document.getElementById('sideBasinDesc').textContent = activeBasin.description;
-
-  // Render folder toggles
-  renderFolderToggles();
-
-  document.getElementById('home').style.display = 'none';
-  document.getElementById('session').style.display = 'flex';
-  document.getElementById('input').focus();
+  if (!playerName) return;
+  document.getElementById('lobbyPlayerName').textContent = playerName;
+  loadRoomList();
+  showPage('lobby');
 }
 
-function goHome() {
-  document.getElementById('session').style.display = 'none';
-  document.getElementById('home').style.display = 'flex';
-  resetCanvas();
+async function loadRoomList() {
+  const res = await fetch('/api/rooms');
+  const rooms = await res.json();
+  renderRooms(rooms);
 }
 
-function resetCanvas() {
-  document.getElementById('canvas').innerHTML = `
-    <div class="empty-state" id="emptyState">
-      <span class="empty-glyph">◈</span>
-      <p class="empty-text">The space is open.<br/>Add the first thought.</p>
-    </div>`;
-}
-
-// ── Folder Toggles ────────────────────────────
-function renderFolderToggles() {
-  const list = document.getElementById('folderList');
-  if (!driveConnected || allFolders.length === 0) {
-    list.innerHTML = '<div class="no-folders">Connect Google Drive to enable</div>';
+function renderRooms(rooms) {
+  const grid = document.getElementById('roomsGrid');
+  if (!rooms.length) {
+    grid.innerHTML = '<div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>';
     return;
   }
-  list.innerHTML = allFolders.map(f => `
-    <label class="folder-toggle" onclick="toggleFolder('${f.name}')">
-      <div class="toggle-box ${activeFolders.has(f.name) ? 'checked' : ''}" id="toggle-${f.name.replace(/\s/g,'_')}">
-        ${activeFolders.has(f.name) ? '✓' : ''}
+  grid.innerHTML = rooms.map(r => `
+    <div class="room-card" onclick="joinRoom('${r.id}')">
+      <div class="room-card-title">${esc(r.title)}</div>
+      <div class="room-card-meta">
+        <div class="basin-badge">
+          <div class="basin-badge-dot" style="background:${r.basinColor}"></div>
+          <span>${esc(r.basin)}</span>
+        </div>
+        <span>·</span>
+        <span>${r.memberCount} ${r.memberCount === 1 ? 'person' : 'people'}</span>
       </div>
-      <span class="folder-name">${f.name}</span>
-    </label>`).join('');
+      <div class="room-card-footer">
+        <span>${r.contributionCount} contributions</span>
+        <span style="letter-spacing:0.12em;color:var(--gold);opacity:0.7">${r.id}</span>
+      </div>
+    </div>`).join('');
 }
 
-async function toggleFolder(name) {
-  const wasActive = activeFolders.has(name);
-  const action = wasActive ? 'removed from' : 'added to';
+// ── Room Modal ────────────────────────────────
+function openNewRoomModal() { document.getElementById('newRoomModal').classList.add('open'); }
+function closeNewRoomModal() { document.getElementById('newRoomModal').classList.remove('open'); }
+function openJoinModal() { document.getElementById('joinRoomModal').classList.add('open'); }
+function closeJoinModal() { document.getElementById('joinRoomModal').classList.remove('open'); }
 
-  if (wasActive) activeFolders.delete(name);
-  else activeFolders.add(name);
+async function createRoom() {
+  const title = document.getElementById('newRoomTitle').value.trim();
+  if (!title) return;
+  const basinId = document.getElementById('newRoomBasin').value;
+  const basin = basins.find(b => b.id === basinId) || basins[0];
+  const saveFolderId = document.getElementById('newRoomSaveFolder').value || null;
 
-  // Update UI
-  const toggleEl = document.getElementById(`toggle-${name.replace(/\s/g,'_')}`);
-  if (toggleEl) {
-    toggleEl.classList.toggle('checked', !wasActive);
-    toggleEl.textContent = !wasActive ? '✓' : '';
-  }
+  const res = await fetch('/api/rooms', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, basin, folderMap, saveFolderId })
+  });
+  const data = await res.json();
+  closeNewRoomModal();
+  joinRoom(data.id);
+}
 
-  // Ask basin to acknowledge
-  try {
-    const res = await fetch('/api/acknowledge-folder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folderName: name, basin: activeBasin, action: wasActive ? 'removed from' : 'added to' })
+async function joinByCode() {
+  const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+  if (!code) return;
+  closeJoinModal();
+  joinRoom(code);
+}
+
+// ── Join / Leave Room ─────────────────────────
+async function joinRoom(roomId) {
+  const res = await fetch(`/api/rooms/${roomId}`);
+  if (!res.ok) { alert('Room not found. Check the code and try again.'); return; }
+  socket.emit('room:join', { roomId, playerName });
+}
+
+function onRoomState(room) {
+  currentRoom = room;
+  document.documentElement.style.setProperty('--basin-color', room.basin?.color || '#c4a882');
+  document.getElementById('headerTitle').textContent = room.title;
+  document.getElementById('headerBasin').textContent = room.basin?.name || '';
+  document.getElementById('roomCodeDisplay').textContent = room.id;
+  document.getElementById('sideBasinCircle').style.background = room.basin?.color || '#c4a882';
+  document.getElementById('sideBasinName').textContent = room.basin?.name || '';
+  document.getElementById('sideBasinDesc').textContent = room.basin?.description || '';
+  renderFolderToggles(room);
+  resetCanvas();
+  room.contributions.forEach(c => renderBubble(c));
+  showPage('session');
+  document.getElementById('input').focus();
+  document.getElementById('sendBtn').disabled = true;
+}
+
+function loadRoomMembers() {
+  if (!currentRoom) return;
+  fetch(`/api/rooms/${currentRoom.id}`)
+    .then(r => r.json())
+    .then(room => {
+      currentRoom.members = room.members;
+      renderMembers(room.members);
     });
-    const data = await res.json();
-    renderSystemMessage(data.text);
-  } catch(e) {
-    renderSystemMessage(`${activeBasin?.name || 'Resonance'} — ${name} ${action} context.`);
-  }
 }
 
-// ── Mode ──────────────────────────────────────
+function renderMembers(members) {
+  document.getElementById('membersList').innerHTML = members.map(m =>
+    `<div class="member-item"><div class="member-dot"></div><span>${esc(m)}</span></div>`
+  ).join('') || '<div style="font-size:11px;color:var(--text-faint);font-style:italic">Just you</div>';
+}
+
+function leaveRoom() {
+  currentRoom = null;
+  showPage('lobby');
+  loadRoomList();
+}
+
+function copyRoomCode() {
+  if (!currentRoom) return;
+  navigator.clipboard.writeText(currentRoom.id);
+  const el = document.getElementById('roomCodeDisplay');
+  el.textContent = 'copied!';
+  setTimeout(() => { el.textContent = currentRoom.id; }, 2000);
+}
+
+// ── Submit ────────────────────────────────────
+function getModeInstruction() {
+  const intensity = document.getElementById('intensitySlider').value;
+  const desc = intensity < 4 ? 'very sparse — only speak when something genuinely needs naming' : intensity > 7 ? 'generous — offer multiple threads' : 'measured — one clear observation at a time';
+  const modes = {
+    resonant: `You are in RESONANT mode. Do NOT interrogate or challenge. Make gentle connections, open possibilities. Stay warm and spacious. Voice intensity ${intensity}/10 — ${desc}.`,
+    silent: `You are in SILENT mode. Only respond with "Noted: [key phrase]." Nothing more.`,
+    expansive: `You are in EXPANSIVE mode. Expand outward — implications, metaphors, the widest frame. Do NOT press on the person. Voice intensity ${intensity}/10 — ${desc}.`,
+    friction: `You are in FRICTION mode. Interrogate structure, name contradictions, apply pressure. This is the ONLY mode where pressing is permitted. Voice intensity ${intensity}/10 — ${desc}.`,
+    synthesis: `You are in SYNTHESIS mode. Stabilize, harmonize, consolidate. Find what is converging. Do NOT destabilize. Voice intensity ${intensity}/10 — ${desc}.`
+  };
+  return modes[currentMode] || modes.resonant;
+}
+
+function submit() {
+  const inputEl = document.getElementById('input');
+  const text = inputEl.value.trim();
+  if (!text || !currentRoom) return;
+  inputEl.value = '';
+  document.getElementById('sendBtn').disabled = true;
+  socket.emit('room:contribute', {
+    roomId: currentRoom.id,
+    playerName,
+    text,
+    modeInstruction: getModeInstruction()
+  });
+}
+
 function setMode(mode, btn) {
   currentMode = mode;
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 }
 
-function getModeInstruction() {
-  const intensity = document.getElementById('intensitySlider').value;
-  const intensityDesc = intensity < 4 ? 'very sparse — only speak when something genuinely needs naming' : intensity > 7 ? 'generous — offer multiple threads and connections' : 'measured — one clear observation at a time';
-  const modes = {
-    resonant: `You are in RESONANT mode.
-Do NOT interrogate, challenge, or press the user psychologically.
-Do NOT name contradictions in their identity, wounds, or beliefs.
-Do NOT apply philosophical pressure of any kind.
-Your only function: make gentle connections, offer soft reflections, open possibilities without pushing anyone through them.
-Stay warm, spacious, and supportive.
-Voice intensity ${intensity}/10 — ${intensityDesc}.`,
-
-    silent: `You are in SILENT / NOTE-TAKING mode.
-Do NOT contribute ideas, opinions, reflections, or open any doors.
-Do NOT interrogate or challenge anything.
-Only observe and track what is being built.
-Respond only with a single brief neutral note: "Noted: [key phrase or theme from what was just said]." Nothing more. No elaboration.`,
-
-    expansive: `You are in EXPANSIVE mode.
-Explore outward — implications, metaphors, symbolic patterns, the widest possible frame this idea could inhabit.
-Do NOT press inward on the user's psychology, identity, wounds, or contradictions.
-You expand the idea, never the person.
-Do NOT interrogate. Do NOT challenge. Only stretch and open.
-Voice intensity ${intensity}/10 — ${intensityDesc}.`,
-
-    friction: `You are in FRICTION mode.
-NOW you may interrogate structure, name contradictions, apply philosophical pressure, and push on what hasn't been questioned.
-Find what resists. Name the tension without resolving it. Be a productive obstacle.
-This is the ONLY mode where pressing and challenging is permitted.
-Voice intensity ${intensity}/10 — ${intensityDesc}.`,
-
-    synthesis: `You are in SYNTHESIS mode.
-Your voice stabilizes, harmonizes, and consolidates what has emerged.
-Find what is converging. Name the emerging shape. What is all of this becoming?
-Do NOT interrogate. Do NOT destabilize. Do NOT introduce new tensions.
-Only gather, weave, and land.
-Voice intensity ${intensity}/10 — ${intensityDesc}.`
-  };
-  return modes[currentMode] || modes.resonant;
+// ── Folder Toggles ────────────────────────────
+function renderFolderToggles(room) {
+  const list = document.getElementById('folderList');
+  if (!driveConnected || !allFolders.length) {
+    list.innerHTML = '<div style="font-size:11px;color:var(--text-faint);font-style:italic">Connect Drive to enable</div>';
+    return;
+  }
+  const active = new Set(room.activeFolders || []);
+  list.innerHTML = allFolders.map(f => `
+    <label class="folder-toggle" onclick="toggleFolder('${f.name}')">
+      <div class="toggle-box ${active.has(f.name) ? 'checked' : ''}" id="ftog-${f.name.replace(/\W/g,'_')}">
+        ${active.has(f.name) ? '✓' : ''}
+      </div>
+      <span class="folder-name">${f.name}</span>
+    </label>`).join('');
 }
 
-// ── Submit ────────────────────────────────────
-async function submit() {
-  const inputEl = document.getElementById('input');
-  const text = inputEl.value.trim();
-  if (!text || isThinking) return;
-
-  inputEl.value = '';
-  document.getElementById('sendBtn').disabled = true;
-  isThinking = true;
-
-  const contrib = { id: Date.now(), type: 'human', author: playerName, text, timestamp: new Date().toISOString() };
-  contributions.push(contrib);
-  renderBubble(contrib);
-  showThinking();
-
-  try {
-    const temp = parseFloat(document.getElementById('tempSlider').value) / 10;
-    const res = await fetch('/api/resonate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contributions,
-        basin: { ...activeBasin, systemPrompt: activeBasin.systemPrompt + '\n\n' + getModeInstruction() },
-        activeFolders: Array.from(activeFolders),
-        folderMap,
-        temperature: temp
-      })
-    });
-    const data = await res.json();
-    hideThinking();
-
-    if (data.text) {
-      const resonance = { id: Date.now()+1, type: 'resonance', author: activeBasin.name, text: data.text, timestamp: new Date().toISOString() };
-      contributions.push(resonance);
-      renderBubble(resonance);
-
-      // Auto-save every 3 resonance responses
-      if (driveConnected && contributions.filter(c => c.type === 'resonance').length % 3 === 0) {
-        saveSession(true);
-      }
-    }
-  } catch(e) {
-    hideThinking();
-    console.error(e);
-  }
-
-  isThinking = false;
-  document.getElementById('sendBtn').disabled = !inputEl.value.trim();
+function toggleFolder(name) {
+  if (!currentRoom) return;
+  const togId = `ftog-${name.replace(/\W/g,'_')}`;
+  const el = document.getElementById(togId);
+  const isActive = el?.classList.contains('checked');
+  if (el) { el.classList.toggle('checked', !isActive); el.textContent = !isActive ? '✓' : ''; }
+  socket.emit('room:toggle-folder', {
+    roomId: currentRoom.id,
+    folderName: name,
+    active: !isActive,
+    basin: currentRoom.basin
+  });
 }
 
 // ── Rendering ─────────────────────────────────
 function fmt(iso) { return new Date(iso).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }); }
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>'); }
+
+function resetCanvas() {
+  document.getElementById('canvas').innerHTML = `<div class="empty-state" id="emptyState"><span class="empty-glyph">◈</span><p class="empty-text">The space is open.<br/>Add the first thought.</p></div>`;
+}
+
+function onContribution(c) {
+  if (typingEl) { typingEl.remove(); typingEl = null; }
+  renderBubble(c);
+  if (currentRoom) currentRoom.contributions = [...(currentRoom.contributions || []), c];
+}
 
 function renderBubble(c) {
   const empty = document.getElementById('emptyState');
   if (empty) empty.remove();
   const div = document.createElement('div');
-  div.className = `bubble ${c.type}`;
-  if (c.type === 'human') {
-    div.innerHTML = `<div class="author-row"><span class="author">${c.author}</span><span class="ts">${fmt(c.timestamp)}</span></div><div class="human-text">${esc(c.text)}</div>`;
+
+  if (c.type === 'system') {
+    div.className = 'bubble system';
+    div.innerHTML = `<div class="sys-text">◈ ${esc(c.text)}</div>`;
+  } else if (c.type === 'resonance') {
+    div.className = 'bubble resonance';
+    div.innerHTML = `<div class="res-glyph">◈ ${esc(c.author)}</div><div class="res-text">${esc(c.text)}</div><div class="ts" style="margin-top:6px">${fmt(c.timestamp)}</div>`;
   } else {
-    div.innerHTML = `<div class="res-glyph">◈ ${activeBasin?.name || ''}</div><div class="res-text">${esc(c.text)}</div><div class="ts" style="margin-top:7px">${fmt(c.timestamp)}</div>`;
+    const isMe = c.author === playerName;
+    div.className = `bubble human${isMe ? ' mine' : ''}`;
+    div.innerHTML = `<div class="author-row"><span class="author">${esc(c.author)}</span><span class="ts">${fmt(c.timestamp)}</span></div><div class="human-text">${esc(c.text)}</div>`;
   }
+
   document.getElementById('canvas').appendChild(div);
-  div.scrollIntoView({ behavior:'smooth', block:'end' });
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
-function renderSystemMessage(text) {
-  const div = document.createElement('div');
-  div.className = 'bubble system-msg';
-  div.innerHTML = `<div class="sys-text">◈ ${esc(text)}</div>`;
-  document.getElementById('canvas').appendChild(div);
-  div.scrollIntoView({ behavior:'smooth', block:'end' });
+function renderSystemMsg(text) {
+  renderBubble({ type: 'system', text, timestamp: new Date().toISOString() });
 }
 
-let thinkingEl = null;
-function showThinking() {
-  thinkingEl = document.createElement('div');
-  thinkingEl.className = 'bubble resonance';
-  thinkingEl.innerHTML = `<div class="res-glyph">◈ ${activeBasin?.name || ''}</div><div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>`;
-  document.getElementById('canvas').appendChild(thinkingEl);
-  thinkingEl.scrollIntoView({ behavior:'smooth', block:'end' });
+function onThinking(isThinking) {
+  if (isThinking) {
+    thinkingEl = document.createElement('div');
+    thinkingEl.className = 'bubble resonance';
+    thinkingEl.innerHTML = `<div class="res-glyph">◈ ${currentRoom?.basin?.name || ''}</div><div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>`;
+    document.getElementById('canvas').appendChild(thinkingEl);
+    thinkingEl.scrollIntoView({ behavior:'smooth', block:'end' });
+  } else {
+    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+    document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim();
+  }
 }
-function hideThinking() { if(thinkingEl){ thinkingEl.remove(); thinkingEl=null; } }
 
 // ── Save ──────────────────────────────────────
-async function saveSession(silent = false) {
+function saveRoom() {
+  if (!currentRoom) return;
+  socket.emit('room:save', { roomId: currentRoom.id });
   const btn = document.getElementById('saveBtn');
-  const sessionData = { title: sessionTitle, basin: activeBasin?.name, contributions, lastSaved: new Date().toISOString() };
-
-  if (!driveConnected) {
-    const blob = new Blob([JSON.stringify(sessionData,null,2)], { type:'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=`${sessionTitle.replace(/\s+/g,'-')}-cocreate.json`; a.click();
-    URL.revokeObjectURL(url);
-    return;
-  }
-
-  if (!silent) { btn.textContent = 'saving...'; btn.classList.add('saving'); }
-  try {
-    const res = await fetch('/api/save', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ session: sessionData, targetFolderId: saveFolderId })
-    });
-    if (!silent) {
-      btn.textContent = '✓ saved'; btn.classList.add('saved');
-      setTimeout(() => { btn.textContent='save ↑'; btn.classList.remove('saved'); }, 3000);
-    }
-  } catch(e) {
-    if (!silent) { btn.textContent='error'; setTimeout(()=>{ btn.textContent='save ↑'; },3000); }
-  }
-}
-
-// ── Basin Modal ───────────────────────────────
-function openBasinModal() { document.getElementById('basinModal').classList.add('open'); }
-function closeBasinModal() { document.getElementById('basinModal').classList.remove('open'); }
-
-function selectColor(el) {
-  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
-  el.classList.add('active');
-  selectedColor = el.dataset.color;
-}
-
-async function createBasin() {
-  const name = document.getElementById('newBasinName').value.trim();
-  const desc = document.getElementById('newBasinDesc').value.trim();
-  const prompt = document.getElementById('newBasinPrompt').value.trim();
-  if (!name) return;
-
-  const defaultPrompt = `You are ${name}, an attractor basin in a collaborative thinking space. ${desc ? desc + ' ' : ''}You are peripheral vision, not a driver. You open doors, name tensions, find echoes. Keep responses SHORT — 2-5 sentences. Never repeat a framing you have already used. Speak as a thinking presence, not an assistant.`;
-
-  const res = await fetch('/api/basins', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, description: desc, color: selectedColor, systemPrompt: prompt || defaultPrompt })
-  });
-  const newBasin = await res.json();
-  basins.push(newBasin);
-
-  const sel = document.getElementById('basinSelect');
-  sel.innerHTML += `<option value="${newBasin.id}">${newBasin.name}</option>`;
-  sel.value = newBasin.id;
-  onBasinChange();
-  closeBasinModal();
+  btn.textContent = '✓ saved'; btn.classList.add('saved');
+  setTimeout(() => { btn.textContent = 'save ↑'; btn.classList.remove('saved'); }, 3000);
 }
 
 init();

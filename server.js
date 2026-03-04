@@ -3,10 +3,14 @@ const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 const { google } = require('googleapis');
-const fs = require('fs');
+const { createServer } = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
 
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer);
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
@@ -45,7 +49,27 @@ app.get('/auth/google/callback', async (req, res) => {
 
 app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
 
-// ── Basin Profiles ─────────────────────────────────────
+// ── Room State (in-memory, persisted to Drive) ─────────
+const rooms = {}; // roomId -> { id, title, basin, contributions, members, activeFolders, folderMap, createdAt, updatedAt }
+
+function generateRoomId() {
+  return Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+function getRoomList() {
+  return Object.values(rooms).map(r => ({
+    id: r.id,
+    title: r.title,
+    basin: r.basin?.name || 'Unknown',
+    basinColor: r.basin?.color || '#c4a882',
+    memberCount: r.members ? r.members.length : 0,
+    contributionCount: r.contributions ? r.contributions.length : 0,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt
+  }));
+}
+
+// ── Default Basin ──────────────────────────────────────
 const DEFAULT_BASINS = [
   {
     id: 'sage',
@@ -73,117 +97,96 @@ Rules:
   }
 ];
 
-// ── Drive Basin Helpers ────────────────────────────────
-async function getDriveBasinsFileId(drive) {
-  // Look for basins.json inside the CoCreate folder
-  const folderSearch = await drive.files.list({
-    q: "name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+// ── Drive Helpers ──────────────────────────────────────
+async function getDriveFolder(drive, name) {
+  const search = await drive.files.list({
+    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)'
   });
-  let cocreateId = folderSearch.data.files[0]?.id;
-  if (!cocreateId) {
-    const folder = await drive.files.create({
-      requestBody: { name: 'CoCreate', mimeType: 'application/vnd.google-apps.folder' },
+  if (search.data.files[0]) return search.data.files[0].id;
+  const folder = await drive.files.create({
+    requestBody: { name, mimeType: 'application/vnd.google-apps.folder' },
+    fields: 'id'
+  });
+  return folder.data.id;
+}
+
+async function getDriveFile(drive, fileName, parentId) {
+  const search = await drive.files.list({
+    q: `name='${fileName}' and '${parentId}' in parents and trashed=false`,
+    fields: 'files(id)'
+  });
+  return search.data.files[0]?.id || null;
+}
+
+async function readDriveFile(drive, fileId) {
+  const res = await drive.files.get({ fileId, alt: 'media' });
+  return typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+}
+
+async function writeDriveFile(drive, fileName, parentId, content) {
+  const existing = await getDriveFile(drive, fileName, parentId);
+  const body = JSON.stringify(content, null, 2);
+  if (existing) {
+    await drive.files.update({ fileId: existing, media: { mimeType: 'application/json', body } });
+  } else {
+    await drive.files.create({
+      requestBody: { name: fileName, parents: [parentId] },
+      media: { mimeType: 'application/json', body },
       fields: 'id'
     });
-    cocreateId = folder.data.id;
-  }
-  const fileSearch = await drive.files.list({
-    q: `name='basins.json' and '${cocreateId}' in parents and trashed=false`,
-    fields: 'files(id)'
-  });
-  return { fileId: fileSearch.data.files[0]?.id || null, cocreateId };
-}
-
-async function loadBasinsFromDrive(drive) {
-  try {
-    const { fileId } = await getDriveBasinsFileId(drive);
-    if (!fileId) return DEFAULT_BASINS;
-    const res = await drive.files.get({ fileId, alt: 'media' });
-    const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
-    return Array.isArray(data) ? data : DEFAULT_BASINS;
-  } catch (e) {
-    console.error('Could not load basins from Drive:', e.message);
-    return DEFAULT_BASINS;
   }
 }
 
-async function saveBasinsToDrive(drive, basins) {
-  try {
-    const { fileId, cocreateId } = await getDriveBasinsFileId(drive);
-    const content = JSON.stringify(basins, null, 2);
-    if (fileId) {
-      await drive.files.update({ fileId, media: { mimeType: 'application/json', body: content } });
-    } else {
-      await drive.files.create({
-        requestBody: { name: 'basins.json', parents: [cocreateId] },
-        media: { mimeType: 'application/json', body: content },
-        fields: 'id'
-      });
-    }
-  } catch (e) {
-    console.error('Could not save basins to Drive:', e.message);
-  }
+async function getDrive() {
+  if (!userTokens) return null;
+  oauth2Client.setCredentials(userTokens);
+  return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  if (!userTokens) return res.json(DEFAULT_BASINS);
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-  const basins = await loadBasinsFromDrive(drive);
-  res.json(basins);
+  const drive = await getDrive();
+  if (!drive) return res.json(DEFAULT_BASINS);
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'basins.json', folderId);
+    if (!fileId) return res.json(DEFAULT_BASINS);
+    const data = await readDriveFile(drive, fileId);
+    res.json(Array.isArray(data) ? data : DEFAULT_BASINS);
+  } catch (e) {
+    res.json(DEFAULT_BASINS);
+  }
 });
 
 app.post('/api/basins', async (req, res) => {
-  if (!userTokens) return res.status(401).json({ error: 'Not authenticated' });
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-  const basins = await loadBasinsFromDrive(drive);
-  const newBasin = {
-    id: Date.now().toString(),
-    name: req.body.name,
-    color: req.body.color || '#8a9eba',
-    orientation: req.body.orientation || 'resonant',
-    description: req.body.description || '',
-    defaultFolders: req.body.defaultFolders || [],
-    systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt
-  };
-  basins.push(newBasin);
-  await saveBasinsToDrive(drive, basins);
-  res.json(newBasin);
-});
-
-app.put('/api/basins/:id', async (req, res) => {
-  if (!userTokens) return res.status(401).json({ error: 'Not authenticated' });
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-  const basins = await loadBasinsFromDrive(drive);
-  const idx = basins.findIndex(b => b.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: 'Basin not found' });
-  basins[idx] = { ...basins[idx], ...req.body };
-  await saveBasinsToDrive(drive, basins);
-  res.json(basins[idx]);
-});
-
-app.delete('/api/basins/:id', async (req, res) => {
-  if (!userTokens) return res.status(401).json({ error: 'Not authenticated' });
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-
-  let basins = await loadBasinsFromDrive(drive);
-  basins = basins.filter(b => b.id !== req.params.id);
-  await saveBasinsToDrive(drive, basins);
-  res.json({ success: true });
+  const drive = await getDrive();
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'basins.json', folderId);
+    const basins = fileId ? await readDriveFile(drive, fileId) : DEFAULT_BASINS;
+    const newBasin = {
+      id: Date.now().toString(),
+      name: req.body.name,
+      color: req.body.color || '#8a9eba',
+      orientation: req.body.orientation || 'resonant',
+      description: req.body.description || '',
+      defaultFolders: req.body.defaultFolders || [],
+      systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt
+    };
+    basins.push(newBasin);
+    await writeDriveFile(drive, 'basins.json', folderId, basins);
+    res.json(newBasin);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
-  if (!userTokens) return res.json({ folders: [] });
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
+  const drive = await getDrive();
+  if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
       q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
@@ -192,7 +195,6 @@ app.get('/api/drive/folders', async (req, res) => {
     });
     res.json({ folders: result.data.files });
   } catch (e) {
-    console.error('Folder list error:', e.message);
     res.json({ folders: [] });
   }
 });
@@ -204,9 +206,7 @@ async function readFolderContents(drive, folderId, folderName) {
       fields: 'files(id, name, mimeType)',
       pageSize: 20
     });
-
     let content = `\n=== Knowledge from: ${folderName} ===\n`;
-
     for (const file of files.data.files.slice(0, 10)) {
       try {
         let text = '';
@@ -217,41 +217,76 @@ async function readFolderContents(drive, folderId, folderName) {
           const downloaded = await drive.files.get({ fileId: file.id, alt: 'media' });
           text = typeof downloaded.data === 'string' ? downloaded.data : JSON.stringify(downloaded.data);
         }
-        const truncated = text.slice(0, 3000);
-        content += `\n--- ${file.name} ---\n${truncated}\n`;
+        content += `\n--- ${file.name} ---\n${text.slice(0, 3000)}\n`;
       } catch (e) {
-        console.error(`Could not read file ${file.name}:`, e.message);
+        console.error(`Could not read ${file.name}:`, e.message);
       }
     }
     return content;
   } catch (e) {
-    console.error(`Could not read folder ${folderName}:`, e.message);
     return '';
   }
 }
 
-// ── Resonate Route ─────────────────────────────────────
-app.post('/api/resonate', async (req, res) => {
-  const { contributions, basin, activeFolders, folderMap } = req.body;
+// ── Room REST Routes ───────────────────────────────────
+app.get('/api/rooms', (req, res) => res.json(getRoomList()));
 
+app.post('/api/rooms', (req, res) => {
+  const id = generateRoomId();
+  const room = {
+    id,
+    title: req.body.title || 'Untitled Space',
+    basin: req.body.basin || DEFAULT_BASINS[0],
+    contributions: [],
+    members: [],
+    activeFolders: req.body.activeFolders || [],
+    folderMap: req.body.folderMap || {},
+    saveFolderId: req.body.saveFolderId || null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  rooms[id] = room;
+  io.emit('rooms:updated', getRoomList());
+  res.json({ id, room: sanitizeRoom(room) });
+});
+
+app.get('/api/rooms/:id', (req, res) => {
+  const room = rooms[req.params.id];
+  if (!room) return res.status(404).json({ error: 'Room not found' });
+  res.json(sanitizeRoom(room));
+});
+
+function sanitizeRoom(room) {
+  return {
+    id: room.id,
+    title: room.title,
+    basin: room.basin,
+    contributions: room.contributions,
+    members: room.members,
+    activeFolders: room.activeFolders,
+    folderMap: room.folderMap,
+    createdAt: room.createdAt,
+    updatedAt: room.updatedAt
+  };
+}
+
+// ── Claude Resonance ───────────────────────────────────
+async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction) {
   let knowledgeContext = '';
-
-  if (userTokens && activeFolders && activeFolders.length > 0 && folderMap) {
-    oauth2Client.setCredentials(userTokens);
-    const drive = google.drive({ version: 'v3', auth: oauth2Client });
+  const drive = await getDrive();
+  if (drive && activeFolders && activeFolders.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
       if (folderId) {
-        const content = await readFolderContents(drive, folderId, folderName);
-        knowledgeContext += content;
+        knowledgeContext += await readFolderContents(drive, folderId, folderName);
       }
     }
   }
 
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
   const fullSystem = knowledgeContext
-    ? `${systemPrompt}\n\n=== YOUR KNOWLEDGE BASE ===\nThe following materials inform your understanding. Reason from within them, not about them:\n${knowledgeContext}`
-    : systemPrompt;
+    ? `${systemPrompt}\n\n${modeInstruction}\n\n=== YOUR KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`
+    : `${systemPrompt}\n\n${modeInstruction}`;
 
   const history = contributions
     .map(c => c.type === 'resonance'
@@ -259,122 +294,202 @@ app.post('/api/resonate', async (req, res) => {
       : `${c.author}: ${c.text}`)
     .join('\n\n');
 
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 1000,
-        system: fullSystem,
-        messages: [{
-          role: 'user',
-          content: `Here is the full collaborative thinking space so far:\n\n${history}\n\nContribute as ${basin?.name || 'the resonance finder'}. Find a genuinely new angle. Open doors. Do not drive.`
-        }]
-      })
-    });
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-5',
+      max_tokens: 1000,
+      system: fullSystem,
+      messages: [{
+        role: 'user',
+        content: `Here is the full collaborative thinking space so far:\n\n${history}\n\nContribute as ${basin?.name || 'the resonance finder'}. Find a genuinely new angle. Open doors. Do not drive.`
+      }]
+    })
+  });
 
-    const data = await response.json();
-    if (data.error) {
-      console.error('Claude API error:', data.error);
-      return res.status(500).json({ error: data.error.message });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content?.[0]?.text || '';
+}
+
+// ── Socket.io ──────────────────────────────────────────
+io.on('connection', (socket) => {
+  let currentRoom = null;
+  let currentPlayer = null;
+
+  // Join a room
+  socket.on('room:join', ({ roomId, playerName }) => {
+    const room = rooms[roomId];
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
     }
-    res.json({ text: data.content?.[0]?.text || '' });
-  } catch (e) {
-    console.error('Claude error:', e);
-    res.status(500).json({ error: 'Claude API error' });
-  }
-});
 
-// ── Folder Toggle Acknowledgment ───────────────────────
-app.post('/api/acknowledge-folder', async (req, res) => {
-  const { folderName, basin, action } = req.body;
+    currentRoom = roomId;
+    currentPlayer = playerName;
 
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 150,
-        system: basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
-        messages: [{
-          role: 'user',
-          content: `The folder "${folderName}" was just ${action} your context. Acknowledge in one sentence starting with "I now have access to ${folderName} materials" (if added) or "I have released ${folderName} from my context" (if removed). Then add one brief evocative line about what this opens or closes. Stay in character as ${basin?.name || 'the resonance finder'}.`
-        }]
-      })
-    });
+    socket.join(roomId);
 
-    const data = await response.json();
-    res.json({ text: data.content?.[0]?.text || `I now have access to ${folderName} materials.` });
-  } catch (e) {
-    res.json({ text: `I now have access to ${folderName} materials.` });
-  }
-});
+    // Add member if not already present
+    if (!room.members.includes(playerName)) {
+      room.members.push(playerName);
+    }
 
-// ── Save Session to Drive ──────────────────────────────
-app.post('/api/save', async (req, res) => {
-  if (!userTokens) return res.status(401).json({ error: 'Not authenticated' });
+    // Send full room state to the joining player
+    socket.emit('room:state', sanitizeRoom(room));
 
-  oauth2Client.setCredentials(userTokens);
-  const drive = google.drive({ version: 'v3', auth: oauth2Client });
-  const { session, targetFolderId } = req.body;
+    // Notify others
+    socket.to(roomId).emit('room:member-joined', { playerName });
 
-  try {
-    const fileName = `${session.title.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.json`;
-    const content = JSON.stringify(session, null, 2);
+    // Update room list for everyone
+    io.emit('rooms:updated', getRoomList());
+  });
 
-    let folderId = targetFolderId;
-    if (!folderId) {
-      const folderSearch = await drive.files.list({
-        q: "name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false",
-        fields: 'files(id)'
-      });
-      folderId = folderSearch.data.files[0]?.id;
-      if (!folderId) {
-        const folder = await drive.files.create({
-          requestBody: { name: 'CoCreate', mimeType: 'application/vnd.google-apps.folder' },
-          fields: 'id'
-        });
-        folderId = folder.data.id;
+  // Player contributes
+  socket.on('room:contribute', async ({ roomId, playerName, text, modeInstruction }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    const contribution = {
+      id: Date.now(),
+      type: 'human',
+      author: playerName,
+      text,
+      timestamp: new Date().toISOString()
+    };
+
+    room.contributions.push(contribution);
+    room.updatedAt = new Date().toISOString();
+
+    // Broadcast to everyone in room including sender
+    io.to(roomId).emit('room:contribution', contribution);
+
+    // Generate resonance
+    try {
+      io.to(roomId).emit('room:thinking', true);
+      const resonanceText = await generateResonance(
+        room.contributions,
+        room.basin,
+        room.activeFolders,
+        room.folderMap,
+        modeInstruction || ''
+      );
+
+      const resonance = {
+        id: Date.now() + 1,
+        type: 'resonance',
+        author: room.basin?.name || 'Resonance',
+        text: resonanceText,
+        timestamp: new Date().toISOString()
+      };
+
+      room.contributions.push(resonance);
+      room.updatedAt = new Date().toISOString();
+      io.to(roomId).emit('room:thinking', false);
+      io.to(roomId).emit('room:contribution', resonance);
+
+      // Auto-save every 3 resonance responses
+      const resonanceCount = room.contributions.filter(c => c.type === 'resonance').length;
+      if (resonanceCount % 3 === 0) {
+        saveRoomToDrive(room);
       }
+    } catch (e) {
+      console.error('Resonance error:', e.message);
+      io.to(roomId).emit('room:thinking', false);
     }
+  });
 
-    const fileSearch = await drive.files.list({
-      q: `name='${fileName}' and '${folderId}' in parents and trashed=false`,
-      fields: 'files(id)'
-    });
+  // Typing indicator
+  socket.on('room:typing', ({ roomId, playerName, isTyping }) => {
+    socket.to(roomId).emit('room:typing', { playerName, isTyping });
+  });
 
-    if (fileSearch.data.files.length > 0) {
-      await drive.files.update({
-        fileId: fileSearch.data.files[0].id,
-        media: { mimeType: 'application/json', body: content }
-      });
+  // Toggle folder
+  socket.on('room:toggle-folder', async ({ roomId, folderName, active, basin }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
+    if (active) {
+      if (!room.activeFolders.includes(folderName)) room.activeFolders.push(folderName);
     } else {
-      await drive.files.create({
-        requestBody: { name: fileName, parents: [folderId] },
-        media: { mimeType: 'application/json', body: content },
-        fields: 'id'
-      });
+      room.activeFolders = room.activeFolders.filter(f => f !== folderName);
     }
 
-    res.json({ success: true, fileName });
-  } catch (e) {
-    console.error('Drive save error:', e.message);
-    res.status(500).json({ error: 'Save failed' });
-  }
+    // Generate acknowledgment
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 150,
+          system: basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
+          messages: [{
+            role: 'user',
+            content: `The folder "${folderName}" was just ${active ? 'added to' : 'removed from'} your context. Acknowledge in one sentence then add one brief evocative line. Stay in character as ${basin?.name || 'the resonance finder'}.`
+          }]
+        })
+      });
+      const data = await response.json();
+      const ackText = data.content?.[0]?.text || `I now have access to ${folderName} materials.`;
+      const ack = {
+        id: Date.now(),
+        type: 'system',
+        text: ackText,
+        timestamp: new Date().toISOString()
+      };
+      room.contributions.push(ack);
+      io.to(roomId).emit('room:contribution', ack);
+    } catch (e) {
+      console.error('Ack error:', e.message);
+    }
+  });
+
+  // Save room
+  socket.on('room:save', ({ roomId }) => {
+    const room = rooms[roomId];
+    if (room) saveRoomToDrive(room);
+  });
+
+  // Disconnect
+  socket.on('disconnect', () => {
+    if (currentRoom && currentPlayer && rooms[currentRoom]) {
+      rooms[currentRoom].members = rooms[currentRoom].members.filter(m => m !== currentPlayer);
+      socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
+      io.emit('rooms:updated', getRoomList());
+    }
+  });
 });
 
+// ── Save Room to Drive ─────────────────────────────────
+async function saveRoomToDrive(room) {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
+    const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
+    await writeDriveFile(drive, fileName, folderId, {
+      ...room,
+      lastSaved: new Date().toISOString()
+    });
+    console.log(`Room saved: ${fileName}`);
+  } catch (e) {
+    console.error('Room save error:', e.message);
+  }
+}
+
+// ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`\n◈ CoCreate is running`);
   console.log(`  Open: http://localhost:${PORT}\n`);
 });
