@@ -1181,14 +1181,15 @@ app.get('/api/profile/by-email/:email', async (req, res) => {
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
-    // List all JSON files and find one matching the email
     const files = await drive.files.list({
       q: `'${profilesId}' in parents and mimeType='application/json' and trashed=false`,
       fields: 'files(id, name)', pageSize: 100
     });
     for (const file of files.data.files) {
-      const profile = await readDriveFile(drive, file.id);
-      if (profile?.email === req.params.email) return res.json({ exists: true, profile });
+      try {
+        const profile = await readDriveFile(drive, file.id);
+        if (profile?.email === req.params.email) return res.json({ exists: true, profile });
+      } catch {}
     }
     res.json({ exists: false });
   } catch(e) {

@@ -1205,7 +1205,7 @@ function showPage(id) {
 async function enterLobby() {
   if (!currentUserInfo) return;
 
-  // If we already confirmed a profile this session, go straight in
+  // Already confirmed this session — go straight in
   if (_cachedProfile?.name) {
     playerName = _cachedProfile.name;
     document.getElementById('lobbyPlayerName').textContent = playerName;
@@ -1214,22 +1214,35 @@ async function enterLobby() {
     return;
   }
 
-  // Try Drive lookup by email (first visit after OAuth)
+  // Try lookup by email first, then by Google display name as fallback
   const email = currentUserInfo.email || '';
+  const googleName = currentUserInfo.name || '';
+
+  let found = null;
   try {
-    const res = await fetch(`/api/profile/by-email/${encodeURIComponent(email)}`);
-    const data = await res.json();
-    if (data.profile?.name) {
-      _cachedProfile = data.profile;
-      playerName = data.profile.name;
-      document.getElementById('lobbyPlayerName').textContent = playerName;
-      document.getElementById('landingUserName').textContent = playerName;
-      _doEnterLobby();
-      return;
-    }
+    const r1 = await fetch(`/api/profile/by-email/${encodeURIComponent(email)}`);
+    const d1 = await r1.json();
+    if (d1.profile?.name) found = d1.profile;
   } catch {}
 
-  // Genuinely first time — show profile setup once
+  if (!found && googleName) {
+    try {
+      const r2 = await fetch(`/api/profile/${encodeURIComponent(googleName)}`);
+      const d2 = await r2.json();
+      if (d2.profile?.name) found = d2.profile;
+    } catch {}
+  }
+
+  if (found) {
+    _cachedProfile = found;
+    playerName = found.name;
+    document.getElementById('lobbyPlayerName').textContent = playerName;
+    document.getElementById('landingUserName').textContent = playerName;
+    _doEnterLobby();
+    return;
+  }
+
+  // Genuinely first time
   openProfileModal(true);
 }
 
@@ -2092,13 +2105,9 @@ async function saveProfile() {
     document.getElementById('lobbyPlayerName').textContent = playerName;
     document.getElementById('landingUserName').textContent = playerName;
 
-    const status = document.getElementById('profileStatus');
-    status.textContent = '◈ Profile saved.';
-    status.style.display = 'block';
-    setTimeout(() => {
-      closeProfileModal();
-      if (_profileIsFirstTime) _doEnterLobby();
-    }, 700);
+    // Close modal first, then enter lobby
+    closeProfileModal();
+    if (_profileIsFirstTime) _doEnterLobby();
   } catch(e) {
     const status = document.getElementById('profileStatus');
     status.textContent = 'Error: ' + e.message;
