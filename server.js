@@ -749,9 +749,29 @@ io.on('connection', (socket) => {
   });
 
   // Join a room
-  socket.on('room:join', ({ roomId, playerName }) => {
-    const room = rooms[roomId];
+  socket.on('room:join', async ({ roomId, playerName }) => {
+    let room = rooms[roomId];
     if (!room) { socket.emit('error', { message: 'Room not found' }); return; }
+
+    // Always try to load the freshest contributions from the individual room file on Drive
+    try {
+      const drive = await getDrive();
+      if (drive) {
+        const activeId = await getActiveFolderId(drive);
+        const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
+        const fileId = await getDriveFile(drive, fileName, activeId);
+        if (fileId) {
+          const saved = await readDriveFile(drive, fileId);
+          if (saved && saved.contributions && saved.contributions.length > (room.contributions?.length || 0)) {
+            // Drive file is newer — merge it into memory
+            rooms[roomId] = { ...saved, socketMap: room.socketMap || {} };
+            room = rooms[roomId];
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Could not refresh room from Drive on join:', e.message);
+    }
 
     currentRoom = roomId;
     currentPlayer = playerName;
