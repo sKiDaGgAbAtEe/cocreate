@@ -531,12 +531,15 @@
   <p class="subtitle">A collaborative cognition engine</p>
   <div class="landing-card card">
     <span class="label">Your name</span>
-    <input type="text" id="playerName" placeholder="What do they call you?" />
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="text" id="playerName" placeholder="What do they call you?" style="flex:1" />
+      <button id="profileBtn" onclick="openProfileModal()" title="Edit your profile" style="display:none;background:none;border:1px solid var(--border2);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:14px;color:var(--ink-muted);transition:all 0.2s;flex-shrink:0" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink-muted)'">◈</button>
+    </div>
     <span class="label">Google Drive</span>
     <div class="drive-row">
       <div class="dot" id="driveDot"></div>
-      <span id="driveLabel">Not connected</span>
-      <span id="driveLink" style="margin-left:auto"><a href="/auth/google" class="drive-link">Connect →</a></span>
+      <span id="driveLabel">Checking...</span>
+      <span id="driveLink" style="margin-left:auto"></span>
     </div>
     <div class="landing-actions" style="margin-top:4px">
       <button class="btn-ghost" onclick="openAbout()" style="flex:0 0 auto;padding:11px 16px">About</button>
@@ -606,6 +609,32 @@
         <textarea id="lobbyChatInput" rows="1" placeholder="Message the lobby..." oninput="onLobbyChatInput(this)" onkeydown="onLobbyChatKey(event)"></textarea>
         <button class="chat-send-btn" id="lobbyChatSend" disabled onclick="sendLobbyMessage()">↑</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROFILE MODAL ───────────────────────────── -->
+<div class="modal-overlay" id="profileModal">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-header">
+      <span class="modal-title">◈ Your Profile</span>
+      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:14px;line-height:1.6">Your profile is stored in Google Drive and shared with all Basins — they will know who you are and what you bring to a space.</p>
+    <span class="label">Name</span>
+    <input type="text" id="profileName" placeholder="Your name" style="margin-bottom:10px" readonly />
+    <span class="label">Who are you?</span>
+    <textarea id="profileWho" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="A brief identity statement. What's your background, your role, your lens?"></textarea>
+    <span class="label">What do you represent?</span>
+    <textarea id="profileWhat" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="What ideas, frameworks, or domains do you carry? What do you bring to collaborative thinking?"></textarea>
+    <span class="label">What are you currently working on?</span>
+    <textarea id="profileWorking" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Current projects, questions, or investigations."></textarea>
+    <span class="label">Anything else Basins should know?</span>
+    <textarea id="profileExtra" rows="2" style="resize:vertical;margin-bottom:14px" placeholder="Communication preferences, things that matter to you, context that would help an AI think alongside you."></textarea>
+    <div id="profileStatus" style="display:none;font-size:12px;color:var(--ink-muted);margin-bottom:10px;padding:8px 12px;background:rgba(139,111,71,0.08);border-radius:6px"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-ghost" id="profileSkipBtn" onclick="closeProfileModal()" style="flex:1">Skip for now</button>
+      <button class="btn-primary" onclick="saveProfile()" id="profileSaveBtn" style="flex:2">Save Profile</button>
     </div>
   </div>
 </div>
@@ -970,7 +999,9 @@ async function init() {
   await checkAuth();
   await loadBasins();
   document.getElementById('playerName').addEventListener('input', () => {
-    document.getElementById('enterBtn').disabled = !document.getElementById('playerName').value.trim();
+    const hasName = !!document.getElementById('playerName').value.trim();
+    document.getElementById('enterBtn').disabled = !hasName;
+    document.getElementById('profileBtn').style.display = hasName ? '' : 'none';
   });
   document.getElementById('input').addEventListener('input', () => {
     document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim();
@@ -1036,14 +1067,13 @@ async function checkAuth() {
   document.getElementById('driveDot').classList.toggle('on', driveConnected);
 
   if (data.serviceAccount && data.userOAuth) {
-    document.getElementById('driveLabel').textContent = 'System + Personal';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect personal</a>';
-    await loadFolders();
+    document.getElementById('driveLabel').textContent = 'Connected';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
   } else if (data.serviceAccount) {
-    document.getElementById('driveLabel').textContent = 'System connected';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/google" style="color:var(--accent);font-size:13px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">+ Personal folders →</a>';
+    document.getElementById('driveLabel').textContent = 'Connected';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
   } else if (data.userOAuth) {
-    document.getElementById('driveLabel').textContent = 'Personal connected';
+    document.getElementById('driveLabel').textContent = 'Connected';
     document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
     await loadFolders();
   } else {
@@ -1093,10 +1123,22 @@ function showPage(id) {
   document.getElementById(id).classList.add('active');
 }
 
-function enterLobby() {
+async function enterLobby() {
   playerName = document.getElementById('playerName').value.trim();
   if (!playerName) return;
   document.getElementById('lobbyPlayerName').textContent = playerName;
+
+  // Check if this person has a profile — if not, prompt them
+  const hasProfile = await checkProfileExists(playerName);
+  if (!hasProfile) {
+    openProfileModal(true); // true = first-time, show "enter lobby" button instead of skip
+    return; // enterLobby will be called again after modal closes or is skipped
+  }
+
+  _doEnterLobby();
+}
+
+function _doEnterLobby() {
   showPage('lobby');
   joinLobbyChat();
   fetch('/api/rooms/reload', { method: 'POST' })
@@ -1857,6 +1899,94 @@ function saveRoom() {
 function openDefinition() { document.getElementById('defTooltip').classList.add('open'); }
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
 function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); }
+
+// ── Profile Modal ──────────────────────────────────────
+let _profileIsFirstTime = false;
+
+async function checkProfileExists(name) {
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    return data.exists;
+  } catch { return false; }
+}
+
+function openProfileModal(firstTime = false) {
+  _profileIsFirstTime = firstTime;
+  const name = document.getElementById('playerName').value.trim();
+  document.getElementById('profileName').value = name;
+  document.getElementById('profileStatus').style.display = 'none';
+
+  // Update skip/save button labels for first-time vs revisit
+  const skipBtn = document.getElementById('profileSkipBtn');
+  if (firstTime) {
+    skipBtn.textContent = 'Skip — enter lobby';
+    skipBtn.onclick = () => { closeProfileModal(); _doEnterLobby(); };
+  } else {
+    skipBtn.textContent = 'Cancel';
+    skipBtn.onclick = closeProfileModal;
+  }
+
+  // Pre-fill if profile already exists
+  fetch(`/api/profile/${encodeURIComponent(name)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.profile) {
+        document.getElementById('profileWho').value = data.profile.who || '';
+        document.getElementById('profileWhat').value = data.profile.what || '';
+        document.getElementById('profileWorking').value = data.profile.working || '';
+        document.getElementById('profileExtra').value = data.profile.extra || '';
+      }
+    }).catch(() => {});
+
+  document.getElementById('profileModal').classList.add('open');
+}
+
+function closeProfileModal() {
+  document.getElementById('profileModal').classList.remove('open');
+}
+
+async function saveProfile() {
+  const name = document.getElementById('profileName').value.trim();
+  const who = document.getElementById('profileWho').value.trim();
+  const what = document.getElementById('profileWhat').value.trim();
+  const working = document.getElementById('profileWorking').value.trim();
+  const extra = document.getElementById('profileExtra').value.trim();
+
+  if (!who && !what && !working && !extra) {
+    const status = document.getElementById('profileStatus');
+    status.textContent = 'Add at least one field before saving.';
+    status.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('profileSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  try {
+    const res = await fetch('/api/profile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, who, what, working, extra })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const status = document.getElementById('profileStatus');
+    status.textContent = '◈ Profile saved to Drive.';
+    status.style.display = 'block';
+
+    setTimeout(() => {
+      closeProfileModal();
+      if (_profileIsFirstTime) _doEnterLobby();
+    }, 800);
+  } catch(e) {
+    const status = document.getElementById('profileStatus');
+    status.textContent = 'Error saving: ' + e.message;
+    status.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Save Profile';
+}
 function closeAbout(e) {
   if (!e || e.target === document.getElementById('aboutOverlay') || e.currentTarget?.classList.contains('about-close')) {
     document.getElementById('aboutOverlay').classList.remove('open');

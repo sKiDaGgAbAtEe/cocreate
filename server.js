@@ -282,6 +282,19 @@ async function writeDriveFile(drive, fileName, parentId, content) {
   }
 }
 
+async function writePlainTextFile(drive, fileName, parentId, content) {
+  const existing = await getDriveFile(drive, fileName, parentId);
+  if (existing) {
+    await drive.files.update({ fileId: existing, media: { mimeType: 'text/plain', body: content } });
+  } else {
+    await drive.files.create({
+      requestBody: { name: fileName, parents: [parentId] },
+      media: { mimeType: 'text/plain', body: content },
+      fields: 'id'
+    });
+  }
+}
+
 // ── Service Account Drive (system folders) ────────────
 let _serviceAccountDrive = null;
 
@@ -1194,6 +1207,56 @@ app.post('/api/rooms/:id/process', async (req, res) => {
 
     res.json({ mode, result: parsed });
   } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Profile Routes ─────────────────────────────────────
+app.get('/api/profile/:name', async (req, res) => {
+  const drive = await getSystemDrive();
+  if (!drive) return res.json({ exists: false });
+  try {
+    const root = await getDriveFolder(drive, 'CoCreate');
+    const profilesId = await getDriveFolder(drive, 'Profiles', root);
+    const name = req.params.name;
+    const fileName = `${name}.json`;
+    const fileId = await getDriveFile(drive, fileName, profilesId);
+    if (!fileId) return res.json({ exists: false });
+    const profile = await readDriveFile(drive, fileId);
+    res.json({ exists: true, profile });
+  } catch (e) {
+    res.json({ exists: false });
+  }
+});
+
+app.post('/api/profile', async (req, res) => {
+  const drive = await getSystemDrive();
+  if (!drive) return res.status(503).json({ error: 'Drive not available' });
+  const { name, who, what, working, extra } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  try {
+    const root = await getDriveFolder(drive, 'CoCreate');
+    const profilesId = await getDriveFolder(drive, 'Profiles', root);
+    const profile = { name, who, what, working, extra, updatedAt: new Date().toISOString() };
+    await writeDriveFile(drive, `${name}.json`, profilesId, profile);
+
+    // Also write as a Google Doc-readable plain text file for basin context injection
+    const textContent = [
+      `# Profile: ${name}`,
+      who ? `\n## Who I am\n${who}` : '',
+      what ? `\n## What I represent\n${what}` : '',
+      working ? `\n## Currently working on\n${working}` : '',
+      extra ? `\n## Additional context\n${extra}` : ''
+    ].filter(Boolean).join('\n');
+
+    // Write as a .txt file alongside the JSON so readFolderContents picks it up
+    await writePlainTextFile(drive, `${name}.txt`, profilesId, textContent);
+
+    // Invalidate system context cache so next resonance picks up the new profile
+    _systemContextCache = null;
+
+    res.json({ success: true });
+  } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
