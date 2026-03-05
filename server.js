@@ -94,7 +94,11 @@ app.get('/auth/logout', (req, res) => {
   res.redirect('/?auth=logout');
 });
 
-app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
+app.get('/auth/status', (req, res) => res.json({
+  connected: !!userTokens || !!getServiceAccountDrive(),
+  serviceAccount: !!getServiceAccountDrive(),
+  userOAuth: !!userTokens
+}));
 
 // ── Room State (persisted to Drive) ────────────────────
 const rooms = {};
@@ -135,7 +139,7 @@ function uniqueMembers(room) {
 }
 
 async function loadRoomsFromDrive() {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -154,7 +158,7 @@ async function loadRoomsFromDrive() {
 }
 
 async function persistRoomsToDrive() {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -241,7 +245,7 @@ async function getArchiveFolderId(drive) {
 }
 
 async function archiveRoomOnDrive(room) {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
     const archiveId = await getArchiveFolderId(drive);
@@ -278,6 +282,35 @@ async function writeDriveFile(drive, fileName, parentId, content) {
   }
 }
 
+// ── Service Account Drive (system folders) ────────────
+let _serviceAccountDrive = null;
+
+function getServiceAccountDrive() {
+  if (_serviceAccountDrive) return _serviceAccountDrive;
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    const key = JSON.parse(raw);
+    const auth = new google.auth.GoogleAuth({
+      credentials: key,
+      scopes: ['https://www.googleapis.com/auth/drive']
+    });
+    _serviceAccountDrive = google.drive({ version: 'v3', auth });
+    console.log('◈ Service account Drive ready:', key.client_email);
+    return _serviceAccountDrive;
+  } catch (e) {
+    console.error('Service account init failed:', e.message);
+    return null;
+  }
+}
+
+// getSystemDrive — always uses service account if available, falls back to OAuth
+async function getSystemDrive() {
+  const sa = getServiceAccountDrive();
+  if (sa) return sa;
+  return getDrive(); // fallback to OAuth
+}
+
 async function getDrive() {
   if (!userTokens) return null;
   oauth2Client.setCredentials(userTokens);
@@ -305,7 +338,7 @@ async function getDrive() {
 
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -333,7 +366,7 @@ app.get('/api/basins', async (req, res) => {
 });
 
 app.post('/api/basins', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -366,7 +399,7 @@ app.post('/api/basins', async (req, res) => {
 
 // Synthesize a system prompt from a Drive folder's documents
 app.post('/api/basins/synthesize', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { folderId, folderName, name, description } = req.body;
   if (!folderId) return res.status(400).json({ error: 'folderId required' });
@@ -415,7 +448,7 @@ app.post('/api/basins/generate-bio', async (req, res) => {
 
 // Update basin biography — owner only
 app.patch('/api/basins/:id/bio', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { biography, playerName } = req.body;
   try {
@@ -438,7 +471,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
 
 // Delete a basin — only the creator can remove it; default basins are protected
 app.delete('/api/basins/:id', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { playerName } = req.body;
   if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
@@ -518,7 +551,7 @@ app.post('/api/rooms/reload', async (req, res) => {
 });
 
 app.get('/api/archive', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json({ sessions: [] });
   try {
     const archiveId = await getArchiveFolderId(drive);
@@ -532,7 +565,7 @@ app.get('/api/archive', async (req, res) => {
 });
 
 app.get('/api/archive/:fileId', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try { res.json(await readDriveFile(drive, req.params.fileId)); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -665,23 +698,72 @@ Rules:
   }
 }
 
+// ── System Context (Docs + Profiles — auto-injected) ──
+// Cached so we don't hit Drive on every single message
+let _systemContextCache = null;
+let _systemContextFetchedAt = 0;
+const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000; // refresh every 5 minutes
+
+async function getSystemContext() {
+  const now = Date.now();
+  if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
+    return _systemContextCache;
+  }
+  const drive = await getSystemDrive();
+  if (!drive) return '';
+  try {
+    const root = await getDriveFolder(drive, 'CoCreate');
+    let context = '';
+
+    // Read Docs folder (ops guide, system docs)
+    try {
+      const docsId = await getDriveFolder(drive, 'Docs', root);
+      const docsContent = await readFolderContents(drive, docsId, 'System Docs');
+      if (docsContent.trim()) context += docsContent;
+    } catch(e) { console.error('Could not read Docs folder:', e.message); }
+
+    // Read Profiles folder (user identity docs)
+    try {
+      const profilesId = await getDriveFolder(drive, 'Profiles', root);
+      const profilesContent = await readFolderContents(drive, profilesId, 'User Profiles');
+      if (profilesContent.trim()) context += profilesContent;
+    } catch(e) { console.error('Could not read Profiles folder:', e.message); }
+
+    _systemContextCache = context;
+    _systemContextFetchedAt = now;
+    console.log(`◈ System context loaded (${context.length} chars)`);
+    return context;
+  } catch(e) {
+    console.error('getSystemContext error:', e.message);
+    return '';
+  }
+}
+
 // ── Claude Resonance ───────────────────────────────────
 async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction) {
+  // System context: Docs + Profiles — always injected from service account Drive
+  const systemContext = await getSystemContext();
+
+  // User-toggled knowledge folders — from personal OAuth Drive
   let knowledgeContext = '';
-  const drive = await getDrive();
-  if (drive && activeFolders && activeFolders.length > 0 && folderMap) {
+  const userDrive = await getDrive();
+  if (userDrive && activeFolders && activeFolders.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
       if (folderId) {
-        knowledgeContext += await readFolderContents(drive, folderId, folderName);
+        knowledgeContext += await readFolderContents(userDrive, folderId, folderName);
       }
     }
   }
 
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
-  const fullSystem = knowledgeContext
-    ? `${systemPrompt}\n\n=== YOUR KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`
-    : systemPrompt;
+  let fullSystem = systemPrompt;
+  if (systemContext) {
+    fullSystem += `\n\n=== SYSTEM KNOWLEDGE (always available) ===\nThis is your operational context, platform documentation, and participant profiles. Use it to understand who you are, what this platform does, and who the people in this space are:\n${systemContext}`;
+  }
+  if (knowledgeContext) {
+    fullSystem += `\n\n=== SESSION KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`;
+  }
 
   const history = contributions
     .map(c => c.type === 'resonance'
@@ -755,7 +837,7 @@ io.on('connection', (socket) => {
 
     // Always try to load the freshest contributions from the individual room file on Drive
     try {
-      const drive = await getDrive();
+      const drive = await getSystemDrive();
       if (drive) {
         const activeId = await getActiveFolderId(drive);
         const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
@@ -1002,7 +1084,7 @@ io.on('connection', (socket) => {
 
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
-  const drive = await getDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -1060,11 +1142,46 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     if (data.error) throw new Error(data.error.message);
     const rawText = data.content?.[0]?.text || '{}';
     let parsed;
-    try { parsed = JSON.parse(rawText); }
-    catch { parsed = { raw: rawText }; }
+    try {
+      // Strategy 1: direct parse
+      parsed = JSON.parse(rawText);
+    } catch {
+      try {
+        // Strategy 2: strip markdown fences
+        const stripped = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+        parsed = JSON.parse(stripped);
+      } catch {
+        try {
+          // Strategy 3: extract first {...} block
+          const match = rawText.match(/\{[\s\S]*\}/);
+          if (match) parsed = JSON.parse(match[0]);
+          else throw new Error('no JSON object found');
+        } catch {
+          // Strategy 4: ask Claude to re-emit as clean JSON
+          try {
+            const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-5', max_tokens: 2000,
+                system: 'Convert the following text into valid JSON. Output ONLY the JSON object, no markdown, no explanation.',
+                messages: [{ role: 'user', content: rawText }]
+              })
+            });
+            const fixData = await fixRes.json();
+            const fixText = fixData.content?.[0]?.text || '{}';
+            const fixStripped = fixText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+            parsed = JSON.parse(fixStripped);
+          } catch {
+            // Final fallback: wrap raw text in a summary-shaped object so the UI always renders something
+            parsed = { field_summary: rawText, key_phrases: [], session_character: '' };
+          }
+        }
+      }
+    }
 
     // Optionally save to Drive
-    const drive = await getDrive();
+    const drive = await getSystemDrive();
     if (drive) {
       try {
         const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
@@ -1088,4 +1205,18 @@ httpServer.listen(PORT, () => {
   console.log(`  Open: http://localhost:${PORT}\n`);
   // Load persisted rooms after a short delay to allow OAuth to be ready
   setTimeout(loadRoomsFromDrive, 3000);
+  // Auto-save all rooms every 30 seconds
+  setInterval(async () => {
+    const activeRooms = Object.values(rooms);
+    if (!activeRooms.length) return;
+    await persistRoomsToDrive();
+    // Also write individual room files for any room with recent activity (updated in last 2 min)
+    const cutoff = Date.now() - 2 * 60 * 1000;
+    for (const room of activeRooms) {
+      if (room.updatedAt && new Date(room.updatedAt).getTime() > cutoff) {
+        await saveRoomToDrive(room).catch(e => console.error('Auto-save room error:', e.message));
+      }
+    }
+    console.log(`◈ Auto-saved ${activeRooms.length} room(s)`);
+  }, 30 * 1000);
 });

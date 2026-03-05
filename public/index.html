@@ -1035,8 +1035,15 @@ async function checkAuth() {
   driveConnected = data.connected;
   document.getElementById('driveDot').classList.toggle('on', driveConnected);
 
-  if (driveConnected) {
-    document.getElementById('driveLabel').textContent = 'Connected';
+  if (data.serviceAccount && data.userOAuth) {
+    document.getElementById('driveLabel').textContent = 'System + Personal';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect personal</a>';
+    await loadFolders();
+  } else if (data.serviceAccount) {
+    document.getElementById('driveLabel').textContent = 'System connected';
+    document.getElementById('driveLink').innerHTML = '<a href="/auth/google" style="color:var(--accent);font-size:13px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">+ Personal folders →</a>';
+  } else if (data.userOAuth) {
+    document.getElementById('driveLabel').textContent = 'Personal connected';
     document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
     await loadFolders();
   } else {
