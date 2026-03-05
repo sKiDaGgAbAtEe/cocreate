@@ -1582,6 +1582,27 @@ function renderProcessResult(mode, result) {
     if (phrases) { html += `<h4>Key Phrases</h4><div style="display:flex;flex-wrap:wrap;gap:6px">`; phrases.forEach(p => { html += `<span class="tag">${esc(typeof p === 'string' ? p : JSON.stringify(p))}</span>`; }); html += `</div>`; rendered = true; }
   }
 
+  // If result has a raw string (server parse failed), try to recover and re-render
+  if (!rendered && result.raw && typeof result.raw === 'string') {
+    try {
+      const cleaned = result.raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      let recovered;
+      try {
+        recovered = JSON.parse(cleaned);
+      } catch {
+        const start = result.raw.search(/[{[]/);
+        const end = Math.max(result.raw.lastIndexOf('}'), result.raw.lastIndexOf(']'));
+        if (start !== -1 && end > start) recovered = JSON.parse(result.raw.slice(start, end + 1));
+      }
+      if (recovered) {
+        html += '</div>';
+        body.innerHTML = html;
+        renderProcessResult(mode, recovered);
+        return;
+      }
+    } catch { /* fall through to raw dump */ }
+  }
+
   // Universal fallback — always show something
   if (!rendered) {
     html += `<h4>Raw Output</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--ink-muted);line-height:1.6">${esc(JSON.stringify(result, null, 2))}</pre>`;

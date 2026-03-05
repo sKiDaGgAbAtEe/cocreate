@@ -884,8 +884,24 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     if (data.error) throw new Error(data.error.message);
     const rawText = data.content?.[0]?.text || '{}';
     let parsed;
-    try { parsed = JSON.parse(rawText); }
-    catch { parsed = { raw: rawText }; }
+    try {
+      // Strip markdown fences (handles ```json, ```, and surrounding whitespace)
+      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      // Second attempt: find the first { or [ and last } or ] to extract raw JSON
+      try {
+        const start = rawText.search(/[{[]/);
+        const end = Math.max(rawText.lastIndexOf('}'), rawText.lastIndexOf(']'));
+        if (start !== -1 && end > start) {
+          parsed = JSON.parse(rawText.slice(start, end + 1));
+        } else {
+          parsed = { raw: rawText };
+        }
+      } catch {
+        parsed = { raw: rawText };
+      }
+    }
 
     // Optionally save to Drive
     const drive = await getDrive();
