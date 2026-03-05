@@ -87,6 +87,8 @@
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .room-card { background: rgba(255,252,244,0.92); border: 1px solid var(--border2); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; box-shadow: 0 2px 8px var(--shadow); }
+    .archive-entry { background: rgba(255,255,255,0.5); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; }
+    .archive-entry:hover { border-color: var(--accent); background: rgba(139,111,71,0.06); }
     .room-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); opacity: 0; transition: opacity 0.3s; }
     .room-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px var(--shadow); border-color: var(--gold); }
     .room-card:hover::before { opacity: 1; }
@@ -537,6 +539,8 @@
       <div class="lobby-top">
         <h3>Active Spaces</h3>
         <div style="display:flex;gap:10px">
+          <button class="btn-ghost" onclick="forceRefreshRooms()" title="Reload from Drive" style="padding:9px 14px;font-size:13px">↺</button>
+          <button class="btn-ghost" onclick="openArchiveModal()" style="padding:9px 18px;font-size:13px">Archive</button>
           <button class="btn-ghost" onclick="openBasinModal()" style="padding:9px 18px;font-size:13px">+ New Basin</button>
           <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
         </div>
@@ -650,6 +654,31 @@
       <button class="btn-ghost" id="processDownloadBtn" onclick="downloadProcessResult()" style="display:none">↓ Download</button>
       <button class="btn-ghost" id="processDriveBtn" onclick="saveProcessToDrive()" style="display:none">↑ Save to Drive</button>
     </div>
+  </div>
+</div>
+
+<!-- ── ARCHIVE MODAL ──────────────────────────── -->
+<div class="modal-overlay" id="archiveModal" style="z-index:110">
+  <div class="modal-card" style="max-width:600px;max-height:80vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title">Archived Sessions</div>
+      <button onclick="closeArchiveModal()" style="background:none;border:none;font-size:18px;color:var(--ink-muted);cursor:pointer">✕</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-faint);font-style:italic;margin-bottom:12px">Sessions moved here when closed. Read-only.</p>
+    <div id="archiveList" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:8px">
+      <div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── ARCHIVE VIEWER MODAL ───────────────────── -->
+<div class="modal-overlay" id="archiveViewerModal" style="z-index:120">
+  <div class="modal-card" style="max-width:700px;max-height:85vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="modal-title" id="archiveViewerTitle">Session</div>
+      <button onclick="closeArchiveViewer()" style="background:none;border:none;font-size:18px;color:var(--ink-muted);cursor:pointer">✕</button>
+    </div>
+    <div id="archiveViewerBody" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px"></div>
   </div>
 </div>
 
@@ -954,9 +983,12 @@ function enterLobby() {
   playerName = document.getElementById('playerName').value.trim();
   if (!playerName) return;
   document.getElementById('lobbyPlayerName').textContent = playerName;
-  loadRoomList();
   showPage('lobby');
   joinLobbyChat();
+  // Always reload from Drive when entering lobby so session state is fresh
+  fetch('/api/rooms/reload', { method: 'POST' })
+    .then(() => loadRoomList())
+    .catch(() => loadRoomList()); // fall back to in-memory list if Drive fails
 }
 
 // ── Lobby Chat ────────────────────────────────
@@ -1075,6 +1107,17 @@ async function loadRoomList() {
   const res = await fetch('/api/rooms');
   const rooms = await res.json();
   renderRooms(rooms);
+}
+
+async function forceRefreshRooms() {
+  const btn = document.querySelector('button[onclick="forceRefreshRooms()"]');
+  if (btn) { btn.textContent = '↺ ...'; btn.disabled = true; }
+  try {
+    await fetch('/api/rooms/reload', { method: 'POST' });
+    await loadRoomList();
+  } finally {
+    if (btn) { btn.textContent = '↺'; btn.disabled = false; }
+  }
 }
 
 function renderRooms(rooms) {
@@ -1582,27 +1625,6 @@ function renderProcessResult(mode, result) {
     if (phrases) { html += `<h4>Key Phrases</h4><div style="display:flex;flex-wrap:wrap;gap:6px">`; phrases.forEach(p => { html += `<span class="tag">${esc(typeof p === 'string' ? p : JSON.stringify(p))}</span>`; }); html += `</div>`; rendered = true; }
   }
 
-  // If result has a raw string (server parse failed), try to recover and re-render
-  if (!rendered && result.raw && typeof result.raw === 'string') {
-    try {
-      const cleaned = result.raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      let recovered;
-      try {
-        recovered = JSON.parse(cleaned);
-      } catch {
-        const start = result.raw.search(/[{[]/);
-        const end = Math.max(result.raw.lastIndexOf('}'), result.raw.lastIndexOf(']'));
-        if (start !== -1 && end > start) recovered = JSON.parse(result.raw.slice(start, end + 1));
-      }
-      if (recovered) {
-        html += '</div>';
-        body.innerHTML = html;
-        renderProcessResult(mode, recovered);
-        return;
-      }
-    } catch { /* fall through to raw dump */ }
-  }
-
   // Universal fallback — always show something
   if (!rendered) {
     html += `<h4>Raw Output</h4><pre style="font-size:12px;white-space:pre-wrap;color:var(--ink-muted);line-height:1.6">${esc(JSON.stringify(result, null, 2))}</pre>`;
@@ -1908,6 +1930,72 @@ function drawInterference() {
 
   interferenceTime++;
   interferenceAnimId = requestAnimationFrame(drawInterference);
+}
+
+// ── Archive Browser ───────────────────────────
+async function openArchiveModal() {
+  document.getElementById('archiveModal').classList.add('open');
+  const list = document.getElementById('archiveList');
+  list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">Loading...</div>';
+  try {
+    const res = await fetch('/api/archive');
+    const data = await res.json();
+    if (!data.sessions || !data.sessions.length) {
+      list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">No archived sessions yet.</div>';
+      return;
+    }
+    list.innerHTML = data.sessions.map(s => {
+      const date = new Date(s.modifiedTime).toLocaleDateString([], { year:'numeric', month:'short', day:'numeric' });
+      const time = new Date(s.modifiedTime).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return `<div class="archive-entry" onclick="viewArchivedSession('${s.fileId}', '${esc(s.name)}')">
+        <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--ink);margin-bottom:3px">${esc(s.name)}</div>
+        <div style="font-size:11px;color:var(--ink-faint)">${date} · ${time}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div style="font-size:13px;color:#c0392b;padding:12px">Error loading archive: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeArchiveModal() {
+  document.getElementById('archiveModal').classList.remove('open');
+}
+
+async function viewArchivedSession(fileId, name) {
+  document.getElementById('archiveViewerTitle').textContent = name;
+  document.getElementById('archiveViewerBody').innerHTML = '<div style="text-align:center;padding:24px;color:var(--ink-faint);font-style:italic">Loading...</div>';
+  document.getElementById('archiveViewerModal').classList.add('open');
+  try {
+    const res = await fetch(`/api/archive/${fileId}`);
+    const session = await res.json();
+    const contribs = session.contributions || [];
+    const body = document.getElementById('archiveViewerBody');
+    if (!contribs.length) {
+      body.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center">No contributions recorded.</div>';
+      return;
+    }
+    body.innerHTML = contribs.map(c => {
+      if (c.type === 'system') {
+        return `<div style="text-align:center;font-family:'Cinzel',serif;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;padding:2px 0">◈ ${esc(c.text)}</div>`;
+      } else if (c.type === 'resonance') {
+        return `<div style="background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.3);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;max-width:80%">
+          <div style="font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:0.14em;margin-bottom:5px">◈ ${esc(c.author)}</div>
+          <div style="font-size:14px;line-height:1.8;color:var(--ink-dim);font-style:italic">${esc(c.text)}</div>
+        </div>`;
+      } else {
+        return `<div style="background:rgba(255,255,255,0.7);border:1px solid var(--border);border-radius:8px;padding:12px 14px;max-width:80%;align-self:flex-end;margin-left:auto">
+          <div style="font-family:'Cinzel',serif;font-size:9px;color:var(--accent);letter-spacing:0.14em;margin-bottom:5px">${esc(c.author)}</div>
+          <div style="font-size:14px;line-height:1.75;color:var(--ink)">${esc(c.text)}</div>
+        </div>`;
+      }
+    }).join('');
+  } catch(e) {
+    document.getElementById('archiveViewerBody').innerHTML = `<div style="color:#c0392b;font-size:13px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeArchiveViewer() {
+  document.getElementById('archiveViewerModal').classList.remove('open');
 }
 
 init();

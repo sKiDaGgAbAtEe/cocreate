@@ -134,19 +134,29 @@ function uniqueMembers(room) {
   return [...new Set(Object.values(room.socketMap))];
 }
 
+async function getActiveFolderId(drive) {
+  const root = await getDriveFolder(drive, 'CoCreate');
+  return getDriveFolder(drive, 'Active', root);
+}
+
+async function getArchiveFolderId(drive) {
+  const root = await getDriveFolder(drive, 'CoCreate');
+  return getDriveFolder(drive, 'Archive', root);
+}
+
 async function loadRoomsFromDrive() {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    const fileId = await getDriveFile(drive, 'rooms.json', folderId);
+    const activeId = await getActiveFolderId(drive);
+    const fileId = await getDriveFile(drive, 'rooms.json', activeId);
     if (!fileId) return;
     const saved = await readDriveFile(drive, fileId);
     if (saved && typeof saved === 'object') {
       Object.entries(saved).forEach(([id, room]) => {
-        rooms[id] = { ...room, socketMap: {} }; // clear live socket state on restart
+        rooms[id] = { ...room, socketMap: {} };
       });
-      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive`);
+      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive (Active)`);
     }
   } catch (e) {
     console.error('Could not load rooms from Drive:', e.message);
@@ -157,10 +167,26 @@ async function persistRoomsToDrive() {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    await writeDriveFile(drive, 'rooms.json', folderId, rooms);
+    const activeId = await getActiveFolderId(drive);
+    await writeDriveFile(drive, 'rooms.json', activeId, rooms);
   } catch (e) {
     console.error('Could not persist rooms to Drive:', e.message);
+  }
+}
+
+async function archiveRoomOnDrive(room) {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const archiveId = await getArchiveFolderId(drive);
+    const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
+    await writeDriveFile(drive, fileName, archiveId, {
+      ...room,
+      archivedAt: new Date().toISOString()
+    });
+    console.log(`Room archived: ${fileName}`);
+  } catch (e) {
+    console.error('Could not archive room:', e.message);
   }
 }
 
@@ -217,14 +243,17 @@ Rules:
 ];
 
 // ── Drive Helpers ──────────────────────────────────────
-async function getDriveFolder(drive, name) {
+async function getDriveFolder(drive, name, parentId = null) {
+  const parentClause = parentId ? ` and '${parentId}' in parents` : '';
   const search = await drive.files.list({
-    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`,
     fields: 'files(id)'
   });
   if (search.data.files[0]) return search.data.files[0].id;
+  const createBody = { name, mimeType: 'application/vnd.google-apps.folder' };
+  if (parentId) createBody.parents = [parentId];
   const folder = await drive.files.create({
-    requestBody: { name, mimeType: 'application/vnd.google-apps.folder' },
+    requestBody: createBody,
     fields: 'id'
   });
   return folder.data.id;
@@ -385,6 +414,50 @@ async function readFolderContents(drive, folderId, folderName) {
 // ── Room REST Routes ───────────────────────────────────
 app.get('/api/rooms', (req, res) => res.json(getRoomList()));
 
+// Force reload active rooms from Drive
+app.post('/api/rooms/reload', async (req, res) => {
+  await loadRoomsFromDrive();
+  io.emit('rooms:updated', getRoomList());
+  res.json({ success: true, count: Object.keys(rooms).length });
+});
+
+// Browse archived sessions from Drive
+app.get('/api/archive', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.json({ sessions: [] });
+  try {
+    const archiveId = await getArchiveFolderId(drive);
+    const result = await drive.files.list({
+      q: `'${archiveId}' in parents and trashed=false and mimeType='application/json'`,
+      fields: 'files(id, name, createdTime, modifiedTime, size)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 50
+    });
+    const sessions = result.data.files.map(f => ({
+      fileId: f.id,
+      name: f.name.replace(/\.json$/, ''),
+      modifiedTime: f.modifiedTime,
+      size: f.size
+    }));
+    res.json({ sessions });
+  } catch (e) {
+    console.error('Archive list error:', e.message);
+    res.json({ sessions: [], error: e.message });
+  }
+});
+
+// Fetch a single archived session's content
+app.get('/api/archive/:fileId', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const data = await readDriveFile(drive, req.params.fileId);
+    res.json(data);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/rooms', (req, res) => {
   const id = generateRoomId();
   const room = {
@@ -409,9 +482,10 @@ app.post('/api/rooms', (req, res) => {
   res.json({ id, room: sanitizeRoom(room) });
 });
 
-app.delete('/api/rooms/:id', (req, res) => {
+app.delete('/api/rooms/:id', async (req, res) => {
   const room = rooms[req.params.id];
   if (!room) return res.status(404).json({ error: 'Room not found' });
+  await archiveRoomOnDrive(room);
   delete rooms[req.params.id];
   persistRoomsToDrive();
   io.emit('rooms:updated', getRoomList());
@@ -829,7 +903,8 @@ async function saveRoomToDrive(room) {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
+    const activeId = await getActiveFolderId(drive);
+    const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
     await writeDriveFile(drive, fileName, folderId, {
       ...room,
@@ -884,30 +959,15 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     if (data.error) throw new Error(data.error.message);
     const rawText = data.content?.[0]?.text || '{}';
     let parsed;
-    try {
-      // Strip markdown fences (handles ```json, ```, and surrounding whitespace)
-      const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // Second attempt: find the first { or [ and last } or ] to extract raw JSON
-      try {
-        const start = rawText.search(/[{[]/);
-        const end = Math.max(rawText.lastIndexOf('}'), rawText.lastIndexOf(']'));
-        if (start !== -1 && end > start) {
-          parsed = JSON.parse(rawText.slice(start, end + 1));
-        } else {
-          parsed = { raw: rawText };
-        }
-      } catch {
-        parsed = { raw: rawText };
-      }
-    }
+    try { parsed = JSON.parse(rawText); }
+    catch { parsed = { raw: rawText }; }
 
     // Optionally save to Drive
     const drive = await getDrive();
     if (drive) {
       try {
-        const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
+        const activeId = await getActiveFolderId(drive);
+        const folderId = room.saveFolderId || activeId;
         const fileName = `${room.title.replace(/\s+/g,'-')}-${room.id}-${mode}.json`;
         await writeDriveFile(drive, fileName, folderId, {
           roomId: room.id, roomTitle: room.title, mode, processedAt: new Date().toISOString(), result: parsed
