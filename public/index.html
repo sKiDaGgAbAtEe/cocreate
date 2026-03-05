@@ -223,7 +223,7 @@
     /* ── FIELD PANEL ──────────────── */
     .field-panel-toggle { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-faint); font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.12em; padding: 4px 9px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
     .field-panel-toggle:hover, .field-panel-toggle.active { border-color: var(--gold); color: var(--gold); }
-    .field-panel { width: 0; flex-shrink: 0; overflow: hidden; transition: width 0.35s cubic-bezier(0.4,0,0.2,1); border-left: 0px solid var(--border); background: rgba(255,255,255,0.25); display: flex; flex-direction: column; }
+    .field-panel { width: 0; flex-shrink: 0; overflow: hidden; transition: width 0.35s cubic-bezier(0.4,0,0.2,1); border-left: 0px solid var(--border); background: rgba(255,255,255,0.25); display: flex; flex-direction: column; height: 100%; }
     .field-panel.open { width: 260px; border-left-width: 1px; }
     body.dark .field-panel { background: rgba(10,10,15,0.5); }
     .field-panel-inner { width: 260px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
@@ -231,8 +231,8 @@
     .field-panel-title { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
     .field-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); transition: background 0.5s; }
     .field-status-dot.live { background: var(--gold); animation: fieldPulse 2s ease-in-out infinite; }
-    .interference-wrap { flex: 1; position: relative; overflow: hidden; min-height: 180px; }
-    #interferenceCanvas { width: 100%; height: 100%; display: block; }
+    .interference-wrap { flex: 1; position: relative; overflow: hidden; min-height: 160px; max-height: 220px; }
+    #interferenceCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
     .field-meters { padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0; display: flex; flex-direction: column; gap: 7px; }
     .meter-row { display: flex; align-items: center; gap: 8px; }
     .meter-label { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint); width: 28px; flex-shrink: 0; }
@@ -590,11 +590,11 @@
       <span class="basin-tag" id="headerBasin" style="color:var(--basin-color)"></span>
     </div>
     <div class="header-right">
-      <button class="theme-toggle" onclick="toggleTheme()" id="sessionThemeBtn">◑ Dark</button>
       <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
       <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
       <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
       <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
+      <button class="theme-toggle" onclick="toggleTheme()" id="sessionThemeBtn" style="padding:4px 8px;font-size:11px">◑</button>
     </div>
   </div>
 
@@ -741,10 +741,13 @@ function toggleTheme() {
 
 function updateThemeBtns(isDark) {
   const label = isDark ? '◑ Light' : '◑ Dark';
-  ['landingThemeBtn','lobbyThemeBtn','sessionThemeBtn'].forEach(id => {
+  ['landingThemeBtn','lobbyThemeBtn'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.textContent = label;
   });
+  // Session button is icon-only
+  const sessionBtn = document.getElementById('sessionThemeBtn');
+  if (sessionBtn) sessionBtn.textContent = '◑';
 }
 
 function initTheme() {
@@ -1542,7 +1545,14 @@ function toggleFieldPanel() {
   panel.classList.toggle('open', fieldPanelOpen);
   btn.classList.toggle('active', fieldPanelOpen);
   if (fieldPanelOpen) {
-    setTimeout(() => startInterferenceMap(), 360);
+    // Wait for CSS transition (350ms) + buffer before reading dimensions
+    setTimeout(() => {
+      // Seed with gentle default values so it animates even before first message
+      if (!fieldMetrics) {
+        smoothH = 0.35; smoothV = 0.25; smoothT = 0.15; smoothC = 0.05;
+      }
+      startInterferenceMap();
+    }, 400);
   } else {
     stopInterferenceMap();
   }
@@ -1635,8 +1645,12 @@ function startInterferenceMap() {
   const canvas = document.getElementById('interferenceCanvas');
   if (!canvas) return;
   const wrap = canvas.parentElement;
-  canvas.width = wrap.offsetWidth;
-  canvas.height = wrap.offsetHeight;
+  // Use explicit pixel dimensions - getBoundingClientRect is reliable after transition
+  const rect = wrap.getBoundingClientRect();
+  const W = rect.width || 260;
+  const H = rect.height || 180;
+  canvas.width = W;
+  canvas.height = H;
   stopInterferenceMap();
   interferenceTime = 0;
   drawInterference();
