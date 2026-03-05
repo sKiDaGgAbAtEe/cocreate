@@ -134,16 +134,6 @@ function uniqueMembers(room) {
   return [...new Set(Object.values(room.socketMap))];
 }
 
-async function getActiveFolderId(drive) {
-  const root = await getDriveFolder(drive, 'CoCreate');
-  return getDriveFolder(drive, 'Active', root);
-}
-
-async function getArchiveFolderId(drive) {
-  const root = await getDriveFolder(drive, 'CoCreate');
-  return getDriveFolder(drive, 'Archive', root);
-}
-
 async function loadRoomsFromDrive() {
   const drive = await getDrive();
   if (!drive) return;
@@ -171,22 +161,6 @@ async function persistRoomsToDrive() {
     await writeDriveFile(drive, 'rooms.json', activeId, rooms);
   } catch (e) {
     console.error('Could not persist rooms to Drive:', e.message);
-  }
-}
-
-async function archiveRoomOnDrive(room) {
-  const drive = await getDrive();
-  if (!drive) return;
-  try {
-    const archiveId = await getArchiveFolderId(drive);
-    const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
-    await writeDriveFile(drive, fileName, archiveId, {
-      ...room,
-      archivedAt: new Date().toISOString()
-    });
-    console.log(`Room archived: ${fileName}`);
-  } catch (e) {
-    console.error('Could not archive room:', e.message);
   }
 }
 
@@ -252,11 +226,29 @@ async function getDriveFolder(drive, name, parentId = null) {
   if (search.data.files[0]) return search.data.files[0].id;
   const createBody = { name, mimeType: 'application/vnd.google-apps.folder' };
   if (parentId) createBody.parents = [parentId];
-  const folder = await drive.files.create({
-    requestBody: createBody,
-    fields: 'id'
-  });
+  const folder = await drive.files.create({ requestBody: createBody, fields: 'id' });
   return folder.data.id;
+}
+
+async function getActiveFolderId(drive) {
+  const root = await getDriveFolder(drive, 'CoCreate');
+  return getDriveFolder(drive, 'Active', root);
+}
+
+async function getArchiveFolderId(drive) {
+  const root = await getDriveFolder(drive, 'CoCreate');
+  return getDriveFolder(drive, 'Archive', root);
+}
+
+async function archiveRoomOnDrive(room) {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const archiveId = await getArchiveFolderId(drive);
+    const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
+    await writeDriveFile(drive, fileName, archiveId, { ...room, archivedAt: new Date().toISOString() });
+    console.log(`Room archived: ${fileName}`);
+  } catch (e) { console.error('Could not archive room:', e.message); }
 }
 
 async function getDriveFile(drive, fileName, parentId) {
@@ -346,7 +338,7 @@ app.post('/api/basins', async (req, res) => {
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
-    const basins = fileId ? await readDriveFile(drive, fileId) : DEFAULT_BASINS;
+    const basins = fileId ? await readDriveFile(drive, fileId) : [...DEFAULT_BASINS];
     const newBasin = {
       id: Date.now().toString(),
       name: req.body.name,
@@ -354,11 +346,70 @@ app.post('/api/basins', async (req, res) => {
       orientation: req.body.orientation || 'resonant',
       description: req.body.description || '',
       defaultFolders: req.body.defaultFolders || [],
-      systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt
+      systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
+      type: req.body.type || 'lens',
+      persistence: req.body.persistence || 'permanent',
+      isPublic: req.body.isPublic !== false,
+      createdBy: req.body.createdBy || null,
+      sourceFolderId: req.body.sourceFolderId || null,
+      sourceFolderName: req.body.sourceFolderName || null,
+      createdAt: new Date().toISOString()
     };
     basins.push(newBasin);
     await writeDriveFile(drive, 'basins.json', folderId, basins);
     res.json(newBasin);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Synthesize a system prompt from a Drive folder's documents
+app.post('/api/basins/synthesize', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  const { folderId, folderName, name, description } = req.body;
+  if (!folderId) return res.status(400).json({ error: 'folderId required' });
+  try {
+    const folderContent = await readFolderContents(drive, folderId, folderName || 'Source');
+    if (!folderContent.trim()) return res.status(400).json({ error: 'No readable documents found in that folder.' });
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 1200,
+        system: `You are a persona synthesizer. Given documents uploaded by a person, extract a coherent identity, voice, knowledge domain, and way of thinking. Write a system prompt that summons this entity as an attractor basin in a collaborative thinking space. The basin speaks FROM within the knowledge — not about it. It is a thinking presence, not an assistant. It opens doors, finds connections, stays warm and curious. 200-350 words. Output only the system prompt text, no preamble.`,
+        messages: [{ role: 'user', content: `Basin name: ${name || 'Unknown'}\nDescription: ${description || 'None provided'}\n\nSource documents:\n${folderContent}` }]
+      })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    res.json({ systemPrompt: data.content?.[0]?.text || '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete a basin — only the creator can remove it; default basins are protected
+app.delete('/api/basins/:id', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  const { playerName } = req.body;
+  if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
+    return res.status(403).json({ error: 'Default basins cannot be removed.' });
+  }
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'basins.json', folderId);
+    if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
+    const basins = await readDriveFile(drive, fileId);
+    const target = basins.find(b => b.id === req.params.id);
+    if (!target) return res.status(404).json({ error: 'Basin not found' });
+    if (target.createdBy && target.createdBy !== playerName) {
+      return res.status(403).json({ error: 'Only the creator can remove this basin.' });
+    }
+    await writeDriveFile(drive, 'basins.json', folderId, basins.filter(b => b.id !== req.params.id));
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -414,14 +465,12 @@ async function readFolderContents(drive, folderId, folderName) {
 // ── Room REST Routes ───────────────────────────────────
 app.get('/api/rooms', (req, res) => res.json(getRoomList()));
 
-// Force reload active rooms from Drive
 app.post('/api/rooms/reload', async (req, res) => {
   await loadRoomsFromDrive();
   io.emit('rooms:updated', getRoomList());
   res.json({ success: true, count: Object.keys(rooms).length });
 });
 
-// Browse archived sessions from Drive
 app.get('/api/archive', async (req, res) => {
   const drive = await getDrive();
   if (!drive) return res.json({ sessions: [] });
@@ -429,33 +478,18 @@ app.get('/api/archive', async (req, res) => {
     const archiveId = await getArchiveFolderId(drive);
     const result = await drive.files.list({
       q: `'${archiveId}' in parents and trashed=false and mimeType='application/json'`,
-      fields: 'files(id, name, createdTime, modifiedTime, size)',
-      orderBy: 'modifiedTime desc',
-      pageSize: 50
+      fields: 'files(id, name, createdTime, modifiedTime)',
+      orderBy: 'modifiedTime desc', pageSize: 50
     });
-    const sessions = result.data.files.map(f => ({
-      fileId: f.id,
-      name: f.name.replace(/\.json$/, ''),
-      modifiedTime: f.modifiedTime,
-      size: f.size
-    }));
-    res.json({ sessions });
-  } catch (e) {
-    console.error('Archive list error:', e.message);
-    res.json({ sessions: [], error: e.message });
-  }
+    res.json({ sessions: result.data.files.map(f => ({ fileId: f.id, name: f.name.replace(/\.json$/, ''), modifiedTime: f.modifiedTime })) });
+  } catch (e) { res.json({ sessions: [], error: e.message }); }
 });
 
-// Fetch a single archived session's content
 app.get('/api/archive/:fileId', async (req, res) => {
   const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  try {
-    const data = await readDriveFile(drive, req.params.fileId);
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  try { res.json(await readDriveFile(drive, req.params.fileId)); }
+  catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/rooms', (req, res) => {
@@ -906,10 +940,7 @@ async function saveRoomToDrive(room) {
     const activeId = await getActiveFolderId(drive);
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-    await writeDriveFile(drive, fileName, folderId, {
-      ...room,
-      lastSaved: new Date().toISOString()
-    });
+    await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
     console.log(`Room saved: ${fileName}`);
   } catch (e) {
     console.error('Room save error:', e.message);
@@ -966,8 +997,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     const drive = await getDrive();
     if (drive) {
       try {
-        const activeId = await getActiveFolderId(drive);
-        const folderId = room.saveFolderId || activeId;
+        const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
         const fileName = `${room.title.replace(/\s+/g,'-')}-${room.id}-${mode}.json`;
         await writeDriveFile(drive, fileName, folderId, {
           roomId: room.id, roomTitle: room.title, mode, processedAt: new Date().toISOString(), result: parsed

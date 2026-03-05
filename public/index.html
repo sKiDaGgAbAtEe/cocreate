@@ -87,8 +87,6 @@
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
     .room-card { background: rgba(255,252,244,0.92); border: 1px solid var(--border2); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; box-shadow: 0 2px 8px var(--shadow); }
-    .archive-entry { background: rgba(255,255,255,0.5); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; }
-    .archive-entry:hover { border-color: var(--accent); background: rgba(139,111,71,0.06); }
     .room-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); opacity: 0; transition: opacity 0.3s; }
     .room-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px var(--shadow); border-color: var(--gold); }
     .room-card:hover::before { opacity: 1; }
@@ -107,6 +105,21 @@
     .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
     .color-row { display: flex; gap: 8px; }
     .color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
+    .basin-type-btn { flex:1; background: rgba(255,255,255,0.4); border: 1px solid var(--border2); border-radius: 7px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: 'Cinzel', serif; font-size: 12px; color: var(--ink-muted); letter-spacing: 0.05em; transition: all 0.2s; }
+    .basin-type-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(139,111,71,0.08); }
+    .basin-type-btn:hover { border-color: var(--accent); }
+    .basin-type-sub { font-family: 'Crimson Pro', serif; font-size: 11px; color: var(--ink-faint); font-style: italic; letter-spacing: 0; margin-top: 3px; line-height: 1.4; }
+    .basin-type-btn.active .basin-type-sub { color: var(--ink-muted); }
+    .basin-agent-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.1em; color: var(--gold); border: 1px solid rgba(201,169,97,0.4); border-radius: 10px; padding: 2px 7px; margin-left: 6px; }
+    .basin-card { background: rgba(255,255,255,0.45); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 10px; }
+    .basin-card-body { flex: 1; min-width: 0; }
+    .basin-card-name { font-family: 'Cinzel', serif; font-size: 13px; color: var(--ink); display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+    .basin-card-meta { font-size: 11px; color: var(--ink-faint); font-style: italic; }
+    .basin-card-creator { font-size: 10px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.08em; margin-top: 4px; }
+    .basin-delete-btn { background: none; border: none; color: var(--ink-faint); cursor: pointer; font-size: 13px; padding: 2px 4px; transition: color 0.2s; flex-shrink: 0; }
+    .basin-delete-btn:hover { color: #c0392b; }
+    .archive-entry { background: rgba(255,255,255,0.5); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; cursor: pointer; transition: all 0.2s; }
+    .archive-entry:hover { border-color: var(--accent); background: rgba(139,111,71,0.06); }
     .color-swatch.active { border-color: var(--ink); }
 
     /* ── SESSION ──────────────────── */
@@ -548,6 +561,12 @@
       <div class="rooms-grid" id="roomsGrid">
         <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
       </div>
+
+      <!-- Basin browser -->
+      <div class="lobby-top" style="margin-top:32px;margin-bottom:16px">
+        <h3>Attractor Basins</h3>
+      </div>
+      <div id="basinBrowser" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
     </div>
 
     <!-- ── LOBBY CHAT PANEL ──────────────── -->
@@ -607,16 +626,73 @@
 </div>
 
 <!-- ── NEW BASIN MODAL ────────────────────────── -->
+<!-- ── BASIN BUILDER MODAL ────────────────────── -->
 <div class="modal-overlay" id="basinModal">
-  <div class="modal-card">
-    <div class="modal-title">New Attractor Basin</div>
+  <div class="modal-card" style="max-width:500px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <div class="modal-title">New Attractor Basin</div>
+      <button onclick="closeBasinModal()" style="background:none;border:none;font-size:18px;color:var(--ink-muted);cursor:pointer">✕</button>
+    </div>
+
+    <!-- Type selector -->
+    <div style="display:flex;gap:8px;margin-bottom:4px">
+      <button class="basin-type-btn active" id="basinTypeLens" onclick="selectBasinType('lens')">
+        <span style="font-size:14px">◈</span> Lens
+        <div class="basin-type-sub">A voice and orientation. Shapes how the space thinks.</div>
+      </button>
+      <button class="basin-type-btn" id="basinTypeAgent" onclick="selectBasinType('agent')">
+        <span style="font-size:14px">⬡</span> Agent
+        <div class="basin-type-sub">Summoned from your documents. A grounded presence.</div>
+      </button>
+    </div>
+
     <span class="label">Name</span>
     <input type="text" id="newBasinName" placeholder="e.g. Anchor, Lumen, Ember..." />
-    <span class="label">Description</span>
+
+    <span class="label" style="margin-top:8px">Description</span>
     <input type="text" id="newBasinDesc" placeholder="What does this basin orient toward?" />
-    <span class="label">Personality / System Prompt</span>
-    <textarea id="newBasinPrompt" rows="5" style="resize:vertical;line-height:1.6;font-size:13px" placeholder="Describe how this basin thinks, speaks, and contributes..."></textarea>
-    <span class="label">Color</span>
+
+    <!-- LENS fields -->
+    <div id="basinLensFields">
+      <span class="label" style="margin-top:8px">Personality / System Prompt</span>
+      <textarea id="newBasinPrompt" rows="5" style="resize:vertical;line-height:1.6;font-size:13px" placeholder="Describe how this basin thinks, speaks, and contributes. Leave blank to auto-generate from name + description."></textarea>
+    </div>
+
+    <!-- AGENT fields -->
+    <div id="basinAgentFields" style="display:none">
+      <span class="label" style="margin-top:8px">Source Folder</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="agentSourceFolder" style="flex:1" onchange="onAgentFolderChange()">
+          <option value="">— Select a Drive folder —</option>
+        </select>
+        <button onclick="refreshFoldersForAgent()" style="background:none;border:1px solid var(--border2);border-radius:5px;padding:6px 10px;color:var(--accent);cursor:pointer;font-size:11px;font-family:'Cinzel',serif">↺</button>
+      </div>
+      <p style="font-size:11px;color:var(--ink-faint);font-style:italic;margin-top:5px;line-height:1.5">Documents in this folder will be read to synthesize the basin's voice and knowledge. Your files stay in your Drive.</p>
+      <div id="agentSynthesisStatus" style="display:none;margin-top:8px;padding:10px;background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.25);border-radius:6px;font-size:12px;color:var(--ink-muted);line-height:1.6"></div>
+      <span class="label" style="margin-top:8px">Synthesized Prompt <span style="font-size:9px;color:var(--ink-faint)">(editable)</span></span>
+      <textarea id="agentSynthesizedPrompt" rows="6" style="resize:vertical;line-height:1.6;font-size:12px" placeholder="Synthesized prompt will appear here after you select a folder and click Synthesize..."></textarea>
+      <button onclick="runSynthesis()" id="synthesizeBtn" style="margin-top:6px;width:100%;background:none;border:1px solid var(--border2);border-radius:5px;padding:8px;color:var(--accent);cursor:pointer;font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em">⬡ Synthesize from Folder</button>
+    </div>
+
+    <!-- Shared options -->
+    <div style="display:flex;gap:12px;margin-top:10px">
+      <div style="flex:1">
+        <span class="label">Persistence</span>
+        <select id="basinPersistence">
+          <option value="permanent">Permanent</option>
+          <option value="temporary">This session only</option>
+        </select>
+      </div>
+      <div style="flex:1">
+        <span class="label">Visibility</span>
+        <select id="basinVisibility">
+          <option value="public">Shared — visible to all</option>
+          <option value="private">Private — only you</option>
+        </select>
+      </div>
+    </div>
+
+    <span class="label" style="margin-top:10px">Color</span>
     <div class="color-row">
       <div class="color-swatch active" data-color="#c4a882" style="background:#c4a882" onclick="selectBasinColor(this)"></div>
       <div class="color-swatch" data-color="#8a9eba" style="background:#8a9eba" onclick="selectBasinColor(this)"></div>
@@ -625,34 +701,10 @@
       <div class="color-swatch" data-color="#8ab4ba" style="background:#8ab4ba" onclick="selectBasinColor(this)"></div>
       <div class="color-swatch" data-color="#a88aba" style="background:#a88aba" onclick="selectBasinColor(this)"></div>
     </div>
-    <div class="modal-actions">
-      <button class="btn-ghost" style="flex:1" onclick="closeBasinModal()">Cancel</button>
-      <button class="btn-primary" style="flex:1" onclick="createBasin()">Create Basin</button>
-    </div>
-  </div>
-</div>
 
-<!-- ── PROCESS SESSION WINDOW ─────────────────── -->
-<div class="process-overlay" id="processOverlay">
-  <div class="process-window">
-    <div class="process-header">
-      <h3>◈ Process Session</h3>
-      <button class="process-close" onclick="closeProcessWindow()">✕</button>
-    </div>
-    <div class="process-modes">
-      <button class="process-mode-btn active" data-mode="convergence" onclick="selectProcessMode(this)">Convergence Nodes</button>
-      <button class="process-mode-btn" data-mode="ideas" onclick="selectProcessMode(this)">Idea Objects</button>
-      <button class="process-mode-btn" data-mode="actions" onclick="selectProcessMode(this)">Action Items</button>
-      <button class="process-mode-btn" data-mode="story" onclick="selectProcessMode(this)">Story Scaffold</button>
-      <button class="process-mode-btn" data-mode="summary" onclick="selectProcessMode(this)">Field Summary</button>
-    </div>
-    <div class="process-body" id="processBody">
-      <div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:32px 0">Select a mode and run to analyze this session.</div>
-    </div>
-    <div class="process-footer">
-      <button class="btn-primary" onclick="runProcessSession()" id="processRunBtn">Run Analysis</button>
-      <button class="btn-ghost" id="processDownloadBtn" onclick="downloadProcessResult()" style="display:none">↓ Download</button>
-      <button class="btn-ghost" id="processDriveBtn" onclick="saveProcessToDrive()" style="display:none">↑ Save to Drive</button>
+    <div class="modal-actions" style="margin-top:14px">
+      <button class="btn-ghost" style="flex:1" onclick="closeBasinModal()">Cancel</button>
+      <button class="btn-primary" style="flex:1" id="createBasinBtn" onclick="createBasin()">Create Basin</button>
     </div>
   </div>
 </div>
@@ -679,6 +731,31 @@
       <button onclick="closeArchiveViewer()" style="background:none;border:none;font-size:18px;color:var(--ink-muted);cursor:pointer">✕</button>
     </div>
     <div id="archiveViewerBody" style="overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
+
+<!-- ── PROCESS SESSION WINDOW ─────────────────── -->
+<div class="process-overlay" id="processOverlay">
+  <div class="process-window">
+    <div class="process-header">
+      <h3>◈ Process Session</h3>
+      <button class="process-close" onclick="closeProcessWindow()">✕</button>
+    </div>
+    <div class="process-modes">
+      <button class="process-mode-btn active" data-mode="convergence" onclick="selectProcessMode(this)">Convergence Nodes</button>
+      <button class="process-mode-btn" data-mode="ideas" onclick="selectProcessMode(this)">Idea Objects</button>
+      <button class="process-mode-btn" data-mode="actions" onclick="selectProcessMode(this)">Action Items</button>
+      <button class="process-mode-btn" data-mode="story" onclick="selectProcessMode(this)">Story Scaffold</button>
+      <button class="process-mode-btn" data-mode="summary" onclick="selectProcessMode(this)">Field Summary</button>
+    </div>
+    <div class="process-body" id="processBody">
+      <div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:32px 0">Select a mode and run to analyze this session.</div>
+    </div>
+    <div class="process-footer">
+      <button class="btn-primary" onclick="runProcessSession()" id="processRunBtn">Run Analysis</button>
+      <button class="btn-ghost" id="processDownloadBtn" onclick="downloadProcessResult()" style="display:none">↓ Download</button>
+      <button class="btn-ghost" id="processDriveBtn" onclick="saveProcessToDrive()" style="display:none">↑ Save to Drive</button>
+    </div>
   </div>
 </div>
 
@@ -946,6 +1023,7 @@ async function loadBasins() {
   sel.innerHTML = basins.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
   sel.onchange = updateBasinPreview;
   updateBasinPreview();
+  renderBasinBrowser();
 }
 
 function updateBasinPreview() {
@@ -985,10 +1063,9 @@ function enterLobby() {
   document.getElementById('lobbyPlayerName').textContent = playerName;
   showPage('lobby');
   joinLobbyChat();
-  // Always reload from Drive when entering lobby so session state is fresh
   fetch('/api/rooms/reload', { method: 'POST' })
     .then(() => loadRoomList())
-    .catch(() => loadRoomList()); // fall back to in-memory list if Drive fails
+    .catch(() => loadRoomList());
 }
 
 // ── Lobby Chat ────────────────────────────────
@@ -1111,7 +1188,7 @@ async function loadRoomList() {
 
 async function forceRefreshRooms() {
   const btn = document.querySelector('button[onclick="forceRefreshRooms()"]');
-  if (btn) { btn.textContent = '↺ ...'; btn.disabled = true; }
+  if (btn) { btn.textContent = '...'; btn.disabled = true; }
   try {
     await fetch('/api/rooms/reload', { method: 'POST' });
     await loadRoomList();
@@ -1119,6 +1196,54 @@ async function forceRefreshRooms() {
     if (btn) { btn.textContent = '↺'; btn.disabled = false; }
   }
 }
+
+async function openArchiveModal() {
+  document.getElementById('archiveModal').classList.add('open');
+  const list = document.getElementById('archiveList');
+  list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">Loading...</div>';
+  try {
+    const res = await fetch('/api/archive');
+    const data = await res.json();
+    if (!data.sessions || !data.sessions.length) {
+      list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">No archived sessions yet.</div>';
+      return;
+    }
+    list.innerHTML = data.sessions.map(s => {
+      const date = new Date(s.modifiedTime).toLocaleDateString([], { year:'numeric', month:'short', day:'numeric' });
+      const time = new Date(s.modifiedTime).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+      return `<div class="archive-entry" onclick="viewArchivedSession('${s.fileId}','${esc(s.name)}')">
+        <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--ink);margin-bottom:3px">${esc(s.name)}</div>
+        <div style="font-size:11px;color:var(--ink-faint)">${date} · ${time}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    list.innerHTML = `<div style="font-size:13px;color:#c0392b;padding:12px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeArchiveModal() { document.getElementById('archiveModal').classList.remove('open'); }
+
+async function viewArchivedSession(fileId, name) {
+  document.getElementById('archiveViewerTitle').textContent = name;
+  document.getElementById('archiveViewerBody').innerHTML = '<div style="text-align:center;padding:24px;color:var(--ink-faint);font-style:italic">Loading...</div>';
+  document.getElementById('archiveViewerModal').classList.add('open');
+  try {
+    const res = await fetch(`/api/archive/${fileId}`);
+    const session = await res.json();
+    const contribs = session.contributions || [];
+    const body = document.getElementById('archiveViewerBody');
+    if (!contribs.length) { body.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center">No contributions recorded.</div>'; return; }
+    body.innerHTML = contribs.map(c => {
+      if (c.type === 'system') return `<div style="text-align:center;font-family:'Cinzel',serif;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;padding:2px 0">◈ ${esc(c.text)}</div>`;
+      if (c.type === 'resonance') return `<div style="background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.3);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;max-width:80%"><div style="font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:0.14em;margin-bottom:5px">◈ ${esc(c.author)}</div><div style="font-size:14px;line-height:1.8;color:var(--ink-dim);font-style:italic">${esc(c.text)}</div></div>`;
+      return `<div style="background:rgba(255,255,255,0.7);border:1px solid var(--border);border-radius:8px;padding:12px 14px;max-width:80%;align-self:flex-end;margin-left:auto"><div style="font-family:'Cinzel',serif;font-size:9px;color:var(--accent);letter-spacing:0.14em;margin-bottom:5px">${esc(c.author)}</div><div style="font-size:14px;line-height:1.75;color:var(--ink)">${esc(c.text)}</div></div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('archiveViewerBody').innerHTML = `<div style="color:#c0392b;font-size:13px">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeArchiveViewer() { document.getElementById('archiveViewerModal').classList.remove('open'); }
 
 function renderRooms(rooms) {
   const grid = document.getElementById('roomsGrid');
@@ -1183,8 +1308,79 @@ async function createRoom() {
 // ── Basin Modal ───────────────────────────────
 let selectedBasinColor = '#c4a882';
 
-function openBasinModal() { document.getElementById('basinModal').classList.add('open'); }
-function closeBasinModal() { document.getElementById('basinModal').classList.remove('open'); }
+function openBasinModal() {
+  // Populate agent folder dropdown
+  refreshFoldersForAgent();
+  document.getElementById('basinModal').classList.add('open');
+}
+function closeBasinModal() {
+  document.getElementById('basinModal').classList.remove('open');
+  // Reset state
+  selectBasinType('lens');
+  document.getElementById('newBasinName').value = '';
+  document.getElementById('newBasinDesc').value = '';
+  document.getElementById('newBasinPrompt').value = '';
+  document.getElementById('agentSynthesizedPrompt').value = '';
+  document.getElementById('agentSynthesisStatus').style.display = 'none';
+}
+
+let currentBasinType = 'lens';
+
+function selectBasinType(type) {
+  currentBasinType = type;
+  document.getElementById('basinTypeLens').classList.toggle('active', type === 'lens');
+  document.getElementById('basinTypeAgent').classList.toggle('active', type === 'agent');
+  document.getElementById('basinLensFields').style.display = type === 'lens' ? '' : 'none';
+  document.getElementById('basinAgentFields').style.display = type === 'agent' ? '' : 'none';
+}
+
+async function refreshFoldersForAgent() {
+  const sel = document.getElementById('agentSourceFolder');
+  sel.innerHTML = '<option value="">Loading...</option>';
+  try {
+    const res = await fetch('/api/drive/folders');
+    const data = await res.json();
+    sel.innerHTML = '<option value="">— Select a Drive folder —</option>' +
+      (data.folders || []).map(f => `<option value="${f.id}" data-name="${esc(f.name)}">${esc(f.name)}</option>`).join('');
+  } catch {
+    sel.innerHTML = '<option value="">— Connect Drive first —</option>';
+  }
+}
+
+function onAgentFolderChange() {
+  document.getElementById('agentSynthesizedPrompt').value = '';
+  document.getElementById('agentSynthesisStatus').style.display = 'none';
+}
+
+async function runSynthesis() {
+  const sel = document.getElementById('agentSourceFolder');
+  const folderId = sel.value;
+  const folderName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text || '';
+  const name = document.getElementById('newBasinName').value.trim();
+  const desc = document.getElementById('newBasinDesc').value.trim();
+  if (!folderId) { alert('Select a source folder first.'); return; }
+
+  const btn = document.getElementById('synthesizeBtn');
+  const status = document.getElementById('agentSynthesisStatus');
+  btn.textContent = '⬡ Synthesizing...'; btn.disabled = true;
+  status.style.display = 'block';
+  status.textContent = `Reading documents from "${folderName}"...`;
+
+  try {
+    const res = await fetch('/api/basins/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ folderId, folderName, name, description: desc })
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    document.getElementById('agentSynthesizedPrompt').value = data.systemPrompt;
+    status.textContent = `✓ Synthesized from "${folderName}". Review and edit the prompt below before creating.`;
+  } catch(e) {
+    status.textContent = `Error: ${e.message}`;
+  }
+  btn.textContent = '⬡ Synthesize from Folder'; btn.disabled = false;
+}
 
 function selectBasinColor(el) {
   document.querySelectorAll('#basinModal .color-swatch').forEach(s => s.classList.remove('active'));
@@ -1195,35 +1391,105 @@ function selectBasinColor(el) {
 async function createBasin() {
   const name = document.getElementById('newBasinName').value.trim();
   const desc = document.getElementById('newBasinDesc').value.trim();
-  const prompt = document.getElementById('newBasinPrompt').value.trim();
   if (!name) return;
 
-  const defaultPrompt = `You are ${name}, an attractor basin in a collaborative thinking space. ${desc ? desc + ' ' : ''}You are peripheral vision, not a driver. You open doors quietly, name what is underneath, find echoes. Keep responses SHORT — 2-5 sentences. Never repeat a framing you have already used. Speak as a thinking presence, not an assistant. Your default posture is gentle curiosity, not philosophical pressure.`;
+  const isAgent = currentBasinType === 'agent';
+  const persistence = document.getElementById('basinPersistence').value;
+  const isPublic = document.getElementById('basinVisibility').value === 'public';
 
-  const res = await fetch('/api/basins', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name,
-      description: desc,
-      color: selectedBasinColor,
-      systemPrompt: prompt || defaultPrompt
-    })
-  });
-  const newBasin = await res.json();
-  basins.push(newBasin);
+  let systemPrompt = '';
+  let sourceFolderId = null, sourceFolderName = null;
 
-  // Update basin dropdown in new room modal
-  const sel = document.getElementById('newRoomBasin');
-  sel.innerHTML += `<option value="${newBasin.id}">${newBasin.name}</option>`;
-  sel.value = newBasin.id;
-  updateBasinPreview();
+  if (isAgent) {
+    const sel = document.getElementById('agentSourceFolder');
+    sourceFolderId = sel.value;
+    sourceFolderName = sel.options[sel.selectedIndex]?.dataset?.name || '';
+    systemPrompt = document.getElementById('agentSynthesizedPrompt').value.trim();
+    if (!systemPrompt) { alert('Run synthesis first, or edit the prompt field.'); return; }
+  } else {
+    const rawPrompt = document.getElementById('newBasinPrompt').value.trim();
+    systemPrompt = rawPrompt || `You are ${name}, an attractor basin in a collaborative thinking space. ${desc ? desc + ' ' : ''}You are peripheral vision, not a driver. You open doors quietly, name what is underneath, find echoes. Keep responses SHORT — 2-5 sentences. Never repeat a framing you have already used. Speak as a thinking presence, not an assistant. Your default posture is gentle curiosity, not philosophical pressure.`;
+  }
 
-  // Reset and close
-  document.getElementById('newBasinName').value = '';
-  document.getElementById('newBasinDesc').value = '';
-  document.getElementById('newBasinPrompt').value = '';
-  closeBasinModal();
+  const btn = document.getElementById('createBasinBtn');
+  btn.textContent = 'Creating...'; btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/basins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name, description: desc, color: selectedBasinColor,
+        systemPrompt, type: currentBasinType, persistence, isPublic,
+        createdBy: playerName, sourceFolderId, sourceFolderName
+      })
+    });
+    const newBasin = await res.json();
+
+    if (persistence === 'temporary') {
+      // Only add to local session, not persisted list
+      basins.push(newBasin);
+    } else {
+      basins.push(newBasin);
+    }
+
+    // Update room creation dropdown
+    const sel = document.getElementById('newRoomBasin');
+    sel.innerHTML += `<option value="${newBasin.id}">${newBasin.name}</option>`;
+    sel.value = newBasin.id;
+    updateBasinPreview();
+
+    renderBasinBrowser();
+    closeBasinModal();
+  } catch(e) {
+    alert('Error creating basin: ' + e.message);
+  }
+  btn.textContent = 'Create Basin'; btn.disabled = false;
+}
+
+async function deleteBasin(basinId) {
+  const basin = basins.find(b => b.id === basinId);
+  if (!basin) return;
+  if (!confirm(`Remove "${basin.name}" from the system? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/basins/${basinId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName })
+    });
+    const data = await res.json();
+    if (data.error) { alert(data.error); return; }
+    basins = basins.filter(b => b.id !== basinId);
+    // Remove from room creation dropdown
+    const sel = document.getElementById('newRoomBasin');
+    const opt = sel.querySelector(`option[value="${basinId}"]`);
+    if (opt) opt.remove();
+    renderBasinBrowser();
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function renderBasinBrowser() {
+  const el = document.getElementById('basinBrowser');
+  if (!el) return;
+  el.innerHTML = basins.map(b => {
+    const isDefault = ['lumen', 'sage'].includes(b.id);
+    const isOwner = b.createdBy === playerName;
+    const canDelete = !isDefault && isOwner;
+    const typeLabel = b.type === 'agent' ? `<span class="basin-agent-badge">⬡ Agent</span>` : '';
+    const sourceNote = b.sourceFolderName ? `<span style="font-size:10px;color:var(--ink-faint)">from ${esc(b.sourceFolderName)}</span>` : '';
+    return `<div class="basin-card">
+      <div style="width:10px;height:10px;border-radius:50%;background:${b.color};flex-shrink:0;margin-top:3px"></div>
+      <div class="basin-card-body">
+        <div class="basin-card-name">${esc(b.name)}${typeLabel}</div>
+        <div class="basin-card-meta">${esc(b.description || '')}</div>
+        ${b.createdBy ? `<div class="basin-card-creator">by ${esc(b.createdBy)} ${sourceNote}</div>` : ''}
+        ${isDefault ? '<div class="basin-card-creator" style="color:var(--gold)">◈ built-in</div>' : ''}
+      </div>
+      ${canDelete ? `<button class="basin-delete-btn" onclick="deleteBasin('${b.id}')" title="Remove basin">✕</button>` : ''}
+    </div>`;
+  }).join('');
 }
 
 async function deleteRoom(roomId) {
@@ -1270,11 +1536,13 @@ function updateBasinDisplay(basin) {
 
 function buildBasinSwitcher() {
   const dropdown = document.getElementById('basinSwitcherDropdown');
-  dropdown.innerHTML = basins.map(b => `
-    <div class="basin-option" onclick="switchBasin('${b.id}')">
+  dropdown.innerHTML = basins.map(b => {
+    const agentBadge = b.type === 'agent' ? `<span class="basin-agent-badge">⬡</span>` : '';
+    return `<div class="basin-option" onclick="switchBasin('${b.id}')">
       <div class="basin-option-dot" style="background:${b.color}"></div>
-      <span>${esc(b.name)}</span>
-    </div>`).join('');
+      <span>${esc(b.name)}</span>${agentBadge}
+    </div>`;
+  }).join('');
 }
 
 function toggleBasinSwitcher() {
@@ -1930,72 +2198,6 @@ function drawInterference() {
 
   interferenceTime++;
   interferenceAnimId = requestAnimationFrame(drawInterference);
-}
-
-// ── Archive Browser ───────────────────────────
-async function openArchiveModal() {
-  document.getElementById('archiveModal').classList.add('open');
-  const list = document.getElementById('archiveList');
-  list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">Loading...</div>';
-  try {
-    const res = await fetch('/api/archive');
-    const data = await res.json();
-    if (!data.sessions || !data.sessions.length) {
-      list.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center;padding:24px 0">No archived sessions yet.</div>';
-      return;
-    }
-    list.innerHTML = data.sessions.map(s => {
-      const date = new Date(s.modifiedTime).toLocaleDateString([], { year:'numeric', month:'short', day:'numeric' });
-      const time = new Date(s.modifiedTime).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-      return `<div class="archive-entry" onclick="viewArchivedSession('${s.fileId}', '${esc(s.name)}')">
-        <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--ink);margin-bottom:3px">${esc(s.name)}</div>
-        <div style="font-size:11px;color:var(--ink-faint)">${date} · ${time}</div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    list.innerHTML = `<div style="font-size:13px;color:#c0392b;padding:12px">Error loading archive: ${esc(e.message)}</div>`;
-  }
-}
-
-function closeArchiveModal() {
-  document.getElementById('archiveModal').classList.remove('open');
-}
-
-async function viewArchivedSession(fileId, name) {
-  document.getElementById('archiveViewerTitle').textContent = name;
-  document.getElementById('archiveViewerBody').innerHTML = '<div style="text-align:center;padding:24px;color:var(--ink-faint);font-style:italic">Loading...</div>';
-  document.getElementById('archiveViewerModal').classList.add('open');
-  try {
-    const res = await fetch(`/api/archive/${fileId}`);
-    const session = await res.json();
-    const contribs = session.contributions || [];
-    const body = document.getElementById('archiveViewerBody');
-    if (!contribs.length) {
-      body.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center">No contributions recorded.</div>';
-      return;
-    }
-    body.innerHTML = contribs.map(c => {
-      if (c.type === 'system') {
-        return `<div style="text-align:center;font-family:'Cinzel',serif;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;padding:2px 0">◈ ${esc(c.text)}</div>`;
-      } else if (c.type === 'resonance') {
-        return `<div style="background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.3);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;max-width:80%">
-          <div style="font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:0.14em;margin-bottom:5px">◈ ${esc(c.author)}</div>
-          <div style="font-size:14px;line-height:1.8;color:var(--ink-dim);font-style:italic">${esc(c.text)}</div>
-        </div>`;
-      } else {
-        return `<div style="background:rgba(255,255,255,0.7);border:1px solid var(--border);border-radius:8px;padding:12px 14px;max-width:80%;align-self:flex-end;margin-left:auto">
-          <div style="font-family:'Cinzel',serif;font-size:9px;color:var(--accent);letter-spacing:0.14em;margin-bottom:5px">${esc(c.author)}</div>
-          <div style="font-size:14px;line-height:1.75;color:var(--ink)">${esc(c.text)}</div>
-        </div>`;
-      }
-    }).join('');
-  } catch(e) {
-    document.getElementById('archiveViewerBody').innerHTML = `<div style="color:#c0392b;font-size:13px">Error: ${esc(e.message)}</div>`;
-  }
-}
-
-function closeArchiveViewer() {
-  document.getElementById('archiveViewerModal').classList.remove('open');
 }
 
 init();
