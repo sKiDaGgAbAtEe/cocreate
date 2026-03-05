@@ -581,6 +581,9 @@
       </div>
     </div>
 
+    <!-- Always visible -->
+    <button class="btn-ghost" onclick="openAbout()" style="width:100%;margin-top:10px;padding:9px">About Entriference</button>
+
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
   <button class="theme-toggle" onclick="toggleTheme()" id="landingThemeBtn">◑ Dark</button>
@@ -1130,11 +1133,9 @@ async function checkAuth() {
       av.src = currentUserInfo.picture;
       av.style.display = '';
     }
-    // playerName is the Google display name
     playerName = currentUserInfo.name || currentUserInfo.email || '';
-    if (data.userOAuth) await loadFolders();
+    await loadFolders();
   } else {
-    // Not logged in
     document.getElementById('landingNotLoggedIn').style.display = '';
     document.getElementById('landingLoggedIn').style.display = 'none';
   }

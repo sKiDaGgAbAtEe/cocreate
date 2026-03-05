@@ -112,8 +112,7 @@ app.get('/auth/logout', (req, res) => {
 });
 
 app.get('/auth/status', (req, res) => res.json({
-  connected: !!userTokens || !!getServiceAccountDrive(),
-  serviceAccount: !!getServiceAccountDrive(),
+  connected: !!userTokens,
   userOAuth: !!userTokens,
   userInfo: userInfo || null
 }));
@@ -157,7 +156,7 @@ function uniqueMembers(room) {
 }
 
 async function loadRoomsFromDrive() {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -176,7 +175,7 @@ async function loadRoomsFromDrive() {
 }
 
 async function persistRoomsToDrive() {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -263,7 +262,7 @@ async function getArchiveFolderId(drive) {
 }
 
 async function archiveRoomOnDrive(room) {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
     const archiveId = await getArchiveFolderId(drive);
@@ -313,63 +312,9 @@ async function writePlainTextFile(drive, fileName, parentId, content) {
   }
 }
 
-// ── Service Account Drive (system folders) ────────────
-let _serviceAccountDrive = null;
-
-function getServiceAccountDrive() {
-  if (_serviceAccountDrive) return _serviceAccountDrive;
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) return null;
-  try {
-    const key = JSON.parse(raw);
-    const auth = new google.auth.GoogleAuth({
-      credentials: key,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    });
-    _serviceAccountDrive = google.drive({ version: 'v3', auth });
-    console.log('◈ Service account Drive ready:', key.client_email);
-    return _serviceAccountDrive;
-  } catch (e) {
-    console.error('Service account init failed:', e.message);
-    return null;
-  }
-}
-
-// getSystemDrive — always uses service account if available, falls back to OAuth
-async function getSystemDrive() {
-  const sa = getServiceAccountDrive();
-  if (sa) return sa;
-  return getDrive(); // fallback to OAuth
-}
-
-async function getDrive() {
-  if (!userTokens) return null;
-  oauth2Client.setCredentials(userTokens);
-
-  // Auto-refresh if token is expired or expires within 5 minutes
-  const expiryDate = userTokens.expiry_date;
-  const fiveMin = 5 * 60 * 1000;
-  if (expiryDate && Date.now() > expiryDate - fiveMin) {
-    try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      userTokens = credentials;
-      oauth2Client.setCredentials(credentials);
-      saveTokensToDisk(credentials);
-      console.log('OAuth token refreshed and saved');
-    } catch (e) {
-      console.error('Token refresh failed:', e.message);
-      userTokens = null;
-      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
-      return null;
-    }
-  }
-
-  return google.drive({ version: 'v3', auth: oauth2Client });
-}
-
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -397,7 +342,7 @@ app.get('/api/basins', async (req, res) => {
 });
 
 app.post('/api/basins', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -430,7 +375,7 @@ app.post('/api/basins', async (req, res) => {
 
 // Synthesize a system prompt from a Drive folder's documents
 app.post('/api/basins/synthesize', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { folderId, folderName, name, description } = req.body;
   if (!folderId) return res.status(400).json({ error: 'folderId required' });
@@ -479,7 +424,7 @@ app.post('/api/basins/generate-bio', async (req, res) => {
 
 // Update basin biography — owner only
 app.patch('/api/basins/:id/bio', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { biography, playerName } = req.body;
   try {
@@ -502,7 +447,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
 
 // Delete a basin — only the creator can remove it; default basins are protected
 app.delete('/api/basins/:id', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { playerName } = req.body;
   if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
@@ -582,7 +527,7 @@ app.post('/api/rooms/reload', async (req, res) => {
 });
 
 app.get('/api/archive', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.json({ sessions: [] });
   try {
     const archiveId = await getArchiveFolderId(drive);
@@ -596,7 +541,7 @@ app.get('/api/archive', async (req, res) => {
 });
 
 app.get('/api/archive/:fileId', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try { res.json(await readDriveFile(drive, req.params.fileId)); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -740,7 +685,7 @@ async function getSystemContext() {
   if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
     return _systemContextCache;
   }
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return '';
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -868,7 +813,7 @@ io.on('connection', (socket) => {
 
     // Always try to load the freshest contributions from the individual room file on Drive
     try {
-      const drive = await getSystemDrive();
+      const drive = await getDrive();
       if (drive) {
         const activeId = await getActiveFolderId(drive);
         const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
@@ -1115,7 +1060,7 @@ io.on('connection', (socket) => {
 
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
     const activeId = await getActiveFolderId(drive);
@@ -1212,7 +1157,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     }
 
     // Optionally save to Drive
-    const drive = await getSystemDrive();
+    const drive = await getDrive();
     if (drive) {
       try {
         const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
@@ -1231,7 +1176,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
 
 // ── Profile Routes ─────────────────────────────────────
 app.get('/api/profile/by-email/:email', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1252,7 +1197,7 @@ app.get('/api/profile/by-email/:email', async (req, res) => {
 });
 
 app.get('/api/profile/:name', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1269,7 +1214,7 @@ app.get('/api/profile/:name', async (req, res) => {
 });
 
 app.post('/api/profile', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(503).json({ error: 'Drive not available' });
   const { name, email, picture, who, what, working, extra } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
