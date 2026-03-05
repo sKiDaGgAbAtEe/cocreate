@@ -100,6 +100,10 @@
     /* ── MODALS ───────────────────── */
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(42,37,32,0.4); z-index: 100; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
     .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--parchment); border: 1px solid var(--border2); border-radius: 14px; padding: 28px; width: 100%; box-shadow: 0 24px 80px rgba(30,26,22,0.3); }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .modal-close { background: none; border: none; font-size: 16px; color: var(--ink-faint); cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: all 0.15s; }
+    .modal-close:hover { background: rgba(139,111,71,0.12); color: var(--ink); }
     .modal-card { background: var(--parchment2); border: 1px solid var(--border2); border-radius: 10px; padding: 28px; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 20px 60px rgba(30,26,22,0.25); }
     .modal-title { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 0.08em; color: var(--ink); margin-bottom: 4px; }
     .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
@@ -203,6 +207,7 @@
     body.dark .room-card:hover { border-color: var(--gold); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
     body.dark .modal-overlay { background: rgba(0,0,0,0.7); }
     body.dark .modal-card { background: #13131a; border-color: #2a2830; }
+    body.dark .modal-box { background: #13131a; border-color: #2a2830; }
     body.dark .header { background: rgba(13,13,20,0.8); border-color: #1e1c28; }
     body.dark .sidebar { background: rgba(13,13,20,0.6); border-color: #1e1c28; }
     body.dark .sidebar-section { border-color: #1e1c28; }
@@ -582,7 +587,9 @@
     </div>
 
     <!-- Always visible -->
-    <button class="btn-ghost" onclick="openAbout()" style="width:100%;margin-top:10px;padding:9px">About Entriference</button>
+    <div style="display:flex;justify-content:center;margin-top:12px">
+      <button onclick="openAbout()" style="background:none;border:1px solid var(--border2);border-radius:20px;padding:5px 16px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.12em;color:var(--ink-faint);cursor:pointer;transition:all 0.2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink-faint)'">About</button>
+    </div>
 
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
@@ -672,31 +679,43 @@
 
 <!-- ── PROFILE MODAL ───────────────────────────── -->
 <div class="modal-overlay" id="profileModal">
-  <div class="modal-box" style="max-width:460px">
-    <div class="modal-header">
-      <span class="modal-title" id="profileModalTitle">◈ Your Profile</span>
-      <button class="modal-close" onclick="closeProfileModal()">✕</button>
+  <div class="modal-box" style="max-width:480px;padding:0;overflow:hidden">
+
+    <!-- Header band -->
+    <div style="background:linear-gradient(135deg,rgba(139,111,71,0.15) 0%,rgba(139,111,71,0.04) 100%);border-bottom:1px solid var(--border);padding:24px 28px 20px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+        <span style="font-size:22px;line-height:1">◈</span>
+        <button class="modal-close" onclick="closeProfileModal()">✕</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px">
+        <img id="profileModalAvatar" src="" alt="" style="width:52px;height:52px;border-radius:50%;border:2px solid var(--border2);display:none;flex-shrink:0" />
+        <div>
+          <div id="profileModalTitle" style="font-family:'Cinzel',serif;font-size:17px;font-weight:600;letter-spacing:0.06em;color:var(--ink);margin-bottom:3px">Your Profile</div>
+          <div id="profileModalEmail" style="font-size:11px;color:var(--ink-faint)"></div>
+        </div>
+      </div>
+      <p id="profileModalSubtitle" style="font-size:12px;color:var(--ink-muted);margin-top:10px;margin-bottom:0;line-height:1.6">Stored in Google Drive. Basins read this to understand who you are.</p>
     </div>
-    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:14px;line-height:1.6" id="profileModalSubtitle">Your profile is stored in Google Drive and shared with all Basins — they will know who you are and what you bring to a space.</p>
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:rgba(139,111,71,0.06);border:1px solid var(--border);border-radius:8px">
-      <img id="profileModalAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;display:none" />
-      <div style="font-size:10px;color:var(--ink-faint)" id="profileModalEmail"></div>
+
+    <!-- Form body -->
+    <div style="padding:22px 28px">
+      <span class="label">Your name <span style="color:var(--accent)">*</span></span>
+      <input type="text" id="profileNameInput" placeholder="What do they call you?" style="margin-bottom:16px;font-size:15px;font-family:'Cinzel',serif;letter-spacing:0.04em" />
+      <span class="label">Who are you?</span>
+      <textarea id="profileWho" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Your background, role, lens — how you'd introduce yourself."></textarea>
+      <span class="label">What do you represent?</span>
+      <textarea id="profileWhat" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Ideas, frameworks, or domains you carry."></textarea>
+      <span class="label">What are you currently working on?</span>
+      <textarea id="profileWorking" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Current projects, questions, or investigations."></textarea>
+      <span class="label">Anything else Basins should know?</span>
+      <textarea id="profileExtra" rows="2" style="resize:vertical;margin-bottom:16px" placeholder="Communication preferences, context that would help an AI think alongside you."></textarea>
+      <div id="profileStatus" style="display:none;font-size:12px;color:var(--ink-muted);margin-bottom:12px;padding:9px 13px;background:rgba(139,111,71,0.1);border-left:3px solid var(--accent);border-radius:0 6px 6px 0"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-ghost" id="profileSkipBtn" onclick="closeProfileModal()" style="flex:1">Cancel</button>
+        <button class="btn-primary" onclick="saveProfile()" id="profileSaveBtn" style="flex:2">Save Profile</button>
+      </div>
     </div>
-    <span class="label">Your name <span style="color:var(--accent)">*</span></span>
-    <input type="text" id="profileNameInput" placeholder="What do they call you?" style="margin-bottom:14px" />
-    <span class="label">Who are you?</span>
-    <textarea id="profileWho" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Your background, role, lens — how you'd introduce yourself."></textarea>
-    <span class="label">What do you represent?</span>
-    <textarea id="profileWhat" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Ideas, frameworks, or domains you carry. What you bring to collaborative thinking."></textarea>
-    <span class="label">What are you currently working on?</span>
-    <textarea id="profileWorking" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Current projects, questions, or investigations."></textarea>
-    <span class="label">Anything else Basins should know?</span>
-    <textarea id="profileExtra" rows="2" style="resize:vertical;margin-bottom:14px" placeholder="Communication preferences, context that would help an AI think alongside you."></textarea>
-    <div id="profileStatus" style="display:none;font-size:12px;color:var(--ink-muted);margin-bottom:10px;padding:8px 12px;background:rgba(139,111,71,0.08);border-radius:6px"></div>
-    <div style="display:flex;gap:10px">
-      <button class="btn-ghost" id="profileSkipBtn" onclick="closeProfileModal()" style="flex:1">Cancel</button>
-      <button class="btn-primary" onclick="saveProfile()" id="profileSaveBtn" style="flex:2">Save Profile</button>
-    </div>
+
   </div>
 </div>
 
@@ -1010,6 +1029,7 @@
 const socket = io();
 let playerName = '';
 let driveConnected = false;
+let _cachedProfile = null; // set once profile is confirmed saved, prevents repeat modal
 let allFolders = [];
 let folderMap = {};
 let basins = [];
@@ -1185,25 +1205,32 @@ function showPage(id) {
 async function enterLobby() {
   if (!currentUserInfo) return;
 
-  // Try to load existing profile keyed by Google email
-  const email = currentUserInfo.email || '';
-  let savedName = null;
-  try {
-    const res = await fetch(`/api/profile/by-email/${encodeURIComponent(email)}`);
-    const data = await res.json();
-    if (data.profile?.name) savedName = data.profile.name;
-  } catch {}
-
-  if (!savedName) {
-    // First time — open profile setup (name required)
-    openProfileModal(true);
+  // If we already confirmed a profile this session, go straight in
+  if (_cachedProfile?.name) {
+    playerName = _cachedProfile.name;
+    document.getElementById('lobbyPlayerName').textContent = playerName;
+    document.getElementById('landingUserName').textContent = playerName;
+    _doEnterLobby();
     return;
   }
 
-  playerName = savedName;
-  document.getElementById('lobbyPlayerName').textContent = playerName;
-  document.getElementById('landingUserName').textContent = playerName;
-  _doEnterLobby();
+  // Try Drive lookup by email (first visit after OAuth)
+  const email = currentUserInfo.email || '';
+  try {
+    const res = await fetch(`/api/profile/by-email/${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (data.profile?.name) {
+      _cachedProfile = data.profile;
+      playerName = data.profile.name;
+      document.getElementById('lobbyPlayerName').textContent = playerName;
+      document.getElementById('landingUserName').textContent = playerName;
+      _doEnterLobby();
+      return;
+    }
+  } catch {}
+
+  // Genuinely first time — show profile setup once
+  openProfileModal(true);
 }
 
 function _doEnterLobby() {
@@ -1993,18 +2020,19 @@ function openProfileModal(firstTime = false) {
     }
   }
 
-  // Pre-fill name input — use saved playerName if set, else Google display name as a suggestion
-  document.getElementById('profileNameInput').value = playerName || currentUserInfo?.name || '';
+  // Pre-fill name input — use saved name if known, else Google display name as suggestion
+  const suggestedName = _cachedProfile?.name || playerName || currentUserInfo?.name || '';
+  document.getElementById('profileNameInput').value = suggestedName;
 
   // First-time vs revisit labels
   const skipBtn = document.getElementById('profileSkipBtn');
   if (firstTime) {
-    document.getElementById('profileModalTitle').textContent = '◈ Welcome — set up your profile';
-    document.getElementById('profileModalSubtitle').textContent = 'Tell the Basins who you are. This is stored in Google Drive. You can always update it later via the ◈ button.';
+    document.getElementById('profileModalTitle').textContent = 'Welcome — set up your profile';
+    document.getElementById('profileModalSubtitle').textContent = 'Tell the Basins who you are. Only your name is required. Everything else can be filled in later via the ◈ button.';
     skipBtn.textContent = 'Skip for now';
     skipBtn.onclick = () => { closeProfileModal(); _doEnterLobby(); };
   } else {
-    document.getElementById('profileModalTitle').textContent = '◈ Your Profile';
+    document.getElementById('profileModalTitle').textContent = 'Your Profile';
     document.getElementById('profileModalSubtitle').textContent = 'Stored in Google Drive. Basins read this to understand who you are and what you bring to a space.';
     skipBtn.textContent = 'Cancel';
     skipBtn.onclick = closeProfileModal;
@@ -2060,6 +2088,7 @@ async function saveProfile() {
 
     // Set playerName from the chosen name
     playerName = name;
+    _cachedProfile = { name, email: currentUserInfo?.email, picture: currentUserInfo?.picture, who, what, working, extra };
     document.getElementById('lobbyPlayerName').textContent = playerName;
     document.getElementById('landingUserName').textContent = playerName;
 
