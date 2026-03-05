@@ -237,6 +237,29 @@ Rules:
   }
 ];
 
+// ── Drive Auth ─────────────────────────────────────────
+async function getDrive() {
+  if (!userTokens) return null;
+  oauth2Client.setCredentials(userTokens);
+  const expiryDate = userTokens.expiry_date;
+  const fiveMin = 5 * 60 * 1000;
+  if (expiryDate && Date.now() > expiryDate - fiveMin) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      userTokens = credentials;
+      oauth2Client.setCredentials(credentials);
+      saveTokensToDisk(credentials);
+      console.log('OAuth token refreshed');
+    } catch (e) {
+      console.error('Token refresh failed:', e.message);
+      userTokens = null;
+      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
+      return null;
+    }
+  }
+  return google.drive({ version: 'v3', auth: oauth2Client });
+}
+
 // ── Drive Helpers ──────────────────────────────────────
 async function getDriveFolder(drive, name, parentId = null) {
   const parentClause = parentId ? ` and '${parentId}' in parents` : '';
