@@ -353,6 +353,7 @@ app.post('/api/basins', async (req, res) => {
       createdBy: req.body.createdBy || null,
       sourceFolderId: req.body.sourceFolderId || null,
       sourceFolderName: req.body.sourceFolderName || null,
+      biography: req.body.biography || null,
       createdAt: new Date().toISOString()
     };
     basins.push(newBasin);
@@ -385,6 +386,51 @@ app.post('/api/basins/synthesize', async (req, res) => {
     const data = await response.json();
     if (data.error) throw new Error(data.error.message);
     res.json({ systemPrompt: data.content?.[0]?.text || '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Generate a short biography for display in the basin dropdown
+app.post('/api/basins/generate-bio', async (req, res) => {
+  const { name, description, systemPrompt } = req.body;
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 200,
+        system: `Write a 2-3 sentence biography for an AI basin (attractor) that will be shown to users in a collaborative thinking app. It should describe who this entity is, what it brings to a conversation, and why someone might want to think alongside it. Write in third person. Evocative but plain — not flowery. No preamble, just the bio.`,
+        messages: [{ role: 'user', content: `Name: ${name || 'Unknown'}\nDescription: ${description || ''}\nSystem prompt excerpt: ${(systemPrompt || '').slice(0, 400)}` }]
+      })
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    res.json({ biography: data.content?.[0]?.text || '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Update basin biography — owner only
+app.patch('/api/basins/:id/bio', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  const { biography, playerName } = req.body;
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'basins.json', folderId);
+    if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
+    const basins = await readDriveFile(drive, fileId);
+    const target = basins.find(b => b.id === req.params.id);
+    if (!target) return res.status(404).json({ error: 'Basin not found' });
+    if (target.createdBy && target.createdBy !== playerName) {
+      return res.status(403).json({ error: 'Only the creator can edit this biography.' });
+    }
+    target.biography = biography;
+    await writeDriveFile(drive, 'basins.json', folderId, basins);
+    res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -775,6 +821,9 @@ io.on('connection', (socket) => {
     // Broadcast to everyone in room including sender
     io.to(roomId).emit('room:contribution', contribution);
 
+    // Persist human contribution immediately so it's never lost
+    persistRoomsToDrive();
+
     // Generate resonance
     try {
       // Silent mode — only respond if @BasinName is in the message
@@ -833,11 +882,8 @@ io.on('connection', (socket) => {
         console.error('Metrics error:', e.message);
       }
 
-      // Persist to Drive every 3 resonance responses
-      const resonanceCount = room.contributions.filter(c => c.type === 'resonance').length;
-      if (resonanceCount % 3 === 0) {
-        persistRoomsToDrive();
-      }
+      // Persist to Drive after every resonance response
+      persistRoomsToDrive();
     } catch (e) {
       console.error('Resonance error:', e.message);
       io.to(roomId).emit('room:thinking', false);
@@ -928,6 +974,8 @@ io.on('connection', (socket) => {
         socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
       }
       io.emit('rooms:updated', getRoomList());
+      // Persist final state when someone leaves
+      persistRoomsToDrive();
     }
   });
 });
@@ -941,6 +989,8 @@ async function saveRoomToDrive(room) {
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
+    // Also update rooms.json so contributions survive restarts
+    await persistRoomsToDrive();
     console.log(`Room saved: ${fileName}`);
   } catch (e) {
     console.error('Room save error:', e.message);

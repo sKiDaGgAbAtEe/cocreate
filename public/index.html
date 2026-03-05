@@ -106,6 +106,19 @@
     .color-row { display: flex; gap: 8px; }
     .color-swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; }
     .basin-type-btn { flex:1; background: rgba(255,255,255,0.4); border: 1px solid var(--border2); border-radius: 7px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: 'Cinzel', serif; font-size: 12px; color: var(--ink-muted); letter-spacing: 0.05em; transition: all 0.2s; }
+    .basin-row { padding: 10px 14px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+    .basin-row:last-child { border-bottom: none; }
+    .basin-row:hover { background: rgba(139,111,71,0.05); }
+    .basin-row-header { display: flex; align-items: center; gap: 9px; }
+    .basin-row-name { font-family: 'Cinzel', serif; font-size: 12px; color: var(--ink); flex: 1; }
+    .basin-row-caret { font-size: 8px; color: var(--ink-faint); transition: transform 0.2s; }
+    .basin-row-caret.open { transform: rotate(180deg); }
+    .basin-row-body { display: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+    .basin-row-body.open { display: block; }
+    .basin-row-bio { font-size: 12px; color: var(--ink-muted); line-height: 1.65; font-style: italic; margin-bottom: 6px; }
+    .basin-row-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; }
+    .basin-row-meta { font-size: 10px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
+    .basin-row-actions { display: flex; gap: 6px; align-items: center; }
     .basin-type-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(139,111,71,0.08); }
     .basin-type-btn:hover { border-color: var(--accent); }
     .basin-type-sub { font-family: 'Crimson Pro', serif; font-size: 11px; color: var(--ink-faint); font-style: italic; letter-spacing: 0; margin-top: 3px; line-height: 1.4; }
@@ -551,9 +564,22 @@
     <div class="lobby-main">
       <div class="lobby-top">
         <h3>Active Spaces</h3>
-        <div style="display:flex;gap:10px">
+        <div style="display:flex;gap:10px;align-items:center">
           <button class="btn-ghost" onclick="forceRefreshRooms()" title="Reload from Drive" style="padding:9px 14px;font-size:13px">↺</button>
           <button class="btn-ghost" onclick="openArchiveModal()" style="padding:9px 18px;font-size:13px">Archive</button>
+          <!-- Basin dropdown trigger -->
+          <div style="position:relative">
+            <button class="btn-ghost" id="basinDropdownBtn" onclick="toggleBasinDropdown()" style="padding:9px 18px;font-size:13px;display:flex;align-items:center;gap:7px">
+              ◈ Basins <span id="basinDropdownCount" style="font-size:10px;color:var(--ink-faint)"></span><span id="basinDropdownCaret" style="font-size:9px;transition:transform 0.2s">▾</span>
+            </button>
+            <div id="basinDropdownPanel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;width:320px;background:var(--parchment);border:1px solid var(--border2);border-radius:10px;box-shadow:0 12px 40px rgba(42,37,32,0.15);z-index:60;overflow:hidden">
+              <div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+                <span style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.18em;color:var(--ink-faint);text-transform:uppercase">Attractor Basins</span>
+                <button onclick="openBasinModal();toggleBasinDropdown()" style="background:none;border:none;font-family:'Cinzel',serif;font-size:10px;color:var(--accent);cursor:pointer;letter-spacing:0.08em">+ New</button>
+              </div>
+              <div id="basinDropdownList" style="max-height:360px;overflow-y:auto"></div>
+            </div>
+          </div>
           <button class="btn-ghost" onclick="openBasinModal()" style="padding:9px 18px;font-size:13px">+ New Basin</button>
           <button class="btn-primary" onclick="openNewRoomModal()" style="padding:9px 18px;font-size:13px">+ New Space</button>
         </div>
@@ -561,12 +587,6 @@
       <div class="rooms-grid" id="roomsGrid">
         <div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>
       </div>
-
-      <!-- Basin browser -->
-      <div class="lobby-top" style="margin-top:32px;margin-bottom:16px">
-        <h3>Attractor Basins</h3>
-      </div>
-      <div id="basinBrowser" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
     </div>
 
     <!-- ── LOBBY CHAT PANEL ──────────────── -->
@@ -672,6 +692,15 @@
       <span class="label" style="margin-top:8px">Synthesized Prompt <span style="font-size:9px;color:var(--ink-faint)">(editable)</span></span>
       <textarea id="agentSynthesizedPrompt" rows="6" style="resize:vertical;line-height:1.6;font-size:12px" placeholder="Synthesized prompt will appear here after you select a folder and click Synthesize..."></textarea>
       <button onclick="runSynthesis()" id="synthesizeBtn" style="margin-top:6px;width:100%;background:none;border:1px solid var(--border2);border-radius:5px;padding:8px;color:var(--accent);cursor:pointer;font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em">⬡ Synthesize from Folder</button>
+    </div>
+
+    <!-- Biography -->
+    <div style="margin-top:10px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+        <span class="label" style="margin-bottom:0">Biography <span style="font-size:9px;color:var(--ink-faint);font-style:italic;letter-spacing:0">(shown in basin dropdown)</span></span>
+        <button onclick="generateBasinBio()" id="genBioBtn" style="background:none;border:none;font-family:'Cinzel',serif;font-size:9px;color:var(--accent);cursor:pointer;letter-spacing:0.08em;padding:0">✦ Generate</button>
+      </div>
+      <textarea id="newBasinBio" rows="3" style="resize:vertical;line-height:1.6;font-size:12px" placeholder="A short biography or description visible to all users in the basin dropdown. Leave blank to auto-generate."></textarea>
     </div>
 
     <!-- Shared options -->
@@ -1315,11 +1344,11 @@ function openBasinModal() {
 }
 function closeBasinModal() {
   document.getElementById('basinModal').classList.remove('open');
-  // Reset state
   selectBasinType('lens');
   document.getElementById('newBasinName').value = '';
   document.getElementById('newBasinDesc').value = '';
   document.getElementById('newBasinPrompt').value = '';
+  document.getElementById('newBasinBio').value = '';
   document.getElementById('agentSynthesizedPrompt').value = '';
   document.getElementById('agentSynthesisStatus').style.display = 'none';
 }
@@ -1421,7 +1450,8 @@ async function createBasin() {
       body: JSON.stringify({
         name, description: desc, color: selectedBasinColor,
         systemPrompt, type: currentBasinType, persistence, isPublic,
-        createdBy: playerName, sourceFolderId, sourceFolderName
+        createdBy: playerName, sourceFolderId, sourceFolderName,
+        biography: document.getElementById('newBasinBio').value.trim()
       })
     });
     const newBasin = await res.json();
@@ -1470,26 +1500,120 @@ async function deleteBasin(basinId) {
   }
 }
 
+function toggleBasinDropdown() {
+  const panel = document.getElementById('basinDropdownPanel');
+  const caret = document.getElementById('basinDropdownCaret');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  caret.style.transform = isOpen ? '' : 'rotate(180deg)';
+  if (!isOpen) renderBasinBrowser();
+}
+
+function closeBasinDropdownOnOutsideClick(e) {
+  const panel = document.getElementById('basinDropdownPanel');
+  const btn = document.getElementById('basinDropdownBtn');
+  if (panel && panel.style.display !== 'none' && !panel.contains(e.target) && !btn.contains(e.target)) {
+    panel.style.display = 'none';
+    document.getElementById('basinDropdownCaret').style.transform = '';
+  }
+}
+document.addEventListener('click', closeBasinDropdownOnOutsideClick);
+
+function toggleBasinRow(id) {
+  const body = document.getElementById(`basin-body-${id}`);
+  const caret = document.getElementById(`basin-caret-${id}`);
+  if (!body) return;
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  if (caret) caret.classList.toggle('open', !isOpen);
+}
+
 function renderBasinBrowser() {
-  const el = document.getElementById('basinBrowser');
+  const el = document.getElementById('basinDropdownList');
   if (!el) return;
+  const count = document.getElementById('basinDropdownCount');
+  if (count) count.textContent = `(${basins.length})`;
+
+  if (!basins.length) {
+    el.innerHTML = '<div style="padding:16px 14px;font-size:12px;color:var(--ink-faint);font-style:italic;text-align:center">No basins yet.</div>';
+    return;
+  }
+
   el.innerHTML = basins.map(b => {
     const isDefault = ['lumen', 'sage'].includes(b.id);
     const isOwner = b.createdBy === playerName;
     const canDelete = !isDefault && isOwner;
-    const typeLabel = b.type === 'agent' ? `<span class="basin-agent-badge">⬡ Agent</span>` : '';
-    const sourceNote = b.sourceFolderName ? `<span style="font-size:10px;color:var(--ink-faint)">from ${esc(b.sourceFolderName)}</span>` : '';
-    return `<div class="basin-card">
-      <div style="width:10px;height:10px;border-radius:50%;background:${b.color};flex-shrink:0;margin-top:3px"></div>
-      <div class="basin-card-body">
-        <div class="basin-card-name">${esc(b.name)}${typeLabel}</div>
-        <div class="basin-card-meta">${esc(b.description || '')}</div>
-        ${b.createdBy ? `<div class="basin-card-creator">by ${esc(b.createdBy)} ${sourceNote}</div>` : ''}
-        ${isDefault ? '<div class="basin-card-creator" style="color:var(--gold)">◈ built-in</div>' : ''}
+    const agentBadge = b.type === 'agent'
+      ? `<span class="basin-agent-badge" style="font-size:8px;padding:1px 5px">⬡</span>` : '';
+    const bio = b.biography || b.description || '';
+    const creatorLine = b.createdBy
+      ? `by ${esc(b.createdBy)}${b.sourceFolderName ? ` · from ${esc(b.sourceFolderName)}` : ''}`
+      : '◈ built-in';
+
+    return `<div class="basin-row">
+      <div class="basin-row-header" onclick="toggleBasinRow('${b.id}')">
+        <div style="width:8px;height:8px;border-radius:50%;background:${b.color};flex-shrink:0"></div>
+        <span class="basin-row-name">${esc(b.name)}${agentBadge}</span>
+        <span class="basin-row-caret" id="basin-caret-${b.id}">▾</span>
       </div>
-      ${canDelete ? `<button class="basin-delete-btn" onclick="deleteBasin('${b.id}')" title="Remove basin">✕</button>` : ''}
+      <div class="basin-row-body" id="basin-body-${b.id}">
+        ${bio ? `<div class="basin-row-bio">${esc(bio)}</div>` : ''}
+        <div class="basin-row-footer">
+          <span class="basin-row-meta">${creatorLine}</span>
+          <div class="basin-row-actions">
+            ${isOwner && !isDefault ? `<button onclick="openEditBio('${b.id}')" style="background:none;border:none;font-size:10px;color:var(--accent);cursor:pointer;font-family:'Cinzel',serif;letter-spacing:0.06em">edit bio</button>` : ''}
+            ${canDelete ? `<button onclick="deleteBasin('${b.id}')" style="background:none;border:none;font-size:11px;color:var(--ink-faint);cursor:pointer;transition:color 0.2s" onmouseover="this.style.color='#c0392b'" onmouseout="this.style.color=''" title="Remove basin">✕</button>` : ''}
+          </div>
+        </div>
+      </div>
     </div>`;
   }).join('');
+}
+
+async function generateBasinBio() {
+  const name = document.getElementById('newBasinName').value.trim();
+  const desc = document.getElementById('newBasinDesc').value.trim();
+  const prompt = (document.getElementById('agentSynthesizedPrompt')?.value || document.getElementById('newBasinPrompt')?.value || '').trim();
+  if (!name && !desc && !prompt) { alert('Add a name or description first.'); return; }
+
+  const btn = document.getElementById('genBioBtn');
+  btn.textContent = '...'; btn.disabled = true;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': '' }, // key handled server-side
+    });
+    // Use the server proxy instead
+    const srvRes = await fetch('/api/basins/generate-bio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description: desc, systemPrompt: prompt })
+    });
+    const data = await srvRes.json();
+    if (data.error) throw new Error(data.error);
+    document.getElementById('newBasinBio').value = data.biography;
+  } catch(e) {
+    alert('Could not generate bio: ' + e.message);
+  }
+  btn.textContent = '✦ Generate'; btn.disabled = false;
+}
+
+function openEditBio(basinId) {
+  const basin = basins.find(b => b.id === basinId);
+  if (!basin) return;
+  const current = basin.biography || basin.description || '';
+  const newBio = prompt(`Edit biography for "${basin.name}":`, current);
+  if (newBio === null) return; // cancelled
+  fetch(`/api/basins/${basinId}/bio`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ biography: newBio, playerName })
+  }).then(r => r.json()).then(data => {
+    if (data.error) { alert(data.error); return; }
+    basin.biography = newBio;
+    renderBasinBrowser();
+  }).catch(e => alert('Error: ' + e.message));
 }
 
 async function deleteRoom(roomId) {
