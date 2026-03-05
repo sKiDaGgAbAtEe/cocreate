@@ -472,6 +472,32 @@
     @keyframes pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
     @keyframes breathe { 0%,100%{width:80px;opacity:0.5} 50%{width:160px;opacity:1} }
     @keyframes dotPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:.8;transform:scale(1.2)} }
+    /* Profile card popup */
+    .profile-card-popup { position: fixed; z-index: 200; background: var(--parchment); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 12px 40px rgba(42,37,32,0.18); padding: 16px; width: 240px; display: none; }
+    .profile-card-popup.open { display: block; }
+    .profile-card-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border2); margin-bottom: 8px; display: block; }
+    .profile-card-name { font-family: 'Cinzel', serif; font-size: 13px; color: var(--ink); font-weight: 500; margin-bottom: 2px; }
+    .profile-card-tagline { font-size: 11px; color: var(--ink-muted); font-style: italic; line-height: 1.5; margin-bottom: 10px; }
+    .profile-card-link { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); letter-spacing: 0.08em; cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; }
+    /* Clickable member pills */
+    .member-pill-btn { cursor: pointer; background: none; border: none; padding: 0; font: inherit; }
+    .chat-member-pill.clickable { cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .chat-member-pill.clickable:hover { border-color: var(--accent); color: var(--accent); }
+    .member-item.clickable { cursor: pointer; }
+    .member-item.clickable:hover span { color: var(--accent); }
+    /* Full profile panel — slides in from right */
+    .profile-panel { position: fixed; top: 0; right: -420px; width: 400px; height: 100vh; background: var(--parchment); border-left: 1px solid var(--border2); box-shadow: -12px 0 40px rgba(42,37,32,0.12); z-index: 300; transition: right 0.3s cubic-bezier(0.4,0,0.2,1); overflow-y: auto; padding: 32px 28px; }
+    .profile-panel.open { right: 0; }
+    .profile-panel-close { position: absolute; top: 16px; right: 16px; background: none; border: none; font-size: 16px; color: var(--ink-faint); cursor: pointer; padding: 4px 8px; }
+    .profile-panel-close:hover { color: var(--ink); }
+    .profile-panel-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--border2); margin-bottom: 12px; display: block; }
+    .profile-panel-name { font-family: 'Cinzel', serif; font-size: 20px; color: var(--ink); font-weight: 500; margin-bottom: 4px; }
+    .profile-panel-email { font-size: 12px; color: var(--ink-faint); margin-bottom: 20px; }
+    .profile-panel-section { margin-bottom: 20px; }
+    .profile-panel-label { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .profile-panel-text { font-size: 13px; color: var(--ink-muted); line-height: 1.7; }
+    .profile-panel-overlay { position: fixed; inset: 0; z-index: 299; display: none; }
+    .profile-panel-overlay.open { display: block; }
   </style>
 </head>
 <body>
@@ -530,21 +556,31 @@
   </button>
   <p class="subtitle">A collaborative cognition engine</p>
   <div class="landing-card card">
-    <span class="label">Your name</span>
-    <div style="display:flex;gap:8px;align-items:center">
-      <input type="text" id="playerName" placeholder="What do they call you?" style="flex:1" />
-      <button id="profileBtn" onclick="openProfileModal()" title="Your profile" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:14px;color:var(--ink-faint);transition:all 0.2s;flex-shrink:0;opacity:0.4" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)';this.style.opacity='1'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink-faint)';this.style.opacity=document.getElementById('playerName').value.trim()?'1':'0.4'">◈</button>
+
+    <!-- State A: not logged in -->
+    <div id="landingNotLoggedIn">
+      <a href="/auth/google" class="btn-primary" style="display:block;text-align:center;text-decoration:none;padding:12px;font-family:'Cinzel',serif;font-size:13px;letter-spacing:0.1em">
+        <svg style="width:16px;height:16px;vertical-align:middle;margin-right:8px" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Sign in with Google
+      </a>
     </div>
-    <span class="label">Google Drive</span>
-    <div class="drive-row">
-      <div class="dot" id="driveDot"></div>
-      <span id="driveLabel">Checking...</span>
-      <span id="driveLink" style="margin-left:auto"></span>
+
+    <!-- State B: logged in -->
+    <div id="landingLoggedIn" style="display:none">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:rgba(139,111,71,0.06);border:1px solid var(--border);border-radius:8px">
+        <img id="landingAvatar" src="" alt="" style="width:32px;height:32px;border-radius:50%;display:none" />
+        <div style="flex:1;min-width:0">
+          <div id="landingUserName" style="font-family:'Cinzel',serif;font-size:13px;color:var(--ink);font-weight:500"></div>
+          <div id="landingUserEmail" style="font-size:10px;color:var(--ink-faint);margin-top:1px"></div>
+        </div>
+        <button onclick="openProfileModal(false)" title="Edit profile" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink-muted);padding:4px;transition:color 0.2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--ink-muted)'">◈</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a href="/auth/logout" style="flex:1;text-align:center;padding:9px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em;color:var(--ink-faint);border:1px solid var(--border2);border-radius:6px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.borderColor='var(--ink-muted)'" onmouseout="this.style.borderColor='var(--border2)'">Disconnect</a>
+        <button class="btn-primary" id="enterBtn" onclick="enterLobby()" style="flex:2">Enter →</button>
+      </div>
     </div>
-    <div class="landing-actions" style="margin-top:4px">
-      <button class="btn-ghost" onclick="openAbout()" style="flex:0 0 auto;padding:11px 16px">About</button>
-      <button class="btn-primary" id="enterBtn" disabled onclick="enterLobby()">Enter →</button>
-    </div>
+
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
   <button class="theme-toggle" onclick="toggleTheme()" id="landingThemeBtn">◑ Dark</button>
@@ -613,27 +649,49 @@
   </div>
 </div>
 
+<!-- ── PROFILE CARD POPUP ──────────────────────── -->
+<div id="profileCardPopup" class="profile-card-popup">
+  <img id="pcAvatar" class="profile-card-avatar" src="" alt="" />
+  <div id="pcName" class="profile-card-name"></div>
+  <div id="pcTagline" class="profile-card-tagline"></div>
+  <button class="profile-card-link" onclick="openProfilePanel(currentProfileCardName)">View full profile →</button>
+</div>
+
+<!-- ── FULL PROFILE PANEL ─────────────────────── -->
+<div id="profilePanelOverlay" class="profile-panel-overlay" onclick="closeProfilePanel()"></div>
+<div id="profilePanel" class="profile-panel">
+  <button class="profile-panel-close" onclick="closeProfilePanel()">✕</button>
+  <img id="ppAvatar" class="profile-panel-avatar" src="" alt="" />
+  <div id="ppName" class="profile-panel-name"></div>
+  <div id="ppEmail" class="profile-panel-email"></div>
+  <div id="ppSections"></div>
+</div>
+
 <!-- ── PROFILE MODAL ───────────────────────────── -->
 <div class="modal-overlay" id="profileModal">
   <div class="modal-box" style="max-width:460px">
     <div class="modal-header">
-      <span class="modal-title">◈ Your Profile</span>
+      <span class="modal-title" id="profileModalTitle">◈ Your Profile</span>
       <button class="modal-close" onclick="closeProfileModal()">✕</button>
     </div>
-    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:14px;line-height:1.6">Your profile is stored in Google Drive and shared with all Basins — they will know who you are and what you bring to a space.</p>
-    <span class="label">Name</span>
-    <input type="text" id="profileName" placeholder="Your name" style="margin-bottom:10px" readonly />
+    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:14px;line-height:1.6" id="profileModalSubtitle">Your profile is stored in Google Drive and shared with all Basins — they will know who you are and what you bring to a space.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:rgba(139,111,71,0.06);border:1px solid var(--border);border-radius:8px">
+      <img id="profileModalAvatar" src="" alt="" style="width:36px;height:36px;border-radius:50%;display:none" />
+      <div style="font-size:10px;color:var(--ink-faint)" id="profileModalEmail"></div>
+    </div>
+    <span class="label">Your name <span style="color:var(--accent)">*</span></span>
+    <input type="text" id="profileNameInput" placeholder="What do they call you?" style="margin-bottom:14px" />
     <span class="label">Who are you?</span>
-    <textarea id="profileWho" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="A brief identity statement. What's your background, your role, your lens?"></textarea>
+    <textarea id="profileWho" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Your background, role, lens — how you'd introduce yourself."></textarea>
     <span class="label">What do you represent?</span>
-    <textarea id="profileWhat" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="What ideas, frameworks, or domains do you carry? What do you bring to collaborative thinking?"></textarea>
+    <textarea id="profileWhat" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Ideas, frameworks, or domains you carry. What you bring to collaborative thinking."></textarea>
     <span class="label">What are you currently working on?</span>
     <textarea id="profileWorking" rows="2" style="resize:vertical;margin-bottom:10px" placeholder="Current projects, questions, or investigations."></textarea>
     <span class="label">Anything else Basins should know?</span>
-    <textarea id="profileExtra" rows="2" style="resize:vertical;margin-bottom:14px" placeholder="Communication preferences, things that matter to you, context that would help an AI think alongside you."></textarea>
+    <textarea id="profileExtra" rows="2" style="resize:vertical;margin-bottom:14px" placeholder="Communication preferences, context that would help an AI think alongside you."></textarea>
     <div id="profileStatus" style="display:none;font-size:12px;color:var(--ink-muted);margin-bottom:10px;padding:8px 12px;background:rgba(139,111,71,0.08);border-radius:6px"></div>
     <div style="display:flex;gap:10px">
-      <button class="btn-ghost" id="profileSkipBtn" onclick="closeProfileModal()" style="flex:1">Skip for now</button>
+      <button class="btn-ghost" id="profileSkipBtn" onclick="closeProfileModal()" style="flex:1">Cancel</button>
       <button class="btn-primary" onclick="saveProfile()" id="profileSaveBtn" style="flex:2">Save Profile</button>
     </div>
   </div>
@@ -998,16 +1056,6 @@ async function init() {
   initTheme();
   await checkAuth();
   await loadBasins();
-  const nameInput = document.getElementById('playerName');
-  function updateNameUI() {
-    const hasName = !!nameInput.value.trim();
-    document.getElementById('enterBtn').disabled = !hasName;
-    document.getElementById('profileBtn').style.opacity = hasName ? '1' : '0.4';
-  }
-  nameInput.addEventListener('input', updateNameUI);
-  nameInput.addEventListener('change', updateNameUI);
-  setTimeout(updateNameUI, 500);
-  setTimeout(updateNameUI, 1500);
   document.getElementById('input').addEventListener('input', () => {
     document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim();
     if (currentRoom) {
@@ -1060,34 +1108,36 @@ async function init() {
   });
 }
 
+let currentUserInfo = null; // { name, email, picture }
+
 async function checkAuth() {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('auth') === 'logout') {
-    window.history.replaceState({}, '', '/');
-  }
+  if (params.get('auth') === 'logout') window.history.replaceState({}, '', '/');
 
   const res = await fetch('/auth/status');
   const data = await res.json();
   driveConnected = data.connected;
-  document.getElementById('driveDot').classList.toggle('on', driveConnected);
+  currentUserInfo = data.userInfo || null;
 
-  if (data.serviceAccount) {
-    // Service account is always-on server credential — no disconnect needed from UI
-    document.getElementById('driveLabel').textContent = 'Connected';
-    document.getElementById('driveLink').innerHTML = '';
+  if (data.userOAuth && currentUserInfo) {
+    // Logged in — show account card
+    document.getElementById('landingNotLoggedIn').style.display = 'none';
+    document.getElementById('landingLoggedIn').style.display = '';
+    document.getElementById('landingUserName').textContent = currentUserInfo.name || '';
+    document.getElementById('landingUserEmail').textContent = currentUserInfo.email || '';
+    if (currentUserInfo.picture) {
+      const av = document.getElementById('landingAvatar');
+      av.src = currentUserInfo.picture;
+      av.style.display = '';
+    }
+    // playerName is the Google display name
+    playerName = currentUserInfo.name || currentUserInfo.email || '';
     if (data.userOAuth) await loadFolders();
-  } else if (data.userOAuth) {
-    document.getElementById('driveLabel').textContent = 'Connected';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
-    await loadFolders();
   } else {
-    document.getElementById('driveLabel').textContent = 'Not connected';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/google" style="color:var(--accent);font-size:13px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Connect →</a>';
+    // Not logged in
+    document.getElementById('landingNotLoggedIn').style.display = '';
+    document.getElementById('landingLoggedIn').style.display = 'none';
   }
-
-  // Show profile button if name is already filled (e.g. browser autofill)
-  const nameVal = document.getElementById('playerName').value.trim();
-  if (nameVal) document.getElementById('profileBtn').style.opacity = '1';
 }
 
 async function loadBasins() {
@@ -1132,17 +1182,26 @@ function showPage(id) {
 }
 
 async function enterLobby() {
-  playerName = document.getElementById('playerName').value.trim();
-  if (!playerName) return;
-  document.getElementById('lobbyPlayerName').textContent = playerName;
+  if (!currentUserInfo) return;
 
-  // Check if this person has a profile — if not, prompt them
-  const hasProfile = await checkProfileExists(playerName);
-  if (!hasProfile) {
-    openProfileModal(true); // true = first-time, show "enter lobby" button instead of skip
-    return; // enterLobby will be called again after modal closes or is skipped
+  // Try to load existing profile keyed by Google email
+  const email = currentUserInfo.email || '';
+  let savedName = null;
+  try {
+    const res = await fetch(`/api/profile/by-email/${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (data.profile?.name) savedName = data.profile.name;
+  } catch {}
+
+  if (!savedName) {
+    // First time — open profile setup (name required)
+    openProfileModal(true);
+    return;
   }
 
+  playerName = savedName;
+  document.getElementById('lobbyPlayerName').textContent = playerName;
+  document.getElementById('landingUserName').textContent = playerName;
   _doEnterLobby();
 }
 
@@ -1223,7 +1282,7 @@ function appendLobbySysMsg(text) {
 function updateLobbyMembers(members) {
   document.getElementById('lobbyOnlineCount').textContent = members.length;
   document.getElementById('lobbyMembersRow').innerHTML = members
-    .map(m => `<span class="chat-member-pill">${esc(m)}</span>`).join('');
+    .map(m => `<span class="chat-member-pill clickable" onclick="showProfileCard('${esc(m)}', this)">${esc(m)}</span>`).join('');
 }
 
 // lobby socket listeners (called once from init)
@@ -1749,7 +1808,7 @@ function loadRoomMembers() {
 
 function renderMembers(members) {
   document.getElementById('membersList').innerHTML = members.map(m =>
-    `<div class="member-item"><div class="member-dot"></div><span>${esc(m)}</span></div>`
+    `<div class="member-item clickable" onclick="showProfileCard('${esc(m)}', this)"><div class="member-dot"></div><span>${esc(m)}</span></div>`
   ).join('') || '<div style="font-size:11px;color:var(--text-faint);font-style:italic">Just you</div>';
 }
 
@@ -1915,37 +1974,56 @@ async function checkProfileExists(name) {
   try {
     const res = await fetch(`/api/profile/${encodeURIComponent(name)}`);
     const data = await res.json();
-    return data.exists;
+    return data.exists && !!data.profile?.name;
   } catch { return false; }
 }
 
 function openProfileModal(firstTime = false) {
   _profileIsFirstTime = firstTime;
-  const name = document.getElementById('playerName').value.trim();
-  document.getElementById('profileName').value = name;
   document.getElementById('profileStatus').style.display = 'none';
 
-  // Update skip/save button labels for first-time vs revisit
+  // Populate identity row from Google info
+  if (currentUserInfo) {
+    document.getElementById('profileModalEmail').textContent = currentUserInfo.email || '';
+    if (currentUserInfo.picture) {
+      const av = document.getElementById('profileModalAvatar');
+      av.src = currentUserInfo.picture;
+      av.style.display = '';
+    }
+  }
+
+  // Pre-fill name input — use saved playerName if set, else Google display name as a suggestion
+  document.getElementById('profileNameInput').value = playerName || currentUserInfo?.name || '';
+
+  // First-time vs revisit labels
   const skipBtn = document.getElementById('profileSkipBtn');
   if (firstTime) {
-    skipBtn.textContent = 'Skip — enter lobby';
+    document.getElementById('profileModalTitle').textContent = '◈ Welcome — set up your profile';
+    document.getElementById('profileModalSubtitle').textContent = 'Tell the Basins who you are. This is stored in Google Drive. You can always update it later via the ◈ button.';
+    skipBtn.textContent = 'Skip for now';
     skipBtn.onclick = () => { closeProfileModal(); _doEnterLobby(); };
   } else {
+    document.getElementById('profileModalTitle').textContent = '◈ Your Profile';
+    document.getElementById('profileModalSubtitle').textContent = 'Stored in Google Drive. Basins read this to understand who you are and what you bring to a space.';
     skipBtn.textContent = 'Cancel';
     skipBtn.onclick = closeProfileModal;
   }
 
-  // Pre-fill if profile already exists
-  fetch(`/api/profile/${encodeURIComponent(name)}`)
-    .then(r => r.json())
-    .then(data => {
-      if (data.profile) {
-        document.getElementById('profileWho').value = data.profile.who || '';
-        document.getElementById('profileWhat').value = data.profile.what || '';
-        document.getElementById('profileWorking').value = data.profile.working || '';
-        document.getElementById('profileExtra').value = data.profile.extra || '';
-      }
-    }).catch(() => {});
+  // Pre-fill existing profile fields if they have one saved already
+  const existingName = playerName || currentUserInfo?.name || '';
+  if (existingName) {
+    fetch(`/api/profile/${encodeURIComponent(existingName)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.profile) {
+          if (data.profile.name) document.getElementById('profileNameInput').value = data.profile.name;
+          document.getElementById('profileWho').value = data.profile.who || '';
+          document.getElementById('profileWhat').value = data.profile.what || '';
+          document.getElementById('profileWorking').value = data.profile.working || '';
+          document.getElementById('profileExtra').value = data.profile.extra || '';
+        }
+      }).catch(() => {});
+  }
 
   document.getElementById('profileModal').classList.add('open');
 }
@@ -1955,18 +2033,17 @@ function closeProfileModal() {
 }
 
 async function saveProfile() {
-  const name = document.getElementById('profileName').value.trim();
+  const name = document.getElementById('profileNameInput').value.trim();
+  if (!name) {
+    const status = document.getElementById('profileStatus');
+    status.textContent = 'A name is required.';
+    status.style.display = 'block';
+    return;
+  }
   const who = document.getElementById('profileWho').value.trim();
   const what = document.getElementById('profileWhat').value.trim();
   const working = document.getElementById('profileWorking').value.trim();
   const extra = document.getElementById('profileExtra').value.trim();
-
-  if (!who && !what && !working && !extra) {
-    const status = document.getElementById('profileStatus');
-    status.textContent = 'Add at least one field before saving.';
-    status.style.display = 'block';
-    return;
-  }
 
   const btn = document.getElementById('profileSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving...';
@@ -1975,26 +2052,119 @@ async function saveProfile() {
     const res = await fetch('/api/profile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, who, what, working, extra })
+      body: JSON.stringify({ name, email: currentUserInfo?.email, picture: currentUserInfo?.picture, who, what, working, extra })
     });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    const status = document.getElementById('profileStatus');
-    status.textContent = '◈ Profile saved to Drive.';
-    status.style.display = 'block';
+    // Set playerName from the chosen name
+    playerName = name;
+    document.getElementById('lobbyPlayerName').textContent = playerName;
+    document.getElementById('landingUserName').textContent = playerName;
 
+    const status = document.getElementById('profileStatus');
+    status.textContent = '◈ Profile saved.';
+    status.style.display = 'block';
     setTimeout(() => {
       closeProfileModal();
       if (_profileIsFirstTime) _doEnterLobby();
-    }, 800);
+    }, 700);
   } catch(e) {
     const status = document.getElementById('profileStatus');
-    status.textContent = 'Error saving: ' + e.message;
+    status.textContent = 'Error: ' + e.message;
     status.style.display = 'block';
   }
   btn.disabled = false; btn.textContent = 'Save Profile';
 }
+
+// ── Profile Card & Panel ───────────────────────────────
+let currentProfileCardName = null;
+let _cardCloseTimer = null;
+
+async function showProfileCard(name, anchorEl) {
+  currentProfileCardName = name;
+  const card = document.getElementById('profileCardPopup');
+
+  // Position near the anchor
+  const rect = anchorEl.getBoundingClientRect();
+  card.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+  card.style.left = Math.min(rect.left, window.innerWidth - 260) + 'px';
+
+  // Reset
+  document.getElementById('pcName').textContent = name;
+  document.getElementById('pcTagline').textContent = '...';
+  document.getElementById('pcAvatar').style.display = 'none';
+  card.classList.add('open');
+
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if (data.profile) {
+      document.getElementById('pcTagline').textContent = data.profile.who || 'No profile yet.';
+      if (data.profile.picture) {
+        const av = document.getElementById('pcAvatar');
+        av.src = data.profile.picture;
+        av.style.display = '';
+      }
+    } else {
+      document.getElementById('pcTagline').textContent = 'No profile yet.';
+    }
+  } catch { document.getElementById('pcTagline').textContent = 'Could not load.'; }
+}
+
+function hideProfileCard() {
+  document.getElementById('profileCardPopup').classList.remove('open');
+  currentProfileCardName = null;
+}
+
+async function openProfilePanel(name) {
+  hideProfileCard();
+  if (!name) return;
+  const panel = document.getElementById('profilePanel');
+  document.getElementById('ppName').textContent = name;
+  document.getElementById('ppEmail').textContent = '';
+  document.getElementById('ppAvatar').style.display = 'none';
+  document.getElementById('ppSections').innerHTML = '<div style="color:var(--ink-faint);font-size:13px">Loading...</div>';
+  document.getElementById('profilePanelOverlay').classList.add('open');
+  panel.classList.add('open');
+
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(name)}`);
+    const data = await res.json();
+    const p = data.profile || {};
+    if (p.email) document.getElementById('ppEmail').textContent = p.email;
+    if (p.picture) {
+      const av = document.getElementById('ppAvatar');
+      av.src = p.picture;
+      av.style.display = '';
+    }
+    const sections = [
+      { label: 'Who they are', key: 'who' },
+      { label: 'What they represent', key: 'what' },
+      { label: 'Currently working on', key: 'working' },
+      { label: 'Additional context', key: 'extra' }
+    ];
+    document.getElementById('ppSections').innerHTML = sections
+      .filter(s => p[s.key])
+      .map(s => `<div class="profile-panel-section"><div class="profile-panel-label">${s.label}</div><div class="profile-panel-text">${esc(p[s.key])}</div></div>`)
+      .join('') || '<div style="color:var(--ink-faint);font-size:13px;font-style:italic">No profile content yet.</div>';
+  } catch {
+    document.getElementById('ppSections').innerHTML = '<div style="color:var(--ink-faint);font-size:13px">Could not load profile.</div>';
+  }
+}
+
+function closeProfilePanel() {
+  document.getElementById('profilePanel').classList.remove('open');
+  document.getElementById('profilePanelOverlay').classList.remove('open');
+}
+
+// Close profile card on outside click
+document.addEventListener('click', (e) => {
+  const card = document.getElementById('profileCardPopup');
+  if (card.classList.contains('open') && !card.contains(e.target)) {
+    hideProfileCard();
+  }
+});
 function closeAbout(e) {
   if (!e || e.target === document.getElementById('aboutOverlay') || e.currentTarget?.classList.contains('about-close')) {
     document.getElementById('aboutOverlay').classList.remove('open');

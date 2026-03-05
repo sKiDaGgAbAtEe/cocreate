@@ -34,21 +34,26 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 let userTokens = null;
+let userInfo = null; // { name, email, picture }
 
 // Persist tokens to disk so they survive Railway restarts
 const TOKEN_FILE = path.join(__dirname, '.oauth-tokens.json');
+const USER_INFO_FILE = path.join(__dirname, '.oauth-userinfo.json');
 
 function saveTokensToDisk(tokens) {
-  try {
-    require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens));
-  } catch(e) { console.error('Could not save tokens:', e.message); }
+  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens)); } catch(e) { console.error('Could not save tokens:', e.message); }
 }
 
 function loadTokensFromDisk() {
-  try {
-    const raw = require('fs').readFileSync(TOKEN_FILE, 'utf8');
-    return JSON.parse(raw);
-  } catch(e) { return null; }
+  try { return JSON.parse(require('fs').readFileSync(TOKEN_FILE, 'utf8')); } catch(e) { return null; }
+}
+
+function saveUserInfoToDisk(info) {
+  try { require('fs').writeFileSync(USER_INFO_FILE, JSON.stringify(info)); } catch(e) {}
+}
+
+function loadUserInfoFromDisk() {
+  try { return JSON.parse(require('fs').readFileSync(USER_INFO_FILE, 'utf8')); } catch(e) { return null; }
 }
 
 // Load tokens on startup
@@ -58,10 +63,13 @@ if (savedTokens) {
   oauth2Client.setCredentials(savedTokens);
   console.log('OAuth tokens loaded from disk');
 }
+userInfo = loadUserInfoFromDisk();
 
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.readonly'
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/userinfo.email'
 ];
 
 app.get('/auth/google', (req, res) => {
@@ -79,7 +87,14 @@ app.get('/auth/google/callback', async (req, res) => {
     userTokens = tokens;
     oauth2Client.setCredentials(tokens);
     saveTokensToDisk(tokens);
-    console.log('OAuth tokens saved. Has refresh_token:', !!tokens.refresh_token);
+    // Fetch Google profile info
+    try {
+      const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+      const { data } = await oauth2.userinfo.get();
+      userInfo = { name: data.name, email: data.email, picture: data.picture };
+      saveUserInfoToDisk(userInfo);
+      console.log('User info saved:', userInfo.email);
+    } catch(e) { console.error('Could not fetch user info:', e.message); }
     res.redirect('/?auth=success');
   } catch (e) {
     console.error('OAuth callback error:', e.message);
@@ -89,7 +104,9 @@ app.get('/auth/google/callback', async (req, res) => {
 
 app.get('/auth/logout', (req, res) => {
   userTokens = null;
+  userInfo = null;
   try { require('fs').unlinkSync(TOKEN_FILE); } catch(e) {}
+  try { require('fs').unlinkSync(USER_INFO_FILE); } catch(e) {}
   oauth2Client.revokeCredentials().catch(() => {});
   res.redirect('/?auth=logout');
 });
@@ -97,7 +114,8 @@ app.get('/auth/logout', (req, res) => {
 app.get('/auth/status', (req, res) => res.json({
   connected: !!userTokens || !!getServiceAccountDrive(),
   serviceAccount: !!getServiceAccountDrive(),
-  userOAuth: !!userTokens
+  userOAuth: !!userTokens,
+  userInfo: userInfo || null
 }));
 
 // ── Room State (persisted to Drive) ────────────────────
@@ -1212,6 +1230,27 @@ app.post('/api/rooms/:id/process', async (req, res) => {
 });
 
 // ── Profile Routes ─────────────────────────────────────
+app.get('/api/profile/by-email/:email', async (req, res) => {
+  const drive = await getSystemDrive();
+  if (!drive) return res.json({ exists: false });
+  try {
+    const root = await getDriveFolder(drive, 'CoCreate');
+    const profilesId = await getDriveFolder(drive, 'Profiles', root);
+    // List all JSON files and find one matching the email
+    const files = await drive.files.list({
+      q: `'${profilesId}' in parents and mimeType='application/json' and trashed=false`,
+      fields: 'files(id, name)', pageSize: 100
+    });
+    for (const file of files.data.files) {
+      const profile = await readDriveFile(drive, file.id);
+      if (profile?.email === req.params.email) return res.json({ exists: true, profile });
+    }
+    res.json({ exists: false });
+  } catch(e) {
+    res.json({ exists: false });
+  }
+});
+
 app.get('/api/profile/:name', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.json({ exists: false });
@@ -1232,29 +1271,25 @@ app.get('/api/profile/:name', async (req, res) => {
 app.post('/api/profile', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.status(503).json({ error: 'Drive not available' });
-  const { name, who, what, working, extra } = req.body;
+  const { name, email, picture, who, what, working, extra } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
-    const profile = { name, who, what, working, extra, updatedAt: new Date().toISOString() };
+    const profile = { name, email: email || null, picture: picture || null, who, what, working, extra, updatedAt: new Date().toISOString() };
     await writeDriveFile(drive, `${name}.json`, profilesId, profile);
 
-    // Also write as a Google Doc-readable plain text file for basin context injection
     const textContent = [
       `# Profile: ${name}`,
+      email ? `Email: ${email}` : '',
       who ? `\n## Who I am\n${who}` : '',
       what ? `\n## What I represent\n${what}` : '',
       working ? `\n## Currently working on\n${working}` : '',
       extra ? `\n## Additional context\n${extra}` : ''
     ].filter(Boolean).join('\n');
 
-    // Write as a .txt file alongside the JSON so readFolderContents picks it up
     await writePlainTextFile(drive, `${name}.txt`, profilesId, textContent);
-
-    // Invalidate system context cache so next resonance picks up the new profile
     _systemContextCache = null;
-
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
