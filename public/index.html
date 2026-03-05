@@ -998,11 +998,18 @@ async function init() {
   initTheme();
   await checkAuth();
   await loadBasins();
-  document.getElementById('playerName').addEventListener('input', () => {
-    const hasName = !!document.getElementById('playerName').value.trim();
+  const nameInput = document.getElementById('playerName');
+  function updateNameUI() {
+    const hasName = !!nameInput.value.trim();
     document.getElementById('enterBtn').disabled = !hasName;
     document.getElementById('profileBtn').style.display = hasName ? '' : 'none';
-  });
+  }
+  nameInput.addEventListener('input', updateNameUI);
+  nameInput.addEventListener('change', updateNameUI);
+  nameInput.addEventListener('focus', updateNameUI);
+  // Catch autofill with a short poll after page load
+  setTimeout(updateNameUI, 500);
+  setTimeout(updateNameUI, 1500);
   document.getElementById('input').addEventListener('input', () => {
     document.getElementById('sendBtn').disabled = !document.getElementById('input').value.trim();
     if (currentRoom) {
@@ -1066,12 +1073,11 @@ async function checkAuth() {
   driveConnected = data.connected;
   document.getElementById('driveDot').classList.toggle('on', driveConnected);
 
-  if (data.serviceAccount && data.userOAuth) {
+  if (data.serviceAccount) {
+    // Service account is always-on server credential — no disconnect needed from UI
     document.getElementById('driveLabel').textContent = 'Connected';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
-  } else if (data.serviceAccount) {
-    document.getElementById('driveLabel').textContent = 'Connected';
-    document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
+    document.getElementById('driveLink').innerHTML = '';
+    if (data.userOAuth) await loadFolders();
   } else if (data.userOAuth) {
     document.getElementById('driveLabel').textContent = 'Connected';
     document.getElementById('driveLink').innerHTML = '<a href="/auth/logout" style="color:var(--ink-faint);font-size:11px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Disconnect</a>';
@@ -1079,6 +1085,13 @@ async function checkAuth() {
   } else {
     document.getElementById('driveLabel').textContent = 'Not connected';
     document.getElementById('driveLink').innerHTML = '<a href="/auth/google" style="color:var(--accent);font-size:13px;font-family:Cinzel,serif;letter-spacing:0.06em;text-decoration:underline">Connect →</a>';
+  }
+
+  // Show profile button if name is already filled (e.g. browser autofill)
+  const nameVal = document.getElementById('playerName').value.trim();
+  if (nameVal) {
+    document.getElementById('profileBtn').style.display = '';
+    document.getElementById('enterBtn').disabled = false;
   }
 }
 
