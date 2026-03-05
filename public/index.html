@@ -533,7 +533,7 @@
     <span class="label">Your name</span>
     <div style="display:flex;gap:8px;align-items:center">
       <input type="text" id="playerName" placeholder="What do they call you?" style="flex:1" />
-      <button id="profileBtn" onclick="openProfileModal()" title="Edit your profile" style="display:none;background:none;border:1px solid var(--border2);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:14px;color:var(--ink-muted);transition:all 0.2s;flex-shrink:0" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink-muted)'">◈</button>
+      <button id="profileBtn" onclick="openProfileModal()" title="Your profile" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:8px 10px;cursor:pointer;font-size:14px;color:var(--ink-faint);transition:all 0.2s;flex-shrink:0;opacity:0.4" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)';this.style.opacity='1'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--ink-faint)';this.style.opacity=document.getElementById('playerName').value.trim()?'1':'0.4'">◈</button>
     </div>
     <span class="label">Google Drive</span>
     <div class="drive-row">
@@ -1002,12 +1002,10 @@ async function init() {
   function updateNameUI() {
     const hasName = !!nameInput.value.trim();
     document.getElementById('enterBtn').disabled = !hasName;
-    document.getElementById('profileBtn').style.display = hasName ? '' : 'none';
+    document.getElementById('profileBtn').style.opacity = hasName ? '1' : '0.4';
   }
   nameInput.addEventListener('input', updateNameUI);
   nameInput.addEventListener('change', updateNameUI);
-  nameInput.addEventListener('focus', updateNameUI);
-  // Catch autofill with a short poll after page load
   setTimeout(updateNameUI, 500);
   setTimeout(updateNameUI, 1500);
   document.getElementById('input').addEventListener('input', () => {
@@ -1089,10 +1087,7 @@ async function checkAuth() {
 
   // Show profile button if name is already filled (e.g. browser autofill)
   const nameVal = document.getElementById('playerName').value.trim();
-  if (nameVal) {
-    document.getElementById('profileBtn').style.display = '';
-    document.getElementById('enterBtn').disabled = false;
-  }
+  if (nameVal) document.getElementById('profileBtn').style.opacity = '1';
 }
 
 async function loadBasins() {
