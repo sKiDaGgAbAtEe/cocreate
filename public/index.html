@@ -677,6 +677,72 @@
     .profile-panel-text { font-size: 13px; color: var(--ink-muted); line-height: 1.7; }
     .profile-panel-overlay { position: fixed; inset: 0; z-index: 299; display: none; }
     .profile-panel-overlay.open { display: block; }
+
+    /* ── THEME / PYRAMID MENU ─────────────────────────── */
+    .pyramid-menu-wrap { position: relative; display: inline-block; flex-shrink: 0; }
+    .pyramid-btn {
+      width: 32px; height: 32px;
+      background: none; border: none; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 3px; padding: 4px;
+      border-radius: 6px; transition: background 0.15s;
+    }
+    .pyramid-btn:hover { background: rgba(139,111,71,0.1); }
+    .pyramid-btn span {
+      display: block; background: var(--ink-muted);
+      border-radius: 2px; transition: background 0.15s;
+    }
+    .pyramid-btn span:nth-child(1) { width: 4px;  height: 4px; border-radius: 50%; }
+    .pyramid-btn span:nth-child(2) { width: 10px; height: 3px; }
+    .pyramid-btn span:nth-child(3) { width: 16px; height: 3px; }
+    .pyramid-btn:hover span { background: var(--accent); }
+    body.dark .pyramid-btn:hover { background: rgba(196,168,130,0.1); }
+
+    .pyramid-dropdown {
+      position: absolute; right: 0; top: calc(100% + 6px);
+      background: var(--parchment);
+      border: 1px solid var(--border2);
+      border-radius: 10px;
+      padding: 6px;
+      min-width: 200px;
+      box-shadow: 0 8px 32px rgba(30,26,22,0.2), 0 2px 8px rgba(30,26,22,0.1);
+      z-index: 200;
+      display: none;
+      animation: dropdown-in 0.15s ease;
+    }
+    body.dark .pyramid-dropdown {
+      background: #1a1828;
+      border-color: #3a3448;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4);
+    }
+    .pyramid-dropdown.open { display: block; }
+    @keyframes dropdown-in {
+      from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .pyramid-section-label {
+      font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--ink-faint);
+      padding: 6px 10px 4px; display: block;
+    }
+    .pyramid-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 10px; border-radius: 6px; cursor: pointer;
+      font-family: 'Cinzel', serif; font-size: 11px;
+      letter-spacing: 0.06em; color: var(--ink-muted);
+      transition: all 0.12s; border: none; background: none;
+      width: 100%; text-align: left;
+    }
+    .pyramid-item:hover { background: rgba(139,111,71,0.08); color: var(--ink); }
+    body.dark .pyramid-item:hover { background: rgba(196,168,130,0.08); color: var(--accent); }
+    .pyramid-item .pi-icon { font-size: 13px; width: 18px; text-align: center; flex-shrink: 0; }
+    .pyramid-item.active-theme { color: var(--gold); }
+    .pyramid-item.active-theme::after { content: '✓'; margin-left: auto; font-size: 10px; }
+    .pyramid-divider { height: 1px; background: var(--border); margin: 4px 6px; }
+    .pyramid-theme-swatch {
+      width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
   </style>
 </head>
 <body>
@@ -767,7 +833,20 @@
 
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
-  <button class="theme-toggle" onclick="toggleTheme()" id="landingThemeBtn">◑ Dark</button>
+  <div class="pyramid-menu-wrap" style="position:fixed;top:16px;right:16px;z-index:50">
+    <button class="pyramid-btn" id="landingPyramidBtn" onclick="togglePyramidMenu('landingMenu')" title="Options">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="pyramid-dropdown" id="landingMenu">
+      <span class="pyramid-section-label">Appearance</span>
+      <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
+        <span class="pi-icon">◑</span> Toggle Dark Mode
+      </button>
+      <div class="pyramid-divider"></div>
+      <span class="pyramid-section-label">Themes</span>
+      <div id="landingThemeList"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ── LOBBY ──────────────────────────────────── -->
@@ -778,7 +857,20 @@
       <h2>Entriference</h2>
     </div>
     <div style="display:flex;align-items:center;gap:12px">
-      <button class="theme-toggle" onclick="toggleTheme()" id="lobbyThemeBtn">◑ Dark</button>
+      <div class="pyramid-menu-wrap">
+        <button class="pyramid-btn" id="lobbyPyramidBtn" onclick="togglePyramidMenu('lobbyMenu')" title="Options">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="pyramid-dropdown" id="lobbyMenu">
+          <span class="pyramid-section-label">Appearance</span>
+          <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
+            <span class="pi-icon">◑</span> Toggle Dark Mode
+          </button>
+          <div class="pyramid-divider"></div>
+          <span class="pyramid-section-label">Themes</span>
+          <div id="lobbyThemeList"></div>
+        </div>
+      </div>
       <span class="player-pill" id="lobbyPlayerName"></span>
       <button class="btn-ghost" onclick="showPage('landing')" style="padding:6px 12px;font-size:12px">← Back</button>
     </div>
@@ -1120,7 +1212,20 @@
       <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
       <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
       <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
-      <button class="theme-toggle" onclick="toggleTheme()" id="sessionThemeBtn">◑</button>
+      <div class="pyramid-menu-wrap">
+        <button class="pyramid-btn" id="sessionPyramidBtn" onclick="togglePyramidMenu('sessionMenu')" title="Options">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="pyramid-dropdown" id="sessionMenu">
+          <span class="pyramid-section-label">Appearance</span>
+          <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
+            <span class="pi-icon">◑</span> Toggle Dark Mode
+          </button>
+          <div class="pyramid-divider"></div>
+          <span class="pyramid-section-label">Themes</span>
+          <div id="sessionThemeList"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1260,10 +1365,199 @@ let interferenceTime = 0;
 let smoothH = 0.3, smoothV = 0.3, smoothT = 0.2, smoothC = 0.1;
 
 // ── Theme ─────────────────────────────────────
+
+// ── Theme System ──────────────────────────────────────────────────────────────
+// A theme template covers every visual variable. Load any theme object to
+// instantly repaint the UI. The dark/light toggle still works on top of themes.
+
+const THEME_TEMPLATE = {
+  // ── Identity ──────────────────────────────
+  id:          "custom",          // unique slug
+  name:        "Custom Theme",    // display name
+  dark:        false,             // default mode when applied
+
+  // ── Fonts ─────────────────────────────────
+  fontDisplay: "'Cinzel', serif",           // headings, labels, buttons
+  fontBody:    "'Crimson Pro', serif",      // body text, chat, descriptions
+  fontMono:    "monospace",                 // code / metadata
+  fontSizeBase: "16px",                     // root font size
+
+  // ── Light palette ─────────────────────────
+  light: {
+    parchment:   "#f0ece0",   // page background
+    parchment2:  "#e8e3d3",   // card/modal background
+    parchment3:  "#dfd9c8",   // inset/nested backgrounds
+    ink:         "#1e1a16",   // primary text
+    inkDim:      "#2e2a24",   // secondary text
+    inkMuted:    "#5c5248",   // tertiary text
+    inkFaint:    "#8a7e72",   // placeholder / disabled text
+    accent:      "#7a5e38",   // primary accent (borders, labels)
+    gold:        "#b8922a",   // highlight / glow color
+    goldDim:     "rgba(184,146,42,0.18)", // subtle gold tint
+    border:      "rgba(100,78,45,0.28)",  // subtle borders
+    border2:     "rgba(100,78,45,0.45)",  // prominent borders
+    shadow:      "rgba(30,26,22,0.12)",   // drop shadows
+    green:       "#2d5016",   // success / presence dot
+    bgGradient:  "radial-gradient(circle at 20% 30%, rgba(201,169,97,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(45,80,22,0.03) 0%, transparent 50%)",
+    btnPrimary:  "linear-gradient(175deg, #9a7244 0%, #7a5530 45%, #6b4a28 100%)",
+    btnPrimaryHover: "linear-gradient(175deg, #a87d4e 0%, #8a6035 45%, #7a5230 100%)",
+  },
+
+  // ── Dark palette ──────────────────────────
+  dark: {
+    parchment:   "#0a0a0f",
+    parchment2:  "#0d0d14",
+    parchment3:  "#13131a",
+    ink:         "#f0ece0",
+    inkDim:      "#e4dfd4",
+    inkMuted:    "#a09080",
+    inkFaint:    "#6a6058",
+    accent:      "#d4b882",
+    gold:        "#d4a840",
+    goldDim:     "rgba(212,168,64,0.18)",
+    border:      "#2a2430",
+    border2:     "#3a3448",
+    shadow:      "rgba(0,0,0,0.45)",
+    green:       "#5a9e6f",
+    bgGradient:  "radial-gradient(circle at 20% 30%, rgba(196,168,130,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(196,168,130,0.02) 0%, transparent 50%)",
+    btnPrimary:  "linear-gradient(175deg, #c49040 0%, #a87830 45%, #8a6020 100%)",
+    btnPrimaryHover: "linear-gradient(175deg, #d4a050 0%, #b88838 45%, #9a7028 100%)",
+  },
+
+  // ── Card & surface treatments ─────────────
+  cardRadius:       "8px",
+  landingCardRadius:"14px",
+  cardSheen:        true,    // animated shine sweep on landing card
+
+  // ── Motion ────────────────────────────────
+  animLogo:         "pulse 4s ease-in-out infinite",
+  animTitleLine:    "breathe 4s ease-in-out infinite",
+  transition:       "0.18s",
+
+  // ── Swatches for the menu preview ─────────
+  swatchLight: "#f0ece0",
+  swatchDark:  "#0a0a0f",
+  swatchAccent:"#b8922a",
+};
+
+// ── Built-in preset themes ────────────────────────────────────────────────────
+const PRESET_THEMES = [
+  {
+    id: "parchment", name: "Parchment", swatchLight:"#f0ece0", swatchDark:"#0a0a0f", swatchAccent:"#b8922a",
+    light: { parchment:"#f0ece0", parchment2:"#e8e3d3", parchment3:"#dfd9c8", ink:"#1e1a16", inkDim:"#2e2a24", inkMuted:"#5c5248", inkFaint:"#8a7e72", accent:"#7a5e38", gold:"#b8922a", goldDim:"rgba(184,146,42,0.18)", border:"rgba(100,78,45,0.28)", border2:"rgba(100,78,45,0.45)", shadow:"rgba(30,26,22,0.12)", green:"#2d5016", bgGradient:"radial-gradient(circle at 20% 30%, rgba(201,169,97,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#9a7244 0%,#7a5530 45%,#6b4a28 100%)", btnPrimaryHover:"linear-gradient(175deg,#a87d4e 0%,#8a6035 45%,#7a5230 100%)" },
+    dark:  { parchment:"#0a0a0f", parchment2:"#0d0d14", parchment3:"#13131a", ink:"#f0ece0", inkDim:"#e4dfd4", inkMuted:"#a09080", inkFaint:"#6a6058", accent:"#d4b882", gold:"#d4a840", goldDim:"rgba(212,168,64,0.18)", border:"#2a2430", border2:"#3a3448", shadow:"rgba(0,0,0,0.45)", green:"#5a9e6f", bgGradient:"radial-gradient(circle at 20% 30%, rgba(196,168,130,0.04) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#c49040 0%,#a87830 45%,#8a6020 100%)", btnPrimaryHover:"linear-gradient(175deg,#d4a050 0%,#b88838 45%,#9a7028 100%)" },
+    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
+  },
+  {
+    id: "obsidian", name: "Obsidian", swatchLight:"#1a1a2e", swatchDark:"#0d0d1a", swatchAccent:"#7c3aed",
+    light: { parchment:"#1a1a2e", parchment2:"#16213e", parchment3:"#0f3460", ink:"#e2e8f0", inkDim:"#cbd5e1", inkMuted:"#94a3b8", inkFaint:"#64748b", accent:"#7c3aed", gold:"#a78bfa", goldDim:"rgba(167,139,250,0.15)", border:"rgba(124,58,237,0.25)", border2:"rgba(124,58,237,0.45)", shadow:"rgba(0,0,0,0.4)", green:"#10b981", bgGradient:"radial-gradient(circle at 20% 30%, rgba(124,58,237,0.12) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(167,139,250,0.06) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#7c3aed 0%,#6d28d9 45%,#5b21b6 100%)", btnPrimaryHover:"linear-gradient(175deg,#8b5cf6 0%,#7c3aed 45%,#6d28d9 100%)" },
+    dark:  { parchment:"#0d0d1a", parchment2:"#111120", parchment3:"#161628", ink:"#f1f5f9", inkDim:"#e2e8f0", inkMuted:"#a78bfa", inkFaint:"#7c3aed", accent:"#c4b5fd", gold:"#a78bfa", goldDim:"rgba(167,139,250,0.12)", border:"#2d2a4a", border2:"#3d3a6a", shadow:"rgba(0,0,0,0.6)", green:"#10b981", bgGradient:"radial-gradient(circle at 30% 40%, rgba(124,58,237,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#8b5cf6 0%,#7c3aed 45%,#6d28d9 100%)", btnPrimaryHover:"linear-gradient(175deg,#a78bfa 0%,#8b5cf6 45%,#7c3aed 100%)" },
+    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
+  },
+  {
+    id: "verdant", name: "Verdant", swatchLight:"#f0f7f0", swatchDark:"#0a120a", swatchAccent:"#2d6a2d",
+    light: { parchment:"#f0f7f0", parchment2:"#e4f0e4", parchment3:"#d4e8d4", ink:"#1a2e1a", inkDim:"#2a3e2a", inkMuted:"#4a6a4a", inkFaint:"#7a9a7a", accent:"#2d6a2d", gold:"#6aaa2d", goldDim:"rgba(106,170,45,0.15)", border:"rgba(45,106,45,0.25)", border2:"rgba(45,106,45,0.42)", shadow:"rgba(20,45,20,0.12)", green:"#1a7a1a", bgGradient:"radial-gradient(circle at 25% 35%, rgba(106,170,45,0.07) 0%, transparent 55%), radial-gradient(circle at 75% 65%, rgba(45,106,45,0.05) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#3d8a3d 0%,#2d6a2d 45%,#1e5a1e 100%)", btnPrimaryHover:"linear-gradient(175deg,#4a9a4a 0%,#3d8a3d 45%,#2d6a2d 100%)" },
+    dark:  { parchment:"#0a120a", parchment2:"#0e180e", parchment3:"#121e12", ink:"#e8f5e8", inkDim:"#d4ecd4", inkMuted:"#8ab88a", inkFaint:"#5a885a", accent:"#6aaa2d", gold:"#8acc3a", goldDim:"rgba(138,204,58,0.15)", border:"#1e3a1e", border2:"#2a4a2a", shadow:"rgba(0,0,0,0.5)", green:"#4aaa4a", bgGradient:"radial-gradient(circle at 20% 30%, rgba(106,170,45,0.06) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#4a9a4a 0%,#3d8a3d 45%,#2d6a2d 100%)", btnPrimaryHover:"linear-gradient(175deg,#5aaa5a 0%,#4a9a4a 45%,#3d8a3d 100%)" },
+    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
+  },
+  {
+    id: "embers", name: "Embers", swatchLight:"#fdf4ee", swatchDark:"#120808", swatchAccent:"#c0392b",
+    light: { parchment:"#fdf4ee", parchment2:"#f5e8dc", parchment3:"#ead8c8", ink:"#2a1210", inkDim:"#3e1e1a", inkMuted:"#6a3a30", inkFaint:"#9a6a58", accent:"#c0392b", gold:"#e07820", goldDim:"rgba(224,120,32,0.15)", border:"rgba(192,57,43,0.22)", border2:"rgba(192,57,43,0.38)", shadow:"rgba(42,18,16,0.14)", green:"#2d6a2d", bgGradient:"radial-gradient(circle at 20% 30%, rgba(224,120,32,0.07) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(192,57,43,0.04) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#d44a38 0%,#c0392b 45%,#a82e22 100%)", btnPrimaryHover:"linear-gradient(175deg,#e05a48 0%,#d04438 45%,#b83428 100%)" },
+    dark:  { parchment:"#120808", parchment2:"#180b0b", parchment3:"#200f0f", ink:"#f5ece8", inkDim:"#e8dcd8", inkMuted:"#c09080", inkFaint:"#806050", accent:"#e07820", gold:"#f0a030", goldDim:"rgba(240,160,48,0.15)", border:"#2e1414", border2:"#3e1e1e", shadow:"rgba(0,0,0,0.55)", green:"#4a9a4a", bgGradient:"radial-gradient(circle at 25% 35%, rgba(192,57,43,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#d44a38 0%,#c0392b 45%,#a82e22 100%)", btnPrimaryHover:"linear-gradient(175deg,#e05a48 0%,#d04438 45%,#b83428 100%)" },
+    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
+  },
+];
+
+let _activeThemeId = 'parchment';
+
+function applyTheme(theme, preferDark) {
+  const isDark = preferDark !== undefined ? preferDark : document.body.classList.contains('dark');
+  const palette = isDark ? theme.dark : theme.light;
+
+  const root = document.documentElement;
+
+  // Map camelCase keys to CSS var names
+  const varMap = {
+    parchment:  '--parchment',  parchment2: '--parchment2', parchment3: '--parchment3',
+    ink:        '--ink',        inkDim:     '--ink-dim',    inkMuted:   '--ink-muted',
+    inkFaint:   '--ink-faint',  accent:     '--accent',     gold:       '--gold',
+    goldDim:    '--gold-dim',   border:     '--border',     border2:    '--border2',
+    shadow:     '--shadow',     green:      '--green',
+  };
+
+  for (const [key, cssVar] of Object.entries(varMap)) {
+    if (palette[key]) root.style.setProperty(cssVar, palette[key]);
+  }
+
+  // Button gradients via CSS vars
+  root.style.setProperty('--btn-primary-bg', palette.btnPrimary || '');
+  root.style.setProperty('--btn-primary-hover', palette.btnPrimaryHover || '');
+
+  // Body background gradient
+  document.body.style.setProperty('--bg-gradient-override', palette.bgGradient || '');
+
+  // Fonts
+  if (theme.fontDisplay) root.style.setProperty('--font-display', theme.fontDisplay);
+  if (theme.fontBody)    root.style.setProperty('--font-body',    theme.fontBody);
+
+  _activeThemeId = theme.id;
+  localStorage.setItem('entriference-theme', theme.id);
+  renderThemeLists();
+}
+
+function loadThemeById(id) {
+  const theme = PRESET_THEMES.find(t => t.id === id) || PRESET_THEMES[0];
+  applyTheme(theme);
+  closePyramidMenus();
+}
+
+function initThemeSystem() {
+  const savedId = localStorage.getItem('entriference-theme') || 'parchment';
+  const theme = PRESET_THEMES.find(t => t.id === savedId) || PRESET_THEMES[0];
+  _activeThemeId = theme.id;
+  applyTheme(theme, document.body.classList.contains('dark'));
+  renderThemeLists();
+}
+
+function renderThemeLists() {
+  ['landingThemeList','lobbyThemeList','sessionThemeList'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = PRESET_THEMES.map(t => `
+      <button class="pyramid-item ${t.id === _activeThemeId ? 'active-theme' : ''}"
+              onclick="loadThemeById('${t.id}')">
+        <span class="pyramid-theme-swatch" style="background:${t.swatchLight};border-color:${t.swatchAccent}"></span>
+        <span class="pyramid-theme-swatch" style="background:${t.swatchDark};border-color:${t.swatchAccent};margin-left:-6px"></span>
+        ${t.name}
+      </button>`).join('');
+  });
+}
+
+// ── Pyramid menu open/close ───────────────────────────────────────────────────
+function togglePyramidMenu(menuId) {
+  const menu = document.getElementById(menuId);
+  if (!menu) return;
+  const isOpen = menu.classList.contains('open');
+  closePyramidMenus();
+  if (!isOpen) menu.classList.add('open');
+}
+
+function closePyramidMenus() {
+  document.querySelectorAll('.pyramid-dropdown').forEach(m => m.classList.remove('open'));
+}
+
+// Close on outside click
+document.addEventListener('click', e => {
+  if (!e.target.closest('.pyramid-menu-wrap')) closePyramidMenus();
+});
+
 function toggleTheme() {
   const isDark = document.body.classList.toggle('dark');
   localStorage.setItem('cocreate-theme', isDark ? 'dark' : 'light');
   updateThemeBtns(isDark);
+  // Re-apply current theme palette for the new mode
+  const theme = PRESET_THEMES.find(t => t.id === _activeThemeId) || PRESET_THEMES[0];
+  applyTheme(theme, isDark);
 }
 
 function updateThemeBtns(isDark) {
@@ -1282,6 +1576,7 @@ function initTheme() {
   const isDark = saved === 'dark';
   if (isDark) document.body.classList.add('dark');
   updateThemeBtns(isDark);
+  initThemeSystem();
 }
 
 // ── Init ──────────────────────────────────────
