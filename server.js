@@ -232,26 +232,48 @@ Rules:
 ];
 
 // ── Drive Helpers ──────────────────────────────────────
-async function getDriveFolder(drive, name, parentId = null) {
-  const parentClause = parentId ? ` and '${parentId}' in parents` : '';
+// ── Drive folder helpers ──────────────────────────────────────────────────────
+// If COCREATE_FOLDER_ID is set, the service account writes into a folder owned
+// by your Google account (shared with the SA) — avoids the SA quota error.
+// Set this in Railway env vars to the ID of your CoCreate folder in My Drive.
+
+async function getCoCreateRootId(drive) {
+  if (process.env.COCREATE_FOLDER_ID) return process.env.COCREATE_FOLDER_ID;
+  // Fallback: find or create in SA's own drive (only works if SA has quota)
   const search = await drive.files.list({
-    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`,
+    q: `name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)'
   });
   if (search.data.files[0]) return search.data.files[0].id;
-  const createBody = { name, mimeType: 'application/vnd.google-apps.folder' };
-  if (parentId) createBody.parents = [parentId];
-  const folder = await drive.files.create({ requestBody: createBody, fields: 'id' });
+  const folder = await drive.files.create({
+    requestBody: { name: 'CoCreate', mimeType: 'application/vnd.google-apps.folder' },
+    fields: 'id'
+  });
+  return folder.data.id;
+}
+
+async function getDriveFolder(drive, name, parentId = null) {
+  // If no parentId given, resolve to CoCreate root (which respects COCREATE_FOLDER_ID)
+  const parent = parentId || await getCoCreateRootId(drive);
+  const search = await drive.files.list({
+    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`,
+    fields: 'files(id)'
+  });
+  if (search.data.files[0]) return search.data.files[0].id;
+  const folder = await drive.files.create({
+    requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parent] },
+    fields: 'id'
+  });
   return folder.data.id;
 }
 
 async function getActiveFolderId(drive) {
-  const root = await getDriveFolder(drive, 'CoCreate');
+  const root = await getCoCreateRootId(drive);
   return getDriveFolder(drive, 'Active', root);
 }
 
 async function getArchiveFolderId(drive) {
-  const root = await getDriveFolder(drive, 'CoCreate');
+  const root = await getCoCreateRootId(drive);
   return getDriveFolder(drive, 'Archive', root);
 }
 
@@ -801,7 +823,7 @@ async function getSystemContext() {
   const drive = await getSystemDrive();
   if (!drive) return '';
   try {
-    const root = await getDriveFolder(drive, 'CoCreate');
+    const root = await getCoCreateRootId(drive);
     let context = '';
 
     // Read Docs folder (ops guide, system docs)
@@ -1294,7 +1316,7 @@ app.get('/api/profile/by-email/:email', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.json({ exists: false });
   try {
-    const root = await getDriveFolder(drive, 'CoCreate');
+    const root = await getCoCreateRootId(drive);
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
     // List all JSON files and find one matching the email
     const files = await drive.files.list({
@@ -1315,7 +1337,7 @@ app.get('/api/profile/:name', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.json({ exists: false });
   try {
-    const root = await getDriveFolder(drive, 'CoCreate');
+    const root = await getCoCreateRootId(drive);
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
     const name = req.params.name;
     const fileName = `${name}.json`;
@@ -1334,7 +1356,7 @@ app.post('/api/profile', async (req, res) => {
   const { name, email, picture, who, what, working, extra } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
   try {
-    const root = await getDriveFolder(drive, 'CoCreate');
+    const root = await getCoCreateRootId(drive);
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
     const profile = { name, email: email || null, picture: picture || null, who, what, working, extra, updatedAt: new Date().toISOString() };
     await writeDriveFile(drive, `${name}.json`, profilesId, profile);
