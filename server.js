@@ -555,6 +555,36 @@ app.post('/api/rooms/reload', async (req, res) => {
   res.json({ success: true, count: Object.keys(rooms).length });
 });
 
+app.get('/api/debug/drive', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.json({ error: 'no drive' });
+  try {
+    const root = await getDriveFolder(drive, 'CoCreate');
+    const activeId = await getActiveFolderId(drive);
+    const archiveId = await getArchiveFolderId(drive);
+
+    const activeFiles = await drive.files.list({
+      q: `'${activeId}' in parents and trashed=false`,
+      fields: 'files(id,name,mimeType,size)'
+    });
+    const archiveFiles = await drive.files.list({
+      q: `'${archiveId}' in parents and trashed=false`,
+      fields: 'files(id,name,mimeType,size)'
+    });
+
+    res.json({
+      rootId: root,
+      activeId,
+      archiveId,
+      activeFiles: activeFiles.data.files,
+      archiveFiles: archiveFiles.data.files,
+      roomsInMemory: Object.keys(rooms).length
+    });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
 app.get('/api/archive', async (req, res) => {
   const drive = await getDrive();
   if (!drive) return res.json({ sessions: [] });
