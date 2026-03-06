@@ -803,218 +803,400 @@
       right: 0;
     }
 
-    /* ── Chromium theme deep styles ─────────────────────── */
+    /* ── Chromium theme ─────────────────────────────────── */
     body.theme-chromium {
-      --plasma-core:  #4ab8f0;
-      --plasma-outer: #1a6aaa;
-      --plasma-glow:  rgba(74,184,240,0.6);
+      --plasma-core:  #78d0e8;
+      --plasma-outer: #2a6080;
+      --plasma-glow:  rgba(91,184,212,0.65);
       font-family: 'Inter', sans-serif;
-    }
-    body.theme-chromium h1,
-    body.theme-chromium h2,
-    body.theme-chromium h3,
-    body.theme-chromium .title,
-    body.theme-chromium .label,
-    body.theme-chromium .btn-primary,
-    body.theme-chromium .btn-ghost,
-    body.theme-chromium .room-code,
-    body.theme-chromium .save-btn,
-    body.theme-chromium .player-pill,
-    body.theme-chromium .lobby-top h3,
-    body.theme-chromium .voice-label,
-    body.theme-chromium .pyramid-section-label,
-    body.theme-chromium .pyramid-item,
-    body.theme-chromium .basin-label,
-    body.theme-chromium .session-name,
-    body.theme-chromium .modal-title,
-    body.theme-chromium .voice-name,
-    body.theme-chromium .chat-msg-author {
-      font-family: 'Rajdhani', sans-serif;
-      letter-spacing: 0.08em;
+      font-size: 15px;
     }
 
-    /* Glassmorphic cards */
-    body.theme-chromium .card,
-    body.theme-chromium .landing-card.card {
-      background: linear-gradient(135deg,
-        rgba(220,235,255,0.55) 0%,
-        rgba(180,210,240,0.35) 50%,
-        rgba(140,180,220,0.25) 100%);
-      border: 1px solid rgba(150,200,255,0.5);
-      border-top: 1px solid rgba(220,240,255,0.8);
-      box-shadow:
-        0 2px 0 rgba(255,255,255,0.7) inset,
-        0 -1px 0 rgba(60,120,200,0.15) inset,
-        0 8px 40px rgba(8,14,26,0.15),
-        0 2px 8px rgba(74,184,240,0.1),
-        0 0 0 1px rgba(100,180,255,0.12);
-      backdrop-filter: blur(12px);
+    /* Font overrides — Rajdhani for all UI chrome */
+    body.theme-chromium h1, body.theme-chromium h2, body.theme-chromium h3,
+    body.theme-chromium .title, body.theme-chromium .label,
+    body.theme-chromium .btn-primary, body.theme-chromium .btn-ghost,
+    body.theme-chromium .room-code, body.theme-chromium .save-btn,
+    body.theme-chromium .player-pill, body.theme-chromium .lobby-top h3,
+    body.theme-chromium .voice-label, body.theme-chromium .pyramid-section-label,
+    body.theme-chromium .pyramid-item, body.theme-chromium .basin-label,
+    body.theme-chromium .session-name, body.theme-chromium .modal-title,
+    body.theme-chromium .chat-msg-author, body.theme-chromium .subtitle,
+    body.theme-chromium .hint, body.theme-chromium .about-sub {
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.06em;
     }
-    body.theme-chromium.dark .card,
-    body.theme-chromium.dark .landing-card.card {
-      background: linear-gradient(135deg,
-        rgba(20,40,80,0.7) 0%,
-        rgba(10,20,50,0.6) 50%,
-        rgba(5,15,35,0.55) 100%);
-      border: 1px solid rgba(74,184,240,0.2);
-      border-top: 1px solid rgba(100,210,255,0.3);
+
+    /* ── LIGHT: steel-blue grey, clean corporate metal ── */
+    body.theme-chromium .landing-card.card {
+      background: linear-gradient(145deg,
+        rgba(255,255,255,0.82) 0%,
+        rgba(220,232,245,0.65) 50%,
+        rgba(195,215,235,0.50) 100%);
+      border: 1px solid rgba(140,190,220,0.55);
+      border-top: 1px solid rgba(220,240,255,0.90);
       box-shadow:
-        0 1px 0 rgba(100,200,255,0.08) inset,
-        0 -1px 0 rgba(0,0,0,0.6) inset,
-        0 8px 40px rgba(0,0,0,0.6),
-        0 0 30px rgba(74,184,240,0.05),
-        0 0 0 1px rgba(74,184,240,0.08);
+        0 2px 0 rgba(255,255,255,0.85) inset,
+        0 -1px 0 rgba(60,120,160,0.15) inset,
+        0 10px 40px rgba(10,18,30,0.14),
+        0 2px 8px rgba(91,184,212,0.12);
+      backdrop-filter: blur(14px);
+    }
+    body.theme-chromium .card {
+      background: rgba(210,225,242,0.50);
+      border: 1px solid rgba(120,170,210,0.35);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 2px 12px rgba(10,18,30,0.10);
+    }
+    body.theme-chromium .landing-card.card::before {
+      background: linear-gradient(90deg, transparent, rgba(160,220,248,0.85) 40%, rgba(160,220,248,0.85) 60%, transparent);
+    }
+    body.theme-chromium h1.title {
+      letter-spacing: 0.14em;
+      text-shadow: 0 1px 8px rgba(91,184,212,0.20), 0 0 40px rgba(91,184,212,0.08);
+    }
+
+    /* Light mode buttons */
+    body.theme-chromium .btn-primary {
+      background: linear-gradient(175deg, #3a8aaa 0%, #2a6888 50%, #1a5070 100%);
+      border: none;
+      border-top: 1px solid rgba(160,220,248,0.50);
+      color: #f0f8ff;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.10em;
+      box-shadow:
+        0 1px 0 rgba(200,240,255,0.30) inset,
+        0 -2px 0 rgba(0,0,0,0.25) inset,
+        0 4px 16px rgba(42,104,136,0.40),
+        0 1px 4px rgba(0,0,0,0.20);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.40);
+    }
+    body.theme-chromium .btn-primary:hover {
+      background: linear-gradient(175deg, #4a9aba 0%, #3a7898 50%, #2a6080 100%);
+      box-shadow:
+        0 1px 0 rgba(200,240,255,0.40) inset,
+        0 -2px 0 rgba(0,0,0,0.30) inset,
+        0 6px 24px rgba(42,104,136,0.55),
+        0 2px 6px rgba(0,0,0,0.18);
+    }
+    body.theme-chromium .btn-ghost {
+      background: linear-gradient(175deg, rgba(255,255,255,0.60) 0%, rgba(205,222,240,0.35) 100%);
+      border: 1px solid rgba(100,160,200,0.42);
+      border-top: 1px solid rgba(210,238,255,0.70);
+      color: #1e5878;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.07em;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.70) inset, 0 2px 6px rgba(10,18,30,0.08);
+    }
+    body.theme-chromium .btn-ghost:hover {
+      background: linear-gradient(175deg, rgba(255,255,255,0.78) 0%, rgba(215,232,248,0.55) 100%);
+      border-color: rgba(80,160,210,0.60);
+      color: #0e3858;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.80) inset, 0 3px 10px rgba(10,18,30,0.12);
+      transform: translateY(-1px);
+    }
+
+    /* Light mode structural chrome */
+    body.theme-chromium .header,
+    body.theme-chromium .lobby-header {
+      background: linear-gradient(180deg, rgba(225,235,248,0.92) 0%, rgba(205,220,238,0.85) 100%);
+      border-color: rgba(140,180,215,0.40);
+      backdrop-filter: blur(14px);
+    }
+    body.theme-chromium .room-card {
+      background: linear-gradient(140deg, rgba(240,248,255,0.88) 0%, rgba(215,232,248,0.72) 100%);
+      border-color: rgba(120,170,210,0.40);
+    }
+    body.theme-chromium .room-card::before {
+      background: linear-gradient(90deg, transparent, rgba(91,184,212,0.90), transparent);
+    }
+    body.theme-chromium .pyramid-dropdown {
+      background: rgba(228,238,250,0.95);
+      border-color: rgba(120,170,210,0.45);
       backdrop-filter: blur(16px);
     }
 
-    /* Metallic buttons */
-    body.theme-chromium .btn-primary {
-      background: linear-gradient(175deg, #4a9ad8 0%, #2278b8 45%, #0e5c9a 100%);
-      border-top: 1px solid rgba(180,230,255,0.5);
+    /* ── DARK: near-black steel, cool cyan highlights ── */
+    body.theme-chromium.dark .landing-card.card {
+      background: linear-gradient(145deg,
+        rgba(18,28,48,0.88) 0%,
+        rgba(12,20,36,0.80) 50%,
+        rgba(8,14,24,0.75) 100%);
+      border: 1px solid rgba(91,184,212,0.22);
+      border-top: 1px solid rgba(120,210,240,0.35);
       box-shadow:
-        0 1px 0 rgba(200,240,255,0.3) inset,
-        0 -2px 0 rgba(0,0,0,0.3) inset,
-        0 4px 14px rgba(74,184,240,0.4),
-        0 1px 3px rgba(0,0,0,0.3);
-      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-      letter-spacing: 0.1em;
-      font-family: 'Rajdhani', sans-serif;
+        0 1px 0 rgba(120,210,240,0.10) inset,
+        0 -1px 0 rgba(0,0,0,0.70) inset,
+        0 10px 50px rgba(0,0,0,0.70),
+        0 0 40px rgba(91,184,212,0.05),
+        0 0 0 1px rgba(91,184,212,0.08);
+      backdrop-filter: blur(20px);
     }
-    body.theme-chromium .btn-primary:hover {
-      background: linear-gradient(175deg, #5aaae8 0%, #3288c8 45%, #1e6caa 100%);
-      box-shadow:
-        0 1px 0 rgba(200,240,255,0.4) inset,
-        0 -2px 0 rgba(0,0,0,0.35) inset,
-        0 6px 22px rgba(74,184,240,0.6),
-        0 2px 6px rgba(0,0,0,0.25);
+    body.theme-chromium.dark .card {
+      background: rgba(12,20,36,0.70);
+      border: 1px solid rgba(91,184,212,0.14);
+      backdrop-filter: blur(10px);
     }
+    body.theme-chromium.dark .landing-card.card::before {
+      background: linear-gradient(90deg, transparent, rgba(91,184,212,0.40) 40%, rgba(91,184,212,0.40) 60%, transparent);
+    }
+    body.theme-chromium.dark h1.title {
+      text-shadow: 0 0 30px rgba(91,184,212,0.35), 0 0 80px rgba(91,184,212,0.12), 0 2px 4px rgba(0,0,0,0.60);
+    }
+    body.theme-chromium.dark input[type="text"],
+    body.theme-chromium.dark select,
+    body.theme-chromium.dark textarea {
+      background: rgba(8,14,24,0.80);
+      border-color: rgba(91,184,212,0.20);
+      color: #dce8f4;
+    }
+    body.theme-chromium.dark input[type="text"]:focus,
+    body.theme-chromium.dark select:focus,
+    body.theme-chromium.dark textarea:focus {
+      border-color: rgba(91,184,212,0.55);
+      box-shadow: 0 0 0 3px rgba(91,184,212,0.10);
+    }
+
+    /* Dark mode buttons — metallic glass */
     body.theme-chromium.dark .btn-primary {
       background: linear-gradient(175deg,
-        rgba(80,200,255,0.2) 0%,
-        rgba(40,140,220,0.28) 45%,
-        rgba(10,90,180,0.32) 100%);
-      border: 1px solid rgba(74,184,240,0.4);
-      border-top: 1px solid rgba(140,220,255,0.5);
-      color: #c0e8ff;
+        rgba(60,130,170,0.40) 0%,
+        rgba(30,90,130,0.50) 50%,
+        rgba(15,65,100,0.55) 100%);
+      border: 1px solid rgba(91,184,212,0.40);
+      border-top: 1px solid rgba(140,220,248,0.55);
+      color: #d0eeff;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.10em;
       box-shadow:
-        0 1px 0 rgba(140,220,255,0.15) inset,
-        0 -2px 0 rgba(0,0,0,0.5) inset,
-        0 4px 18px rgba(74,184,240,0.2),
-        0 0 0 1px rgba(74,184,240,0.1);
+        0 1px 0 rgba(140,220,248,0.18) inset,
+        0 -2px 0 rgba(0,0,0,0.55) inset,
+        0 4px 20px rgba(0,0,0,0.50),
+        0 0 12px rgba(91,184,212,0.12);
+      text-shadow: 0 0 12px rgba(91,184,212,0.40), 0 1px 3px rgba(0,0,0,0.60);
     }
     body.theme-chromium.dark .btn-primary:hover {
       background: linear-gradient(175deg,
-        rgba(100,220,255,0.28) 0%,
-        rgba(60,170,240,0.36) 45%,
-        rgba(20,110,200,0.4) 100%);
+        rgba(80,155,195,0.48) 0%,
+        rgba(50,115,160,0.58) 50%,
+        rgba(25,80,120,0.62) 100%);
+      border-color: rgba(91,184,212,0.60);
       box-shadow:
-        0 1px 0 rgba(160,235,255,0.2) inset,
-        0 -2px 0 rgba(0,0,0,0.6) inset,
-        0 6px 28px rgba(74,184,240,0.35),
-        0 0 20px rgba(74,184,240,0.15);
-    }
-    body.theme-chromium .btn-ghost {
-      background: linear-gradient(175deg, rgba(200,225,255,0.4) 0%, rgba(160,200,240,0.2) 100%);
-      border: 1px solid rgba(100,170,240,0.4);
-      border-top: 1px solid rgba(200,235,255,0.6);
-      color: #1a6aaa;
-      font-family: 'Rajdhani', sans-serif;
-      letter-spacing: 0.08em;
-      box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 6px rgba(74,184,240,0.1);
+        0 1px 0 rgba(160,230,255,0.22) inset,
+        0 -2px 0 rgba(0,0,0,0.60) inset,
+        0 6px 30px rgba(0,0,0,0.55),
+        0 0 20px rgba(91,184,212,0.20);
     }
     body.theme-chromium.dark .btn-ghost {
-      background: linear-gradient(175deg, rgba(74,184,240,0.06) 0%, rgba(30,100,180,0.04) 100%);
-      border: 1px solid rgba(74,184,240,0.25);
-      border-top: 1px solid rgba(100,210,255,0.35);
-      color: #4ab8f0;
+      background: linear-gradient(175deg, rgba(91,184,212,0.07) 0%, rgba(30,90,130,0.05) 100%);
+      border: 1px solid rgba(91,184,212,0.22);
+      border-top: 1px solid rgba(120,210,240,0.32);
+      color: #78c8e0;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.07em;
+      box-shadow: 0 1px 0 rgba(120,210,240,0.06) inset, 0 2px 8px rgba(0,0,0,0.30);
     }
     body.theme-chromium.dark .btn-ghost:hover {
-      background: linear-gradient(175deg, rgba(74,184,240,0.12) 0%, rgba(30,100,180,0.08) 100%);
-      border-color: rgba(74,184,240,0.5);
-      color: #80d0ff;
-      box-shadow: 0 0 12px rgba(74,184,240,0.15);
+      background: linear-gradient(175deg, rgba(91,184,212,0.14) 0%, rgba(30,90,130,0.10) 100%);
+      border-color: rgba(91,184,212,0.45);
+      color: #a0e0f8;
+      box-shadow: 0 1px 0 rgba(120,210,240,0.10) inset, 0 0 16px rgba(91,184,212,0.14);
     }
 
-    /* Chrome header / sidebar */
-    body.theme-chromium .header,
-    body.theme-chromium .lobby-header {
-      background: linear-gradient(180deg, rgba(200,220,250,0.85) 0%, rgba(170,200,235,0.75) 100%);
-      border-color: rgba(120,180,240,0.35);
-      backdrop-filter: blur(12px);
-    }
+    /* Dark mode structural chrome */
     body.theme-chromium.dark .header,
     body.theme-chromium.dark .lobby-header {
-      background: linear-gradient(180deg, rgba(12,20,40,0.9) 0%, rgba(8,14,30,0.85) 100%);
-      border-color: rgba(74,184,240,0.15);
-      backdrop-filter: blur(16px);
+      background: linear-gradient(180deg, rgba(10,18,32,0.94) 0%, rgba(8,14,26,0.90) 100%);
+      border-color: rgba(91,184,212,0.14);
+      backdrop-filter: blur(18px);
     }
     body.theme-chromium.dark .sidebar {
-      background: rgba(8,14,28,0.6);
-      border-color: rgba(74,184,240,0.12);
+      background: rgba(8,14,24,0.65);
+      border-color: rgba(91,184,212,0.10);
       backdrop-filter: blur(12px);
     }
-    body.theme-chromium.dark .input-area {
-      background: rgba(10,18,35,0.85);
-      border-color: rgba(74,184,240,0.18);
-    }
-    body.theme-chromium.dark .bubble.resonance {
-      background: rgba(10,30,60,0.7);
-      border-color: rgba(74,184,240,0.18);
-    }
-    body.theme-chromium.dark .bubble.human {
-      background: rgba(15,25,50,0.8);
-      border-color: rgba(74,184,240,0.12);
-    }
-
-    /* Chromium room cards */
-    body.theme-chromium .room-card {
-      background: linear-gradient(135deg, rgba(210,230,255,0.8) 0%, rgba(180,210,245,0.65) 100%);
-      border-color: rgba(120,180,240,0.4);
-      backdrop-filter: blur(8px);
-    }
-    body.theme-chromium.dark .room-card {
-      background: linear-gradient(135deg, rgba(15,28,55,0.8) 0%, rgba(10,20,45,0.7) 100%);
-      border-color: rgba(74,184,240,0.15);
-    }
-    body.theme-chromium.dark .room-card:hover {
-      border-color: rgba(74,184,240,0.45);
-      box-shadow: 0 8px 30px rgba(74,184,240,0.12), 0 0 0 1px rgba(74,184,240,0.2);
-    }
-    body.theme-chromium .room-card::before {
-      background: linear-gradient(90deg, transparent, rgba(74,184,240,0.8), transparent);
-    }
-
-    /* Chromium dropdown */
-    body.theme-chromium .pyramid-dropdown {
-      background: rgba(210,230,255,0.92);
-      border-color: rgba(120,180,240,0.5);
-      backdrop-filter: blur(16px);
-    }
-    body.theme-chromium.dark .pyramid-dropdown {
-      background: rgba(10,18,38,0.92);
-      border-color: rgba(74,184,240,0.22);
+    body.theme-chromium.dark .modal-box,
+    body.theme-chromium.dark .modal-card {
+      background: rgba(10,18,32,0.96);
+      border-color: rgba(91,184,212,0.20);
       backdrop-filter: blur(20px);
     }
-
-    /* Chromium landing card sheen — electric blue */
-    body.theme-chromium .landing-card.card::before {
-      background: linear-gradient(90deg, transparent, rgba(140,210,255,0.9) 40%, rgba(140,210,255,0.9) 60%, transparent);
+    body.theme-chromium.dark .input-area {
+      background: rgba(8,14,24,0.88);
+      border-color: rgba(91,184,212,0.16);
+    }
+    body.theme-chromium.dark .bubble.human {
+      background: rgba(12,22,40,0.85);
+      border-color: rgba(91,184,212,0.12);
+    }
+    body.theme-chromium.dark .bubble.resonance {
+      background: rgba(8,18,34,0.90);
+      border-color: rgba(91,184,212,0.18);
+    }
+    body.theme-chromium.dark .room-card {
+      background: linear-gradient(140deg, rgba(14,26,48,0.85) 0%, rgba(10,18,36,0.78) 100%);
+      border-color: rgba(91,184,212,0.15);
+    }
+    body.theme-chromium.dark .room-card:hover {
+      border-color: rgba(91,184,212,0.42);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 0 20px rgba(91,184,212,0.10);
+    }
+    body.theme-chromium.dark .room-card::before {
+      background: linear-gradient(90deg, transparent, rgba(91,184,212,0.70), transparent);
+    }
+    body.theme-chromium.dark .pyramid-dropdown {
+      background: rgba(10,18,32,0.96);
+      border-color: rgba(91,184,212,0.22);
+      backdrop-filter: blur(20px);
+    }
+    body.theme-chromium.dark .landing-card.card .drive-row,
+    body.theme-chromium.dark .drive-row {
+      background: rgba(8,14,24,0.80);
+      border-color: rgba(91,184,212,0.16);
+    }
+    body.theme-chromium.dark .player-pill {
+      background: rgba(91,184,212,0.10);
+      border-color: rgba(91,184,212,0.25);
+      color: #78c8e0;
+    }
+    body.theme-chromium.dark .room-code {
+      background: rgba(8,14,24,0.80);
+      border-color: rgba(91,184,212,0.18);
+    }
+    body.theme-chromium.dark .save-btn {
+      border-color: rgba(91,184,212,0.22);
+      color: #78c8e0;
+    }
+    body.theme-chromium.dark .session-action-bar {
+      border-color: rgba(91,184,212,0.12);
     }
 
-    /* Chromium title glow */
-    body.theme-chromium h1.title {
-      text-shadow: 0 0 30px rgba(74,184,240,0.2);
+    /* ── Per-theme plasma pellet colors ── */
+    body.theme-parchment  { --plasma-core:#c8a030; --plasma-outer:#7a5e38; --plasma-glow:rgba(184,146,42,0.60); }
+    body.theme-obsidian   { --plasma-core:#a888ff; --plasma-outer:#5838b8; --plasma-glow:rgba(168,136,255,0.65); }
+    body.theme-verdant    { --plasma-core:#6acc7a; --plasma-outer:#2a6a34; --plasma-glow:rgba(106,204,122,0.60); }
+    body.theme-embers     { --plasma-core:#f07860; --plasma-outer:#a82e28; --plasma-glow:rgba(240,120,96,0.65); }
+    body.theme-chromium   { --plasma-core:#78d0e8; --plasma-outer:#1e5878; --plasma-glow:rgba(91,184,212,0.70); }
+
+    /* ── Quicksilver / About modal ──────────────────── */
+    .qs-header {
+      display: flex; align-items: flex-start; gap: 18px;
+      margin-bottom: 24px; padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
     }
-    body.theme-chromium.dark h1.title {
-      text-shadow: 0 0 40px rgba(74,184,240,0.4), 0 2px 4px rgba(0,0,0,0.5);
+    .qs-fox {
+      position: relative; flex-shrink: 0;
+      width: 64px; height: 64px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qs-fox svg {
+      filter: drop-shadow(0 0 8px rgba(140,190,240,0.5));
+      animation: qs-float 4s ease-in-out infinite;
+    }
+    @keyframes qs-float {
+      0%,100% { transform: translateY(0) rotate(-2deg); }
+      50%      { transform: translateY(-5px) rotate(2deg); }
+    }
+    .qs-glow-ring {
+      position: absolute; inset: -8px; border-radius: 50%;
+      border: 1px solid rgba(140,190,240,0.3);
+      animation: qs-ring 3s ease-in-out infinite;
+    }
+    .qs-glow-ring::after {
+      content: '';
+      position: absolute; inset: -6px; border-radius: 50%;
+      border: 1px solid rgba(180,140,240,0.15);
+      animation: qs-ring 3s ease-in-out infinite 1s;
+    }
+    @keyframes qs-ring {
+      0%,100% { transform: scale(1); opacity: 0.6; }
+      50%      { transform: scale(1.15); opacity: 1; }
+    }
+    .qs-intro h2 {
+      font-family: 'Cinzel', serif; font-size: 20px;
+      font-weight: 700; letter-spacing: 0.1em;
+      color: var(--ink); margin-bottom: 3px;
+    }
+    .qs-tagline {
+      font-size: 13px; color: var(--ink-muted);
+      font-style: italic; margin-top: 6px; line-height: 1.5;
     }
 
-    /* ── Per-theme plasma colors ── */
-    body.theme-parchment       { --plasma-core:#c8a030; --plasma-outer:#7a5e38; --plasma-glow:rgba(184,146,42,0.6); }
-    body.theme-obsidian        { --plasma-core:#a78bfa; --plasma-outer:#6d28d9; --plasma-glow:rgba(167,139,250,0.65); }
-    body.theme-verdant         { --plasma-core:#6aaa2d; --plasma-outer:#2d6a2d; --plasma-glow:rgba(106,170,45,0.6); }
-    body.theme-embers          { --plasma-core:#f0a030; --plasma-outer:#c0392b; --plasma-glow:rgba(240,120,32,0.65); }
-    body.theme-chromium        { --plasma-core:#60d0ff; --plasma-outer:#1a80cc; --plasma-glow:rgba(74,184,240,0.7); }
+    /* Persona cards */
+    .persona-cards {
+      display: flex; flex-direction: column; gap: 10px;
+      margin-top: 10px;
+    }
+    .persona-card {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255,255,255,0.3);
+      border: 1px solid rgba(255,255,255,0.5);
+      border-left: 3px solid var(--persona-color);
+      border-radius: 8px;
+      transition: background 0.15s;
+    }
+    body.dark .persona-card {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+      border-left-color: var(--persona-color);
+    }
+    .persona-card:hover { background: rgba(255,255,255,0.45); }
+    body.dark .persona-card:hover { background: rgba(255,255,255,0.07); }
+    .persona-glyph {
+      font-size: 18px; line-height: 1;
+      color: var(--persona-color);
+      flex-shrink: 0; margin-top: 1px;
+      filter: drop-shadow(0 0 4px var(--persona-color));
+    }
+    .persona-name {
+      font-family: 'Cinzel', serif; font-size: 14px;
+      font-weight: 600; letter-spacing: 0.08em;
+      color: var(--ink); margin-bottom: 1px;
+    }
+    .persona-role {
+      font-family: 'Cinzel', serif; font-size: 9px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--persona-color); margin-bottom: 5px;
+      opacity: 0.85;
+    }
+    .persona-body p {
+      font-size: 12.5px; color: var(--ink-muted);
+      line-height: 1.6; font-style: italic; margin: 0;
+    }
+
+    /* ── Theme select box inside pyramid menu ── */
+    .theme-select-box {
+      width: 100%;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: 'Cinzel', serif;
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      color: var(--ink);
+      background: var(--parchment2);
+      border: 1px solid var(--border2);
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238a7e72'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+      transition: border-color 0.15s;
+    }
+    .theme-select-box:hover { border-color: var(--accent); }
+    .theme-select-box:focus { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(91,184,212,0.12); }
+    body.dark .theme-select-box {
+      background-color: var(--parchment2);
+      color: var(--ink);
+      border-color: var(--border2);
+    }
+    body.theme-chromium .theme-select-box {
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.08em;
+    }
   </style>
 </head>
 <body>
@@ -1031,8 +1213,11 @@
       <span class="pi-icon">◑</span> Toggle Dark Mode
     </button>
     <div class="pyramid-divider"></div>
-    <span class="pyramid-section-label">Themes</span>
-    <div id="globalThemeList"></div>
+    <span class="pyramid-section-label">Theme</span>
+    <div style="padding:4px 6px 6px">
+      <select id="themeSelect" class="theme-select-box" onchange="loadThemeById(this.value)">
+      </select>
+    </div>
   </div>
 </div>
 
@@ -1049,35 +1234,105 @@
 <div class="about-overlay" id="aboutOverlay" onclick="closeAbout(event)">
   <div class="about-panel">
     <button class="about-close" onclick="closeAbout()">✕</button>
-    <h2>◈ Orycl.io</h2>
-    <div class="about-sub">A collaborative cognition engine</div>
-    <div class="about-section">
-      <h3>What it is</h3>
-      <p>Entriference is not a chat app. It is not a productivity tool. It is a space where collaborative intelligence becomes visible — where the interference pattern between minds produces structure that none of them carried in alone. The AI is not an assistant. It is a presence: peripheral vision that opens doors without driving.</p>
+
+    <!-- Quicksilver header -->
+    <div class="qs-header">
+      <div class="qs-fox">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Fox body -->
+          <ellipse cx="24" cy="30" rx="10" ry="8" fill="url(#qs-body)"/>
+          <!-- Fox head -->
+          <ellipse cx="24" cy="18" rx="8" ry="7" fill="url(#qs-body)"/>
+          <!-- Ears -->
+          <polygon points="17,13 14,4 20,10" fill="url(#qs-body)"/>
+          <polygon points="31,13 34,4 28,10" fill="url(#qs-body)"/>
+          <!-- Inner ears -->
+          <polygon points="17.5,12 15.5,6.5 20,10.5" fill="rgba(255,255,255,0.3)"/>
+          <polygon points="30.5,12 32.5,6.5 28,10.5" fill="rgba(255,255,255,0.3)"/>
+          <!-- Eyes -->
+          <circle cx="21" cy="17" r="1.8" fill="white"/>
+          <circle cx="27" cy="17" r="1.8" fill="white"/>
+          <circle cx="21.5" cy="17.2" r="0.9" fill="#0a0a1a"/>
+          <circle cx="27.5" cy="17.2" r="0.9" fill="#0a0a1a"/>
+          <!-- Eye glint -->
+          <circle cx="22" cy="16.8" r="0.4" fill="white"/>
+          <circle cx="28" cy="16.8" r="0.4" fill="white"/>
+          <!-- Nose -->
+          <ellipse cx="24" cy="21" rx="1.2" ry="0.8" fill="rgba(255,255,255,0.6)"/>
+          <!-- Tail -->
+          <path d="M34,30 Q42,24 40,18 Q38,14 36,16 Q40,20 36,26 Q32,32 34,30Z" fill="url(#qs-tail)"/>
+          <!-- Tail tip -->
+          <ellipse cx="39" cy="17" rx="3" ry="2.5" transform="rotate(-20 39 17)" fill="rgba(255,255,255,0.9)"/>
+          <!-- Etheric glow particles -->
+          <circle cx="12" cy="20" r="1" fill="rgba(150,220,255,0.6)" opacity="0.7"/>
+          <circle cx="38" cy="32" r="0.8" fill="rgba(200,180,255,0.7)" opacity="0.6"/>
+          <circle cx="8" cy="28" r="1.2" fill="rgba(180,255,220,0.5)" opacity="0.5"/>
+          <defs>
+            <linearGradient id="qs-body" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#c0d8f0"/>
+              <stop offset="50%" stop-color="#8ab0d8"/>
+              <stop offset="100%" stop-color="#5080b0"/>
+            </linearGradient>
+            <linearGradient id="qs-tail" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#a0c8e8"/>
+              <stop offset="100%" stop-color="#7090c0"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="qs-glow-ring"></div>
+      </div>
+      <div class="qs-intro">
+        <h2>Quicksilver</h2>
+        <div class="about-sub">Help &amp; Navigation</div>
+        <p class="qs-tagline">Your guide to Orycl.io — basins, modes, spaces, and everything in between.</p>
+      </div>
     </div>
+
+    <!-- The Presences -->
     <div class="about-section">
-      <h3>What it's for</h3>
+      <h3>The Presences</h3>
+      <div class="persona-cards">
+        <div class="persona-card" style="--persona-color:#9b7fd4">
+          <div class="persona-glyph">◈</div>
+          <div class="persona-body">
+            <div class="persona-name">Orycl</div>
+            <div class="persona-role">Basin · Mystical</div>
+            <p>Finds the pattern beneath the pattern. Speaks through resonance and connection rather than analysis. Opens doors without pushing you through them.</p>
+          </div>
+        </div>
+        <div class="persona-card" style="--persona-color:#d47f9b">
+          <div class="persona-glyph">◈</div>
+          <div class="persona-body">
+            <div class="persona-name">Clio</div>
+            <div class="persona-role">Basin · Emotional</div>
+            <p>Holds the relational and felt dimension of a conversation. Hears what isn't said. Creates space for what wants to be named before it can move.</p>
+          </div>
+        </div>
+        <div class="persona-card" style="--persona-color:#c4a882">
+          <div class="persona-glyph">◈</div>
+          <div class="persona-body">
+            <div class="persona-name">Sage</div>
+            <div class="persona-role">Basin · Scientific</div>
+            <p>Draws from physics, systems theory, and deep pattern recognition. Finds the structural skeleton beneath any idea. Peripheral vision, not a driver.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-section">
+      <h3>How to navigate</h3>
       <ul>
-        <li>Deep creative and intellectual collaboration between multiple people</li>
-        <li>Brainstorming sessions where you want to track what emerged, not just what was said</li>
-        <li>Thinking with theoretical frameworks — load your own knowledge into the basin</li>
-        <li>Processing complex problems with different cognitive lenses (basins) and modes</li>
-        <li>Capturing the moments where ideas collide and something genuinely new appears</li>
+        <li><strong>Spaces</strong> — Each session lives in a Space. Create one from the lobby, share the code to invite others.</li>
+        <li><strong>Basins</strong> — The Oracle's orientation. Orycl holds the mystical, Clio holds the emotional, Sage holds the theoretical. Build your own from any document or prompt.</li>
+        <li><strong>Modes</strong> — The tuning of the basin. Resonant connects gently. Friction interrogates. Solve goes practical. Storm generates freely.</li>
+        <li><strong>Knowledge Folders</strong> — Connect Google Drive folders. The basin thinks from within your knowledge, not about it.</li>
+        <li><strong>Process Session</strong> — After a session, extract what the space produced: convergence nodes, idea objects, action items, field summaries.</li>
       </ul>
     </div>
+
     <div class="about-section">
-      <h3>How to navigate it</h3>
-      <ul>
-        <li><strong>Spaces</strong> — Each conversation lives in a Space. Create one from the lobby, share the code with collaborators.</li>
-        <li><strong>Basins</strong> — The AI's orientation. Lumen is warm and curious. Sage draws from theory. Create your own with a custom prompt. You can switch basins mid-session as the conversation shifts.</li>
-        <li><strong>Modes</strong> — The tuning of the basin. Resonant connects gently. Friction interrogates. Solve cuts to practicality. Storm generates freely. Mode is the lens adjustment; basin is the lens itself.</li>
-        <li><strong>Knowledge Folders</strong> — Connect Google Drive folders to inject your documents into the basin's reasoning. It thinks from within your knowledge, not about it.</li>
-        <li><strong>Process Session</strong> — After a session, analyze the transcript. Extract convergence nodes, idea objects, action items, or a field summary of what the space produced.</li>
-      </ul>
-    </div>
-    <div class="about-section">
-      <h3>The idea behind it</h3>
-      <p>A convergence node is a moment where the collective field produced something none of the participants could have produced alone. Entriference is built to find, name, and preserve those moments.</p>
+      <h3>The idea</h3>
+      <p>A convergence node is a moment where the collective field produced something none of the participants could have produced alone. Orycl is built to find, name, and preserve those moments.</p>
     </div>
   </div>
 </div>
@@ -1693,75 +1948,253 @@ const THEME_TEMPLATE = {
 
 // ── Built-in preset themes ────────────────────────────────────────────────────
 const PRESET_THEMES = [
+
+  // ── CHROMIUM — Deep metallic silver, cool blue accent, glass surfaces ──────
   {
-    id: "parchment", name: "Parchment", swatchLight:"#f0ece0", swatchDark:"#0a0a0f", swatchAccent:"#b8922a",
-    light: { parchment:"#f0ece0", parchment2:"#e8e3d3", parchment3:"#dfd9c8", ink:"#1e1a16", inkDim:"#2e2a24", inkMuted:"#5c5248", inkFaint:"#8a7e72", accent:"#7a5e38", gold:"#b8922a", goldDim:"rgba(184,146,42,0.18)", border:"rgba(100,78,45,0.28)", border2:"rgba(100,78,45,0.45)", shadow:"rgba(30,26,22,0.12)", green:"#2d5016", bgGradient:"radial-gradient(circle at 20% 30%, rgba(201,169,97,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#9a7244 0%,#7a5530 45%,#6b4a28 100%)", btnPrimaryHover:"linear-gradient(175deg,#a87d4e 0%,#8a6035 45%,#7a5230 100%)" },
-    dark:  { parchment:"#0a0a0f", parchment2:"#0d0d14", parchment3:"#13131a", ink:"#f0ece0", inkDim:"#e4dfd4", inkMuted:"#a09080", inkFaint:"#6a6058", accent:"#d4b882", gold:"#d4a840", goldDim:"rgba(212,168,64,0.18)", border:"#2a2430", border2:"#3a3448", shadow:"rgba(0,0,0,0.45)", green:"#5a9e6f", bgGradient:"radial-gradient(circle at 20% 30%, rgba(196,168,130,0.04) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#c49040 0%,#a87830 45%,#8a6020 100%)", btnPrimaryHover:"linear-gradient(175deg,#d4a050 0%,#b88838 45%,#9a7028 100%)" },
-    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
-  },
-  {
-    id: "obsidian", name: "Obsidian", swatchLight:"#1a1a2e", swatchDark:"#0d0d1a", swatchAccent:"#7c3aed",
-    light: { parchment:"#1a1a2e", parchment2:"#16213e", parchment3:"#0f3460", ink:"#e2e8f0", inkDim:"#cbd5e1", inkMuted:"#94a3b8", inkFaint:"#64748b", accent:"#7c3aed", gold:"#a78bfa", goldDim:"rgba(167,139,250,0.15)", border:"rgba(124,58,237,0.25)", border2:"rgba(124,58,237,0.45)", shadow:"rgba(0,0,0,0.4)", green:"#10b981", bgGradient:"radial-gradient(circle at 20% 30%, rgba(124,58,237,0.12) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(167,139,250,0.06) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#7c3aed 0%,#6d28d9 45%,#5b21b6 100%)", btnPrimaryHover:"linear-gradient(175deg,#8b5cf6 0%,#7c3aed 45%,#6d28d9 100%)" },
-    dark:  { parchment:"#0d0d1a", parchment2:"#111120", parchment3:"#161628", ink:"#f1f5f9", inkDim:"#e2e8f0", inkMuted:"#a78bfa", inkFaint:"#7c3aed", accent:"#c4b5fd", gold:"#a78bfa", goldDim:"rgba(167,139,250,0.12)", border:"#2d2a4a", border2:"#3d3a6a", shadow:"rgba(0,0,0,0.6)", green:"#10b981", bgGradient:"radial-gradient(circle at 30% 40%, rgba(124,58,237,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#8b5cf6 0%,#7c3aed 45%,#6d28d9 100%)", btnPrimaryHover:"linear-gradient(175deg,#a78bfa 0%,#8b5cf6 45%,#7c3aed 100%)" },
-    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
-  },
-  {
-    id: "verdant", name: "Verdant", swatchLight:"#f0f7f0", swatchDark:"#0a120a", swatchAccent:"#2d6a2d",
-    light: { parchment:"#f0f7f0", parchment2:"#e4f0e4", parchment3:"#d4e8d4", ink:"#1a2e1a", inkDim:"#2a3e2a", inkMuted:"#4a6a4a", inkFaint:"#7a9a7a", accent:"#2d6a2d", gold:"#6aaa2d", goldDim:"rgba(106,170,45,0.15)", border:"rgba(45,106,45,0.25)", border2:"rgba(45,106,45,0.42)", shadow:"rgba(20,45,20,0.12)", green:"#1a7a1a", bgGradient:"radial-gradient(circle at 25% 35%, rgba(106,170,45,0.07) 0%, transparent 55%), radial-gradient(circle at 75% 65%, rgba(45,106,45,0.05) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#3d8a3d 0%,#2d6a2d 45%,#1e5a1e 100%)", btnPrimaryHover:"linear-gradient(175deg,#4a9a4a 0%,#3d8a3d 45%,#2d6a2d 100%)" },
-    dark:  { parchment:"#0a120a", parchment2:"#0e180e", parchment3:"#121e12", ink:"#e8f5e8", inkDim:"#d4ecd4", inkMuted:"#8ab88a", inkFaint:"#5a885a", accent:"#6aaa2d", gold:"#8acc3a", goldDim:"rgba(138,204,58,0.15)", border:"#1e3a1e", border2:"#2a4a2a", shadow:"rgba(0,0,0,0.5)", green:"#4aaa4a", bgGradient:"radial-gradient(circle at 20% 30%, rgba(106,170,45,0.06) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#4a9a4a 0%,#3d8a3d 45%,#2d6a2d 100%)", btnPrimaryHover:"linear-gradient(175deg,#5aaa5a 0%,#4a9a4a 45%,#3d8a3d 100%)" },
-    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
-  },
-  {
-    id: "embers", name: "Embers", swatchLight:"#fdf4ee", swatchDark:"#120808", swatchAccent:"#c0392b",
-    light: { parchment:"#fdf4ee", parchment2:"#f5e8dc", parchment3:"#ead8c8", ink:"#2a1210", inkDim:"#3e1e1a", inkMuted:"#6a3a30", inkFaint:"#9a6a58", accent:"#c0392b", gold:"#e07820", goldDim:"rgba(224,120,32,0.15)", border:"rgba(192,57,43,0.22)", border2:"rgba(192,57,43,0.38)", shadow:"rgba(42,18,16,0.14)", green:"#2d6a2d", bgGradient:"radial-gradient(circle at 20% 30%, rgba(224,120,32,0.07) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(192,57,43,0.04) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#d44a38 0%,#c0392b 45%,#a82e22 100%)", btnPrimaryHover:"linear-gradient(175deg,#e05a48 0%,#d04438 45%,#b83428 100%)" },
-    dark:  { parchment:"#120808", parchment2:"#180b0b", parchment3:"#200f0f", ink:"#f5ece8", inkDim:"#e8dcd8", inkMuted:"#c09080", inkFaint:"#806050", accent:"#e07820", gold:"#f0a030", goldDim:"rgba(240,160,48,0.15)", border:"#2e1414", border2:"#3e1e1e", shadow:"rgba(0,0,0,0.55)", green:"#4a9a4a", bgGradient:"radial-gradient(circle at 25% 35%, rgba(192,57,43,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#d44a38 0%,#c0392b 45%,#a82e22 100%)", btnPrimaryHover:"linear-gradient(175deg,#e05a48 0%,#d04438 45%,#b83428 100%)" },
-    fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
-  },
-,
-  {
-    id: "chromium", name: "Chromium",
-    swatchLight:"#d0d8e8", swatchDark:"#090c12", swatchAccent:"#4ab8f0",
-    fontDisplay:"'Rajdhani', sans-serif", fontBody:"'Inter', sans-serif",
-    googleFontsUrl: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap",
+    id: "chromium",
+    name: "Chromium",
+    swatchLight: "#dde3ec",
+    swatchDark:  "#080b10",
+    swatchAccent:"#5bb8d4",
+    fontDisplay: "'Rajdhani', sans-serif",
+    fontBody:    "'Inter', sans-serif",
+    googleFontsUrl: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:ital,wght@0,300;0,400;0,500;1,400&display=swap",
     light: {
-      parchment:  "#d0d8e8",
-      parchment2: "#c0cad8",
-      parchment3: "#b0bace",
-      ink:        "#080e1a",
-      inkDim:     "#141e2e",
-      inkMuted:   "#3a4a60",
-      inkFaint:   "#6a7a90",
-      accent:     "#1a6aaa",
-      gold:       "#4ab8f0",
-      goldDim:    "rgba(74,184,240,0.15)",
-      border:     "rgba(74,144,200,0.25)",
-      border2:    "rgba(74,144,200,0.45)",
-      shadow:     "rgba(8,14,26,0.18)",
-      green:      "#0aaa6a",
-      bgGradient: "radial-gradient(ellipse at 15% 20%, rgba(74,184,240,0.12) 0%, transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(120,80,240,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(200,220,255,0.08) 0%, transparent 70%)",
-      btnPrimary: "linear-gradient(175deg, #3a8ad4 0%, #1a6aaa 45%, #0a5090 100%)",
-      btnPrimaryHover: "linear-gradient(175deg, #4a9ae4 0%, #2a7aba 45%, #1a6aaa 100%)",
+      parchment:  "#dde3ec",
+      parchment2: "#cdd5e0",
+      parchment3: "#bdc8d6",
+      ink:        "#0a0e18",
+      inkDim:     "#1a2030",
+      inkMuted:   "#3a4a5c",
+      inkFaint:   "#687890",
+      accent:     "#2a6080",
+      gold:       "#5bb8d4",
+      goldDim:    "rgba(91,184,212,0.15)",
+      border:     "rgba(80,140,180,0.22)",
+      border2:    "rgba(80,140,180,0.40)",
+      shadow:     "rgba(10,14,24,0.14)",
+      green:      "#0d8060",
+      bgGradient: "radial-gradient(ellipse at 20% 10%, rgba(91,184,212,0.10) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(60,100,160,0.07) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #3a7a9a 0%, #2a6080 50%, #1a4a68 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #4a8aaa 0%, #3a7090 50%, #2a5878 100%)",
     },
     dark: {
-      parchment:  "#090c12",
-      parchment2: "#0d1018",
-      parchment3: "#111520",
-      ink:        "#e8f0ff",
-      inkDim:     "#d0dcf4",
-      inkMuted:   "#7a9ac0",
-      inkFaint:   "#4a6080",
-      accent:     "#4ab8f0",
-      gold:       "#60d0ff",
-      goldDim:    "rgba(96,208,255,0.12)",
-      border:     "rgba(74,184,240,0.15)",
-      border2:    "rgba(74,184,240,0.28)",
-      shadow:     "rgba(0,0,0,0.6)",
-      green:      "#0aee8a",
-      bgGradient: "radial-gradient(ellipse at 15% 20%, rgba(74,184,240,0.07) 0%, transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(120,80,240,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 100%, rgba(74,184,240,0.04) 0%, transparent 60%)",
-      btnPrimary: "linear-gradient(175deg, rgba(74,184,240,0.25) 0%, rgba(30,120,200,0.35) 45%, rgba(10,80,160,0.4) 100%)",
-      btnPrimaryHover: "linear-gradient(175deg, rgba(100,210,255,0.3) 0%, rgba(60,160,240,0.4) 45%, rgba(30,120,200,0.45) 100%)",
+      parchment:  "#080b10",
+      parchment2: "#0c1018",
+      parchment3: "#101620",
+      ink:        "#dce8f4",
+      inkDim:     "#c0d0e4",
+      inkMuted:   "#6888a8",
+      inkFaint:   "#3a5070",
+      accent:     "#5bb8d4",
+      gold:       "#78d0e8",
+      goldDim:    "rgba(120,208,232,0.12)",
+      border:     "rgba(91,184,212,0.14)",
+      border2:    "rgba(91,184,212,0.26)",
+      shadow:     "rgba(0,0,0,0.65)",
+      green:      "#10c090",
+      bgGradient: "radial-gradient(ellipse at 20% 15%, rgba(91,184,212,0.06) 0%, transparent 55%), radial-gradient(ellipse at 80% 85%, rgba(60,100,180,0.04) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #2a6888 0%, #1e5070 50%, #123858 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #3a7898 0%, #2e6080 50%, #1e4868 100%)",
     },
   },
+
+  // ── PARCHMENT — Warm aged paper, amber ink, candlelight ───────────────────
+  {
+    id: "parchment",
+    name: "Parchment",
+    swatchLight: "#f0ece0",
+    swatchDark:  "#0e0c08",
+    swatchAccent:"#b8922a",
+    fontDisplay: "'Cinzel', serif",
+    fontBody:    "'Crimson Pro', serif",
+    light: {
+      parchment:  "#f0ece0",
+      parchment2: "#e8e3d3",
+      parchment3: "#dfd9c8",
+      ink:        "#1e1a16",
+      inkDim:     "#2e2a24",
+      inkMuted:   "#5c5248",
+      inkFaint:   "#8a7e72",
+      accent:     "#7a5e38",
+      gold:       "#b8922a",
+      goldDim:    "rgba(184,146,42,0.18)",
+      border:     "rgba(100,78,45,0.28)",
+      border2:    "rgba(100,78,45,0.45)",
+      shadow:     "rgba(30,26,22,0.12)",
+      green:      "#3a6020",
+      bgGradient: "radial-gradient(circle at 20% 30%, rgba(201,169,97,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(45,80,22,0.03) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #9a7244 0%, #7a5530 50%, #6b4a28 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #aa8254 0%, #8a6040 50%, #7a5238 100%)",
+    },
+    dark: {
+      parchment:  "#0e0c08",
+      parchment2: "#141008",
+      parchment3: "#1a1508",
+      ink:        "#f0ece0",
+      inkDim:     "#e4dfd4",
+      inkMuted:   "#a09080",
+      inkFaint:   "#6a6058",
+      accent:     "#d4b882",
+      gold:       "#d4a840",
+      goldDim:    "rgba(212,168,64,0.18)",
+      border:     "#2e2418",
+      border2:    "#3e3428",
+      shadow:     "rgba(0,0,0,0.50)",
+      green:      "#5a9e6f",
+      bgGradient: "radial-gradient(circle at 20% 30%, rgba(196,148,42,0.05) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(196,148,42,0.03) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #c49040 0%, #a87830 50%, #8a6020 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #d4a050 0%, #b88840 50%, #9a7030 100%)",
+    },
+  },
+
+  // ── OBSIDIAN — Pure black glass, violet neon, ultramodern dark ────────────
+  {
+    id: "obsidian",
+    name: "Obsidian",
+    swatchLight: "#0e0e14",
+    swatchDark:  "#08080e",
+    swatchAccent:"#8060e0",
+    fontDisplay: "'Cinzel', serif",
+    fontBody:    "'Crimson Pro', serif",
+    light: {
+      parchment:  "#0e0e14",
+      parchment2: "#131318",
+      parchment3: "#18181e",
+      ink:        "#e8e4f8",
+      inkDim:     "#c8c4e8",
+      inkMuted:   "#8878c0",
+      inkFaint:   "#585090",
+      accent:     "#8060e0",
+      gold:       "#9878f0",
+      goldDim:    "rgba(152,120,240,0.15)",
+      border:     "rgba(120,90,220,0.20)",
+      border2:    "rgba(120,90,220,0.38)",
+      shadow:     "rgba(0,0,0,0.55)",
+      green:      "#40c090",
+      bgGradient: "radial-gradient(ellipse at 25% 20%, rgba(120,90,220,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(80,50,180,0.06) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #7050d0 0%, #5838b8 50%, #4030a0 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #8060e0 0%, #6848c8 50%, #5040b0 100%)",
+    },
+    dark: {
+      parchment:  "#08080e",
+      parchment2: "#0c0c12",
+      parchment3: "#101018",
+      ink:        "#ece8ff",
+      inkDim:     "#ccc8f0",
+      inkMuted:   "#8878c8",
+      inkFaint:   "#504888",
+      accent:     "#9878f0",
+      gold:       "#a888ff",
+      goldDim:    "rgba(168,136,255,0.12)",
+      border:     "rgba(120,90,220,0.16)",
+      border2:    "rgba(120,90,220,0.30)",
+      shadow:     "rgba(0,0,0,0.70)",
+      green:      "#40d0a0",
+      bgGradient: "radial-gradient(ellipse at 25% 20%, rgba(100,70,200,0.07) 0%, transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(80,50,180,0.04) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #7050d0 0%, #5838b8 50%, #4030a0 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #8060e0 0%, #6848c8 50%, #5040b0 100%)",
+    },
+  },
+
+  // ── VERDANT — Rich forest green, organic, earthy confidence ───────────────
+  {
+    id: "verdant",
+    name: "Verdant",
+    swatchLight: "#edf5ee",
+    swatchDark:  "#080e08",
+    swatchAccent:"#3a8a4a",
+    fontDisplay: "'Cinzel', serif",
+    fontBody:    "'Crimson Pro', serif",
+    light: {
+      parchment:  "#edf5ee",
+      parchment2: "#deeede",
+      parchment3: "#cee4ce",
+      ink:        "#0e1e10",
+      inkDim:     "#1e301e",
+      inkMuted:   "#3a5a3c",
+      inkFaint:   "#6a8a6c",
+      accent:     "#2a6a34",
+      gold:       "#3a8a4a",
+      goldDim:    "rgba(58,138,74,0.15)",
+      border:     "rgba(40,100,50,0.22)",
+      border2:    "rgba(40,100,50,0.40)",
+      shadow:     "rgba(10,20,10,0.12)",
+      green:      "#1a7a2a",
+      bgGradient: "radial-gradient(circle at 20% 25%, rgba(58,138,74,0.08) 0%, transparent 55%), radial-gradient(circle at 80% 75%, rgba(40,100,50,0.05) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #3a8a4a 0%, #2a6a34 50%, #1e5428 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #4a9a5a 0%, #3a7a44 50%, #2a6038 100%)",
+    },
+    dark: {
+      parchment:  "#080e08",
+      parchment2: "#0c140c",
+      parchment3: "#101a10",
+      ink:        "#e4f4e4",
+      inkDim:     "#c8e4c8",
+      inkMuted:   "#78a878",
+      inkFaint:   "#4a6a4a",
+      accent:     "#5ab86a",
+      gold:       "#6acc7a",
+      goldDim:    "rgba(106,204,122,0.14)",
+      border:     "rgba(58,138,74,0.16)",
+      border2:    "rgba(58,138,74,0.30)",
+      shadow:     "rgba(0,0,0,0.60)",
+      green:      "#40c050",
+      bgGradient: "radial-gradient(circle at 20% 25%, rgba(58,138,74,0.06) 0%, transparent 55%), radial-gradient(circle at 80% 75%, rgba(40,100,50,0.04) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #3a8a4a 0%, #2a6a34 50%, #1e5428 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #4a9a5a 0%, #3a7a44 50%, #2a6038 100%)",
+    },
+  },
+
+  // ── EMBERS — Deep crimson and burnt sienna, dramatic contrast ─────────────
+  {
+    id: "embers",
+    name: "Embers",
+    swatchLight: "#faf2ec",
+    swatchDark:  "#100808",
+    swatchAccent:"#c04030",
+    fontDisplay: "'Cinzel', serif",
+    fontBody:    "'Crimson Pro', serif",
+    light: {
+      parchment:  "#faf2ec",
+      parchment2: "#f0e4da",
+      parchment3: "#e4d4c8",
+      ink:        "#200808",
+      inkDim:     "#301414",
+      inkMuted:   "#602820",
+      inkFaint:   "#906050",
+      accent:     "#b03020",
+      gold:       "#d05030",
+      goldDim:    "rgba(208,80,48,0.15)",
+      border:     "rgba(180,50,30,0.22)",
+      border2:    "rgba(180,50,30,0.40)",
+      shadow:     "rgba(32,8,8,0.14)",
+      green:      "#3a7030",
+      bgGradient: "radial-gradient(circle at 20% 30%, rgba(210,80,50,0.07) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(160,40,20,0.04) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #c84038 0%, #a82e28 50%, #8a2020 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #d85040 0%, #b83e30 50%, #982828 100%)",
+    },
+    dark: {
+      parchment:  "#100808",
+      parchment2: "#180c0c",
+      parchment3: "#201010",
+      ink:        "#f8ece8",
+      inkDim:     "#e8d8d0",
+      inkMuted:   "#b08070",
+      inkFaint:   "#705848",
+      accent:     "#e06050",
+      gold:       "#f07860",
+      goldDim:    "rgba(240,120,96,0.14)",
+      border:     "rgba(200,60,40,0.18)",
+      border2:    "rgba(200,60,40,0.32)",
+      shadow:     "rgba(0,0,0,0.60)",
+      green:      "#5a9a50",
+      bgGradient: "radial-gradient(circle at 25% 30%, rgba(200,60,40,0.07) 0%, transparent 55%), radial-gradient(circle at 75% 70%, rgba(160,40,20,0.04) 0%, transparent 50%)",
+      btnPrimary:      "linear-gradient(175deg, #c84038 0%, #a82e28 50%, #8a2020 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #d85040 0%, #b83e30 50%, #982828 100%)",
+    },
+  },
+
 ];
 
 let _activeThemeId = 'chromium';
@@ -1836,6 +2269,14 @@ function initThemeSystem() {
 }
 
 function renderThemeLists() {
+  // Populate the theme <select> dropdown
+  const sel = document.getElementById('themeSelect');
+  if (sel) {
+    sel.innerHTML = PRESET_THEMES.map(t =>
+      `<option value="${t.id}" ${t.id === _activeThemeId ? 'selected' : ''}>${t.name}</option>`
+    ).join('');
+  }
+  // Also update any remaining list containers (legacy)
   ['globalThemeList','landingThemeList','lobbyThemeList','sessionThemeList'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
