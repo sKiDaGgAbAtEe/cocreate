@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Entriference</title>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
@@ -655,6 +656,25 @@
         <textarea id="lobbyChatInput" rows="1" placeholder="Message the lobby..." oninput="onLobbyChatInput(this)" onkeydown="onLobbyChatKey(event)"></textarea>
         <button class="chat-send-btn" id="lobbyChatSend" disabled onclick="sendLobbyMessage()">↑</button>
       </div>
+
+      <!-- Voice channel -->
+      <div id="voicePanel" style="border-top:1px solid var(--border);flex-shrink:0">
+        <div style="padding:10px 14px 8px;display:flex;align-items:center;justify-content:space-between">
+          <span style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Voice</span>
+          <div id="voiceMembers" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
+        </div>
+        <div style="padding:0 14px 10px">
+          <button id="voiceJoinBtn" onclick="joinVoice()" style="width:100%;padding:7px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;background:rgba(139,111,71,0.08);border:1px solid var(--border2);border-radius:6px;cursor:pointer;color:var(--ink-muted);transition:all 0.2s" onmouseover="this.style.background='rgba(139,111,71,0.15)';this.style.borderColor='var(--accent)'" onmouseout="this.style.background='rgba(139,111,71,0.08)';this.style.borderColor='var(--border2)'">
+            🎙 Join Voice
+          </button>
+          <button id="voiceLeaveBtn" onclick="leaveVoice()" style="display:none;width:100%;padding:7px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.3);border-radius:6px;cursor:pointer;color:#c0392b;transition:all 0.2s">
+            ✕ Leave Voice
+          </button>
+        </div>
+        <!-- Daily iframe injected here -->
+        <div id="voiceFrame" style="display:none;height:0;overflow:hidden"></div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -1263,6 +1283,77 @@ function joinLobbyChat() {
 
 function leaveLobbyChat() {
   socket.emit('lobby:leave', { playerName });
+}
+
+// ── Voice Channel (Daily.co) ───────────────────────────
+let _dailyCall = null;
+let _voiceRoomUrl = null;
+
+async function joinVoice() {
+  if (_dailyCall) return;
+  const btn = document.getElementById('voiceJoinBtn');
+  btn.textContent = 'Connecting...';
+  btn.disabled = true;
+
+  try {
+    // Get or create a Daily room for the lobby
+    const res = await fetch('/api/voice/room', { method: 'POST' });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    _voiceRoomUrl = data.url;
+
+    // Create Daily call object (audio only)
+    _dailyCall = window.DailyIframe.createCallObject({
+      audioSource: true,
+      videoSource: false,
+      dailyConfig: { experimentalChromeVideoMuteLightOff: true }
+    });
+
+    _dailyCall.on('joined-meeting', updateVoiceUI);
+    _dailyCall.on('left-meeting', onVoiceLeft);
+    _dailyCall.on('participant-joined', updateVoiceUI);
+    _dailyCall.on('participant-left', updateVoiceUI);
+    _dailyCall.on('error', e => { console.error('Daily error:', e); onVoiceLeft(); });
+
+    await _dailyCall.join({ url: _voiceRoomUrl, userName: playerName });
+  } catch(e) {
+    console.error('Voice join error:', e);
+    btn.textContent = '🎙 Join Voice';
+    btn.disabled = false;
+    onVoiceLeft();
+  }
+}
+
+function leaveVoice() {
+  if (_dailyCall) {
+    _dailyCall.leave();
+    _dailyCall.destroy();
+    _dailyCall = null;
+  }
+  onVoiceLeft();
+}
+
+function onVoiceLeft() {
+  _dailyCall = null;
+  document.getElementById('voiceJoinBtn').style.display = '';
+  document.getElementById('voiceJoinBtn').textContent = '🎙 Join Voice';
+  document.getElementById('voiceJoinBtn').disabled = false;
+  document.getElementById('voiceLeaveBtn').style.display = 'none';
+  document.getElementById('voiceMembers').innerHTML = '';
+}
+
+function updateVoiceUI() {
+  if (!_dailyCall) return;
+  document.getElementById('voiceJoinBtn').style.display = 'none';
+  document.getElementById('voiceLeaveBtn').style.display = '';
+
+  const participants = Object.values(_dailyCall.participants());
+  const members = document.getElementById('voiceMembers');
+  members.innerHTML = participants.map(p => {
+    const name = p.user_name || 'Guest';
+    const speaking = p.audio ? '' : ' style="opacity:0.4"';
+    return `<span title="${esc(name)}" style="font-size:10px;background:rgba(139,111,71,0.12);border:1px solid var(--border2);border-radius:10px;padding:2px 7px;font-family:Cinzel,serif;color:var(--ink-muted)"${speaking}>${esc(name.split(' ')[0])}</span>`;
+  }).join('');
 }
 
 function sendLobbyMessage() {

@@ -1197,6 +1197,44 @@ app.post('/api/rooms/:id/process', async (req, res) => {
   }
 });
 
+// ── Voice Room (Daily.co) ──────────────────────────────
+app.post('/api/voice/room', async (req, res) => {
+  const apiKey = process.env.DAILY_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'Voice not configured' });
+  try {
+    // Use a stable room name — one persistent lobby voice channel
+    const roomName = 'entriference-lobby';
+    // Try to get existing room first
+    const getRes = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
+      headers: { Authorization: `Bearer ${apiKey}` }
+    });
+    if (getRes.ok) {
+      const room = await getRes.json();
+      return res.json({ url: room.url });
+    }
+    // Create it
+    const createRes = await fetch('https://api.daily.co/v1/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({
+        name: roomName,
+        properties: {
+          enable_chat: false,
+          enable_screenshare: false,
+          start_video_off: true,
+          start_audio_off: false,
+          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 // 1 year
+        }
+      })
+    });
+    const room = await createRes.json();
+    if (room.error) throw new Error(room.error);
+    res.json({ url: room.url });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Profile Routes ─────────────────────────────────────
 app.get('/api/profile/by-email/:email', async (req, res) => {
   const drive = await getDrive();
