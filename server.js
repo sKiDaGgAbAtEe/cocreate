@@ -284,6 +284,54 @@ app.post('/api/basins', async (req, res) => {
   }
 });
 
+// ── Profile Routes ─────────────────────────────────────
+// profiles stored as profiles.json in CoCreate Drive folder
+let profilesCache = {};
+
+async function loadProfiles() {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'profiles.json', folderId);
+    if (fileId) {
+      const data = await readDriveFile(drive, fileId);
+      if (data && typeof data === 'object') profilesCache = data;
+    }
+  } catch (e) { console.error('Could not load profiles:', e.message); }
+}
+
+async function saveProfiles() {
+  const drive = await getDrive();
+  if (!drive) return;
+  try {
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    await writeDriveFile(drive, 'profiles.json', folderId, profilesCache);
+  } catch (e) { console.error('Could not save profiles:', e.message); }
+}
+
+// POST /api/profile — create or update
+app.post('/api/profile', async (req, res) => {
+  const { name, email, picture, who, what, working, extra } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name is required' });
+  profilesCache[name] = { name, email, picture, who, what, working, extra, updatedAt: new Date().toISOString() };
+  await saveProfiles();
+  res.json({ profile: profilesCache[name] });
+});
+
+// GET /api/profile/:name — fetch by display name
+app.get('/api/profile/:name', (req, res) => {
+  const profile = profilesCache[decodeURIComponent(req.params.name)] || null;
+  res.json({ profile });
+});
+
+// GET /api/profile/by-email/:email — fetch by email
+app.get('/api/profile/by-email/:email', (req, res) => {
+  const email = decodeURIComponent(req.params.email);
+  const profile = Object.values(profilesCache).find(p => p.email === email) || null;
+  res.json({ profile });
+});
+
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
   const drive = await getDrive();
@@ -652,4 +700,5 @@ httpServer.listen(PORT, () => {
   console.log(`  Open: http://localhost:${PORT}\n`);
   // Load persisted rooms after a short delay to allow OAuth to be ready
   setTimeout(loadRoomsFromDrive, 3000);
+  setTimeout(loadProfiles, 3500);
 });
