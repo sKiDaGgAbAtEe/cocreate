@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Entriference</title>
+  <title>Orycl.io</title>
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -680,23 +680,64 @@
 
     /* ── THEME / PYRAMID MENU ─────────────────────────── */
     .pyramid-menu-wrap { position: relative; display: inline-block; flex-shrink: 0; }
+
+    /* ── Plasma pellet menu button ── */
     .pyramid-btn {
-      width: 32px; height: 32px;
+      width: 28px; height: 28px;
       background: none; border: none; cursor: pointer;
-      display: flex; flex-direction: column; align-items: center;
-      justify-content: center; gap: 3px; padding: 4px;
-      border-radius: 6px; transition: background 0.15s;
+      display: flex; align-items: center; justify-content: center;
+      padding: 0; border-radius: 50%; position: relative;
     }
-    .pyramid-btn:hover { background: rgba(139,111,71,0.1); }
-    .pyramid-btn span {
-      display: block; background: var(--ink-muted);
-      border-radius: 2px; transition: background 0.15s;
+    .plasma-pellet {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fff 0%, var(--plasma-core, #b8922a) 40%, var(--plasma-outer, #7a5e38) 100%);
+      box-shadow:
+        0 0 4px 1px var(--plasma-glow, rgba(184,146,42,0.5)),
+        0 0 10px 2px var(--plasma-glow, rgba(184,146,42,0.25)),
+        inset 0 1px 2px rgba(255,255,255,0.6);
+      animation: plasma-idle 3s ease-in-out infinite;
+      transition: transform 0.2s, box-shadow 0.2s;
+      position: relative;
+      z-index: 1;
     }
-    .pyramid-btn span:nth-child(1) { width: 4px;  height: 4px; border-radius: 50%; }
-    .pyramid-btn span:nth-child(2) { width: 10px; height: 3px; }
-    .pyramid-btn span:nth-child(3) { width: 16px; height: 3px; }
-    .pyramid-btn:hover span { background: var(--accent); }
-    body.dark .pyramid-btn:hover { background: rgba(196,168,130,0.1); }
+    .plasma-pellet::before {
+      content: '';
+      position: absolute; inset: -4px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--plasma-glow, rgba(184,146,42,0.15)) 0%, transparent 70%);
+      animation: plasma-aura 3s ease-in-out infinite;
+    }
+    .plasma-pellet::after {
+      content: '';
+      position: absolute; inset: -8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--plasma-glow, rgba(184,146,42,0.06)) 0%, transparent 65%);
+      animation: plasma-aura 3s ease-in-out infinite 0.5s;
+    }
+    @keyframes plasma-idle {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 4px 1px var(--plasma-glow,rgba(184,146,42,0.5)), 0 0 10px 2px var(--plasma-glow,rgba(184,146,42,0.25)), inset 0 1px 2px rgba(255,255,255,0.6); }
+      50%       { transform: scale(1.12); box-shadow: 0 0 7px 2px var(--plasma-glow,rgba(184,146,42,0.7)), 0 0 18px 4px var(--plasma-glow,rgba(184,146,42,0.3)), inset 0 1px 2px rgba(255,255,255,0.7); }
+    }
+    @keyframes plasma-aura {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.3); }
+    }
+    .pyramid-btn:hover .plasma-pellet {
+      animation: plasma-excited 0.6s ease-in-out infinite;
+      box-shadow: 0 0 10px 3px var(--plasma-glow,rgba(184,146,42,0.9)), 0 0 24px 6px var(--plasma-glow,rgba(184,146,42,0.4)), inset 0 1px 2px rgba(255,255,255,0.8);
+    }
+    @keyframes plasma-excited {
+      0%, 100% { transform: scale(1.05); }
+      50%       { transform: scale(1.25); }
+    }
+    .pyramid-btn.open .plasma-pellet {
+      animation: plasma-open 1s ease-in-out infinite;
+    }
+    @keyframes plasma-open {
+      0%, 100% { transform: scale(1.1); filter: brightness(1.2); }
+      50%       { transform: scale(1.3); filter: brightness(1.5); }
+    }
 
     .pyramid-dropdown {
       position: absolute; right: 0; top: calc(100% + 6px);
@@ -706,7 +747,7 @@
       padding: 6px;
       min-width: 200px;
       box-shadow: 0 8px 32px rgba(30,26,22,0.2), 0 2px 8px rgba(30,26,22,0.1);
-      z-index: 200;
+      z-index: 9999;
       display: none;
       animation: dropdown-in 0.15s ease;
     }
@@ -743,9 +784,258 @@
       width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0;
       border: 1px solid rgba(0,0,0,0.15);
     }
+
+    /* ── Session action bar (bottom-right of sidebar) ── */
+    .session-action-bar {
+      display: flex; align-items: center; justify-content: flex-end;
+      gap: 8px; padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    body.dark .session-action-bar { border-color: #1e1c28; }
+
+    /* ── Global fixed triskelion menu ── */
+    #globalMenu {
+      position: fixed; top: 12px; right: 14px; z-index: 10000;
+    }
+    #globalMenuDropdown {
+      right: 0;
+    }
+
+    /* ── Chromium theme deep styles ─────────────────────── */
+    body.theme-chromium {
+      --plasma-core:  #4ab8f0;
+      --plasma-outer: #1a6aaa;
+      --plasma-glow:  rgba(74,184,240,0.6);
+      font-family: 'Inter', sans-serif;
+    }
+    body.theme-chromium h1,
+    body.theme-chromium h2,
+    body.theme-chromium h3,
+    body.theme-chromium .title,
+    body.theme-chromium .label,
+    body.theme-chromium .btn-primary,
+    body.theme-chromium .btn-ghost,
+    body.theme-chromium .room-code,
+    body.theme-chromium .save-btn,
+    body.theme-chromium .player-pill,
+    body.theme-chromium .lobby-top h3,
+    body.theme-chromium .voice-label,
+    body.theme-chromium .pyramid-section-label,
+    body.theme-chromium .pyramid-item,
+    body.theme-chromium .basin-label,
+    body.theme-chromium .session-name,
+    body.theme-chromium .modal-title,
+    body.theme-chromium .voice-name,
+    body.theme-chromium .chat-msg-author {
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.08em;
+    }
+
+    /* Glassmorphic cards */
+    body.theme-chromium .card,
+    body.theme-chromium .landing-card.card {
+      background: linear-gradient(135deg,
+        rgba(220,235,255,0.55) 0%,
+        rgba(180,210,240,0.35) 50%,
+        rgba(140,180,220,0.25) 100%);
+      border: 1px solid rgba(150,200,255,0.5);
+      border-top: 1px solid rgba(220,240,255,0.8);
+      box-shadow:
+        0 2px 0 rgba(255,255,255,0.7) inset,
+        0 -1px 0 rgba(60,120,200,0.15) inset,
+        0 8px 40px rgba(8,14,26,0.15),
+        0 2px 8px rgba(74,184,240,0.1),
+        0 0 0 1px rgba(100,180,255,0.12);
+      backdrop-filter: blur(12px);
+    }
+    body.theme-chromium.dark .card,
+    body.theme-chromium.dark .landing-card.card {
+      background: linear-gradient(135deg,
+        rgba(20,40,80,0.7) 0%,
+        rgba(10,20,50,0.6) 50%,
+        rgba(5,15,35,0.55) 100%);
+      border: 1px solid rgba(74,184,240,0.2);
+      border-top: 1px solid rgba(100,210,255,0.3);
+      box-shadow:
+        0 1px 0 rgba(100,200,255,0.08) inset,
+        0 -1px 0 rgba(0,0,0,0.6) inset,
+        0 8px 40px rgba(0,0,0,0.6),
+        0 0 30px rgba(74,184,240,0.05),
+        0 0 0 1px rgba(74,184,240,0.08);
+      backdrop-filter: blur(16px);
+    }
+
+    /* Metallic buttons */
+    body.theme-chromium .btn-primary {
+      background: linear-gradient(175deg, #4a9ad8 0%, #2278b8 45%, #0e5c9a 100%);
+      border-top: 1px solid rgba(180,230,255,0.5);
+      box-shadow:
+        0 1px 0 rgba(200,240,255,0.3) inset,
+        0 -2px 0 rgba(0,0,0,0.3) inset,
+        0 4px 14px rgba(74,184,240,0.4),
+        0 1px 3px rgba(0,0,0,0.3);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+      letter-spacing: 0.1em;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    body.theme-chromium .btn-primary:hover {
+      background: linear-gradient(175deg, #5aaae8 0%, #3288c8 45%, #1e6caa 100%);
+      box-shadow:
+        0 1px 0 rgba(200,240,255,0.4) inset,
+        0 -2px 0 rgba(0,0,0,0.35) inset,
+        0 6px 22px rgba(74,184,240,0.6),
+        0 2px 6px rgba(0,0,0,0.25);
+    }
+    body.theme-chromium.dark .btn-primary {
+      background: linear-gradient(175deg,
+        rgba(80,200,255,0.2) 0%,
+        rgba(40,140,220,0.28) 45%,
+        rgba(10,90,180,0.32) 100%);
+      border: 1px solid rgba(74,184,240,0.4);
+      border-top: 1px solid rgba(140,220,255,0.5);
+      color: #c0e8ff;
+      box-shadow:
+        0 1px 0 rgba(140,220,255,0.15) inset,
+        0 -2px 0 rgba(0,0,0,0.5) inset,
+        0 4px 18px rgba(74,184,240,0.2),
+        0 0 0 1px rgba(74,184,240,0.1);
+    }
+    body.theme-chromium.dark .btn-primary:hover {
+      background: linear-gradient(175deg,
+        rgba(100,220,255,0.28) 0%,
+        rgba(60,170,240,0.36) 45%,
+        rgba(20,110,200,0.4) 100%);
+      box-shadow:
+        0 1px 0 rgba(160,235,255,0.2) inset,
+        0 -2px 0 rgba(0,0,0,0.6) inset,
+        0 6px 28px rgba(74,184,240,0.35),
+        0 0 20px rgba(74,184,240,0.15);
+    }
+    body.theme-chromium .btn-ghost {
+      background: linear-gradient(175deg, rgba(200,225,255,0.4) 0%, rgba(160,200,240,0.2) 100%);
+      border: 1px solid rgba(100,170,240,0.4);
+      border-top: 1px solid rgba(200,235,255,0.6);
+      color: #1a6aaa;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.08em;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 2px 6px rgba(74,184,240,0.1);
+    }
+    body.theme-chromium.dark .btn-ghost {
+      background: linear-gradient(175deg, rgba(74,184,240,0.06) 0%, rgba(30,100,180,0.04) 100%);
+      border: 1px solid rgba(74,184,240,0.25);
+      border-top: 1px solid rgba(100,210,255,0.35);
+      color: #4ab8f0;
+    }
+    body.theme-chromium.dark .btn-ghost:hover {
+      background: linear-gradient(175deg, rgba(74,184,240,0.12) 0%, rgba(30,100,180,0.08) 100%);
+      border-color: rgba(74,184,240,0.5);
+      color: #80d0ff;
+      box-shadow: 0 0 12px rgba(74,184,240,0.15);
+    }
+
+    /* Chrome header / sidebar */
+    body.theme-chromium .header,
+    body.theme-chromium .lobby-header {
+      background: linear-gradient(180deg, rgba(200,220,250,0.85) 0%, rgba(170,200,235,0.75) 100%);
+      border-color: rgba(120,180,240,0.35);
+      backdrop-filter: blur(12px);
+    }
+    body.theme-chromium.dark .header,
+    body.theme-chromium.dark .lobby-header {
+      background: linear-gradient(180deg, rgba(12,20,40,0.9) 0%, rgba(8,14,30,0.85) 100%);
+      border-color: rgba(74,184,240,0.15);
+      backdrop-filter: blur(16px);
+    }
+    body.theme-chromium.dark .sidebar {
+      background: rgba(8,14,28,0.6);
+      border-color: rgba(74,184,240,0.12);
+      backdrop-filter: blur(12px);
+    }
+    body.theme-chromium.dark .input-area {
+      background: rgba(10,18,35,0.85);
+      border-color: rgba(74,184,240,0.18);
+    }
+    body.theme-chromium.dark .bubble.resonance {
+      background: rgba(10,30,60,0.7);
+      border-color: rgba(74,184,240,0.18);
+    }
+    body.theme-chromium.dark .bubble.human {
+      background: rgba(15,25,50,0.8);
+      border-color: rgba(74,184,240,0.12);
+    }
+
+    /* Chromium room cards */
+    body.theme-chromium .room-card {
+      background: linear-gradient(135deg, rgba(210,230,255,0.8) 0%, rgba(180,210,245,0.65) 100%);
+      border-color: rgba(120,180,240,0.4);
+      backdrop-filter: blur(8px);
+    }
+    body.theme-chromium.dark .room-card {
+      background: linear-gradient(135deg, rgba(15,28,55,0.8) 0%, rgba(10,20,45,0.7) 100%);
+      border-color: rgba(74,184,240,0.15);
+    }
+    body.theme-chromium.dark .room-card:hover {
+      border-color: rgba(74,184,240,0.45);
+      box-shadow: 0 8px 30px rgba(74,184,240,0.12), 0 0 0 1px rgba(74,184,240,0.2);
+    }
+    body.theme-chromium .room-card::before {
+      background: linear-gradient(90deg, transparent, rgba(74,184,240,0.8), transparent);
+    }
+
+    /* Chromium dropdown */
+    body.theme-chromium .pyramid-dropdown {
+      background: rgba(210,230,255,0.92);
+      border-color: rgba(120,180,240,0.5);
+      backdrop-filter: blur(16px);
+    }
+    body.theme-chromium.dark .pyramid-dropdown {
+      background: rgba(10,18,38,0.92);
+      border-color: rgba(74,184,240,0.22);
+      backdrop-filter: blur(20px);
+    }
+
+    /* Chromium landing card sheen — electric blue */
+    body.theme-chromium .landing-card.card::before {
+      background: linear-gradient(90deg, transparent, rgba(140,210,255,0.9) 40%, rgba(140,210,255,0.9) 60%, transparent);
+    }
+
+    /* Chromium title glow */
+    body.theme-chromium h1.title {
+      text-shadow: 0 0 30px rgba(74,184,240,0.2);
+    }
+    body.theme-chromium.dark h1.title {
+      text-shadow: 0 0 40px rgba(74,184,240,0.4), 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* ── Per-theme plasma colors ── */
+    body.theme-parchment       { --plasma-core:#c8a030; --plasma-outer:#7a5e38; --plasma-glow:rgba(184,146,42,0.6); }
+    body.theme-obsidian        { --plasma-core:#a78bfa; --plasma-outer:#6d28d9; --plasma-glow:rgba(167,139,250,0.65); }
+    body.theme-verdant         { --plasma-core:#6aaa2d; --plasma-outer:#2d6a2d; --plasma-glow:rgba(106,170,45,0.6); }
+    body.theme-embers          { --plasma-core:#f0a030; --plasma-outer:#c0392b; --plasma-glow:rgba(240,120,32,0.65); }
+    body.theme-chromium        { --plasma-core:#60d0ff; --plasma-outer:#1a80cc; --plasma-glow:rgba(74,184,240,0.7); }
   </style>
 </head>
 <body>
+<div id="bg-gradient-layer" style="position:fixed;inset:0;pointer-events:none;z-index:0"></div>
+
+<!-- ── GLOBAL TRISKELION MENU (fixed, all pages) ── -->
+<div class="pyramid-menu-wrap" id="globalMenu">
+  <button class="pyramid-btn" onclick="togglePyramidMenu('globalMenuDropdown')" title="Options">
+    <div class="plasma-pellet"></div>
+  </button>
+  <div class="pyramid-dropdown" id="globalMenuDropdown">
+    <span class="pyramid-section-label">Appearance</span>
+    <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
+      <span class="pi-icon">◑</span> Toggle Dark Mode
+    </button>
+    <div class="pyramid-divider"></div>
+    <span class="pyramid-section-label">Themes</span>
+    <div id="globalThemeList"></div>
+  </div>
+</div>
+
 
 <!-- ── DEFINITION TOOLTIP ──────────────────────── -->
 <div class="def-tooltip" id="defTooltip">
@@ -759,7 +1049,7 @@
 <div class="about-overlay" id="aboutOverlay" onclick="closeAbout(event)">
   <div class="about-panel">
     <button class="about-close" onclick="closeAbout()">✕</button>
-    <h2>◈ Entriference</h2>
+    <h2>◈ Orycl.io</h2>
     <div class="about-sub">A collaborative cognition engine</div>
     <div class="about-section">
       <h3>What it is</h3>
@@ -797,7 +1087,7 @@
   <div class="logo">◈</div>
   <div class="title-line"></div>
   <button class="title-btn" onclick="openDefinition()" title="Click for definition">
-    <h1 class="title">Entriference</h1>
+    <h1 class="title">Orycl.io</h1>
   </button>
   <p class="subtitle">A collaborative cognition engine</p>
   <div class="landing-card card">
@@ -833,46 +1123,19 @@
 
   </div>
   <p class="hint">Contribute freely. The basin finds the connections.</p>
-  <div class="pyramid-menu-wrap" style="position:fixed;top:16px;right:16px;z-index:50">
-    <button class="pyramid-btn" id="landingPyramidBtn" onclick="togglePyramidMenu('landingMenu')" title="Options">
-      <span></span><span></span><span></span>
-    </button>
-    <div class="pyramid-dropdown" id="landingMenu">
-      <span class="pyramid-section-label">Appearance</span>
-      <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
-        <span class="pi-icon">◑</span> Toggle Dark Mode
-      </button>
-      <div class="pyramid-divider"></div>
-      <span class="pyramid-section-label">Themes</span>
-      <div id="landingThemeList"></div>
-    </div>
-  </div>
+
 </div>
 
 <!-- ── LOBBY ──────────────────────────────────── -->
 <div id="lobby" class="page">
-  <div class="lobby-header">
-    <div class="lobby-title">
+  <div class="lobby-header" style="position:relative">
+    <button class="btn-ghost" onclick="showPage('landing')" style="padding:6px 14px;font-size:12px;flex-shrink:0">← Back</button>
+    <div class="lobby-title" style="position:absolute;left:50%;transform:translateX(-50%)">
       <span class="logo-sm">◈</span>
-      <h2>Entriference</h2>
+      <h2>Orycl.io</h2>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <div class="pyramid-menu-wrap">
-        <button class="pyramid-btn" id="lobbyPyramidBtn" onclick="togglePyramidMenu('lobbyMenu')" title="Options">
-          <span></span><span></span><span></span>
-        </button>
-        <div class="pyramid-dropdown" id="lobbyMenu">
-          <span class="pyramid-section-label">Appearance</span>
-          <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
-            <span class="pi-icon">◑</span> Toggle Dark Mode
-          </button>
-          <div class="pyramid-divider"></div>
-          <span class="pyramid-section-label">Themes</span>
-          <div id="lobbyThemeList"></div>
-        </div>
-      </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
       <span class="player-pill" id="lobbyPlayerName"></span>
-      <button class="btn-ghost" onclick="showPage('landing')" style="padding:6px 12px;font-size:12px">← Back</button>
     </div>
   </div>
   <div class="lobby-layout">
@@ -955,6 +1218,14 @@
 
         <!-- Hidden audio container for remote tracks -->
         <div id="voiceAudioContainer" style="display:none"></div>
+      </div>
+
+      <!-- ── Session action bar (bottom of sidebar) ── -->
+      <div class="session-action-bar">
+        <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
+        <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
+        <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
+        <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
       </div>
 
     </div>
@@ -1201,31 +1472,11 @@
 
 <!-- ── SESSION ────────────────────────────────── -->
 <div id="session" class="page">
-  <div class="header">
+  <div class="header" style="position:relative">
     <button class="back-btn" onclick="leaveRoom()">←</button>
-    <div class="header-center">
+    <div class="header-center" style="position:absolute;left:50%;transform:translateX(-50%)">
       <span class="session-name" id="headerTitle"></span>
       <span class="basin-tag" id="headerBasin" style="color:var(--basin-color)"></span>
-    </div>
-    <div class="header-right">
-      <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
-      <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
-      <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
-      <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
-      <div class="pyramid-menu-wrap">
-        <button class="pyramid-btn" id="sessionPyramidBtn" onclick="togglePyramidMenu('sessionMenu')" title="Options">
-          <span></span><span></span><span></span>
-        </button>
-        <div class="pyramid-dropdown" id="sessionMenu">
-          <span class="pyramid-section-label">Appearance</span>
-          <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
-            <span class="pi-icon">◑</span> Toggle Dark Mode
-          </button>
-          <div class="pyramid-divider"></div>
-          <span class="pyramid-section-label">Themes</span>
-          <div id="sessionThemeList"></div>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1466,43 +1717,108 @@ const PRESET_THEMES = [
     dark:  { parchment:"#120808", parchment2:"#180b0b", parchment3:"#200f0f", ink:"#f5ece8", inkDim:"#e8dcd8", inkMuted:"#c09080", inkFaint:"#806050", accent:"#e07820", gold:"#f0a030", goldDim:"rgba(240,160,48,0.15)", border:"#2e1414", border2:"#3e1e1e", shadow:"rgba(0,0,0,0.55)", green:"#4a9a4a", bgGradient:"radial-gradient(circle at 25% 35%, rgba(192,57,43,0.08) 0%, transparent 50%)", btnPrimary:"linear-gradient(175deg,#d44a38 0%,#c0392b 45%,#a82e22 100%)", btnPrimaryHover:"linear-gradient(175deg,#e05a48 0%,#d04438 45%,#b83428 100%)" },
     fontDisplay:"'Cinzel', serif", fontBody:"'Crimson Pro', serif",
   },
+,
+  {
+    id: "chromium", name: "Chromium",
+    swatchLight:"#d0d8e8", swatchDark:"#090c12", swatchAccent:"#4ab8f0",
+    fontDisplay:"'Rajdhani', sans-serif", fontBody:"'Inter', sans-serif",
+    googleFontsUrl: "https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500&display=swap",
+    light: {
+      parchment:  "#d0d8e8",
+      parchment2: "#c0cad8",
+      parchment3: "#b0bace",
+      ink:        "#080e1a",
+      inkDim:     "#141e2e",
+      inkMuted:   "#3a4a60",
+      inkFaint:   "#6a7a90",
+      accent:     "#1a6aaa",
+      gold:       "#4ab8f0",
+      goldDim:    "rgba(74,184,240,0.15)",
+      border:     "rgba(74,144,200,0.25)",
+      border2:    "rgba(74,144,200,0.45)",
+      shadow:     "rgba(8,14,26,0.18)",
+      green:      "#0aaa6a",
+      bgGradient: "radial-gradient(ellipse at 15% 20%, rgba(74,184,240,0.12) 0%, transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(120,80,240,0.06) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(200,220,255,0.08) 0%, transparent 70%)",
+      btnPrimary: "linear-gradient(175deg, #3a8ad4 0%, #1a6aaa 45%, #0a5090 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, #4a9ae4 0%, #2a7aba 45%, #1a6aaa 100%)",
+    },
+    dark: {
+      parchment:  "#090c12",
+      parchment2: "#0d1018",
+      parchment3: "#111520",
+      ink:        "#e8f0ff",
+      inkDim:     "#d0dcf4",
+      inkMuted:   "#7a9ac0",
+      inkFaint:   "#4a6080",
+      accent:     "#4ab8f0",
+      gold:       "#60d0ff",
+      goldDim:    "rgba(96,208,255,0.12)",
+      border:     "rgba(74,184,240,0.15)",
+      border2:    "rgba(74,184,240,0.28)",
+      shadow:     "rgba(0,0,0,0.6)",
+      green:      "#0aee8a",
+      bgGradient: "radial-gradient(ellipse at 15% 20%, rgba(74,184,240,0.07) 0%, transparent 55%), radial-gradient(ellipse at 85% 80%, rgba(120,80,240,0.05) 0%, transparent 50%), radial-gradient(ellipse at 50% 100%, rgba(74,184,240,0.04) 0%, transparent 60%)",
+      btnPrimary: "linear-gradient(175deg, rgba(74,184,240,0.25) 0%, rgba(30,120,200,0.35) 45%, rgba(10,80,160,0.4) 100%)",
+      btnPrimaryHover: "linear-gradient(175deg, rgba(100,210,255,0.3) 0%, rgba(60,160,240,0.4) 45%, rgba(30,120,200,0.45) 100%)",
+    },
+  },
 ];
 
-let _activeThemeId = 'parchment';
+let _activeThemeId = 'chromium';
 
 function applyTheme(theme, preferDark) {
   const isDark = preferDark !== undefined ? preferDark : document.body.classList.contains('dark');
   const palette = isDark ? theme.dark : theme.light;
-
   const root = document.documentElement;
 
-  // Map camelCase keys to CSS var names
-  const varMap = {
-    parchment:  '--parchment',  parchment2: '--parchment2', parchment3: '--parchment3',
-    ink:        '--ink',        inkDim:     '--ink-dim',    inkMuted:   '--ink-muted',
-    inkFaint:   '--ink-faint',  accent:     '--accent',     gold:       '--gold',
-    goldDim:    '--gold-dim',   border:     '--border',     border2:    '--border2',
-    shadow:     '--shadow',     green:      '--green',
-  };
+  // Remove all theme-* body classes, add new one
+  document.body.className = document.body.className
+    .replace(/\btheme-\S+/g, '').trim();
+  document.body.classList.add('theme-' + theme.id);
+  if (isDark) document.body.classList.add('dark');
+  else document.body.classList.remove('dark');
 
+  // CSS variable palette
+  const varMap = {
+    parchment:'--parchment', parchment2:'--parchment2', parchment3:'--parchment3',
+    ink:'--ink', inkDim:'--ink-dim', inkMuted:'--ink-muted', inkFaint:'--ink-faint',
+    accent:'--accent', gold:'--gold', goldDim:'--gold-dim',
+    border:'--border', border2:'--border2', shadow:'--shadow', green:'--green',
+  };
   for (const [key, cssVar] of Object.entries(varMap)) {
     if (palette[key]) root.style.setProperty(cssVar, palette[key]);
   }
-
-  // Button gradients via CSS vars
   root.style.setProperty('--btn-primary-bg', palette.btnPrimary || '');
   root.style.setProperty('--btn-primary-hover', palette.btnPrimaryHover || '');
+  document.body.style.background = palette.parchment || '';
 
-  // Body background gradient
-  document.body.style.setProperty('--bg-gradient-override', palette.bgGradient || '');
+  // Dynamic font loading
+  if (theme.googleFontsUrl) {
+    let fontLink = document.getElementById('dynamic-font-link');
+    if (!fontLink) {
+      fontLink = document.createElement('link');
+      fontLink.id = 'dynamic-font-link';
+      fontLink.rel = 'stylesheet';
+      document.head.appendChild(fontLink);
+    }
+    fontLink.href = theme.googleFontsUrl;
+  }
 
-  // Fonts
-  if (theme.fontDisplay) root.style.setProperty('--font-display', theme.fontDisplay);
-  if (theme.fontBody)    root.style.setProperty('--font-body',    theme.fontBody);
+  // Background gradient via ::before — patch with inline style on body
+  const bgEl = document.getElementById('bg-gradient-layer');
+  if (bgEl) bgEl.style.background = palette.bgGradient || '';
 
   _activeThemeId = theme.id;
   localStorage.setItem('entriference-theme', theme.id);
+  // Persist dark preference separately so toggle still works
+  localStorage.setItem('cocreate-theme', isDark ? 'dark' : 'light');
   renderThemeLists();
+  // Update all pyramid btn open states
+  document.querySelectorAll('.pyramid-btn').forEach(btn => {
+    const menu = btn.closest('.pyramid-menu-wrap')?.querySelector('.pyramid-dropdown');
+    if (menu?.classList.contains('open')) btn.classList.add('open');
+    else btn.classList.remove('open');
+  });
 }
 
 function loadThemeById(id) {
@@ -1512,7 +1828,7 @@ function loadThemeById(id) {
 }
 
 function initThemeSystem() {
-  const savedId = localStorage.getItem('entriference-theme') || 'parchment';
+  const savedId = localStorage.getItem('entriference-theme') || 'chromium';
   const theme = PRESET_THEMES.find(t => t.id === savedId) || PRESET_THEMES[0];
   _activeThemeId = theme.id;
   applyTheme(theme, document.body.classList.contains('dark'));
@@ -1520,7 +1836,7 @@ function initThemeSystem() {
 }
 
 function renderThemeLists() {
-  ['landingThemeList','lobbyThemeList','sessionThemeList'].forEach(id => {
+  ['globalThemeList','landingThemeList','lobbyThemeList','sessionThemeList'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     el.innerHTML = PRESET_THEMES.map(t => `
@@ -1552,28 +1868,21 @@ document.addEventListener('click', e => {
 });
 
 function toggleTheme() {
-  const isDark = document.body.classList.toggle('dark');
+  const isDark = !document.body.classList.contains('dark');
   localStorage.setItem('cocreate-theme', isDark ? 'dark' : 'light');
   updateThemeBtns(isDark);
-  // Re-apply current theme palette for the new mode
   const theme = PRESET_THEMES.find(t => t.id === _activeThemeId) || PRESET_THEMES[0];
   applyTheme(theme, isDark);
 }
 
 function updateThemeBtns(isDark) {
-  const label = isDark ? '◑ Light' : '◑ Dark';
-  ['landingThemeBtn','lobbyThemeBtn'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = label;
-  });
-  // Session button is icon-only
-  const sessionBtn = document.getElementById('sessionThemeBtn');
-  if (sessionBtn) sessionBtn.textContent = '◑';
+  // Theme buttons are now inside pyramid menus — no separate button labels to update
+  renderThemeLists();
 }
 
 function initTheme() {
-  const saved = localStorage.getItem('cocreate-theme');
-  const isDark = saved === 'dark';
+  const savedDark = localStorage.getItem('cocreate-theme');
+  const isDark = savedDark === 'dark';
   if (isDark) document.body.classList.add('dark');
   updateThemeBtns(isDark);
   initThemeSystem();
