@@ -239,7 +239,9 @@ async function loadRoomsFromDrive() {
     const result = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false and mimeType='application/json'`,
       fields: 'files(id,name)',
-      pageSize: 200
+      pageSize: 200,
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true
     });
     const files = result.data.files || [];
     console.log('loadRoomsFromDrive: files found =', files.map(f => f.name));
@@ -363,10 +365,16 @@ async function getDrive() {
 
 // ── Drive Helpers ──────────────────────────────────────
 async function getDriveFolder(drive, name, parentId = null) {
+  // If a hardcoded CoCreate folder ID is set, use it directly (bypasses scope issues)
+  if (name === 'CoCreate' && !parentId && process.env.COCREATE_FOLDER_ID) {
+    return process.env.COCREATE_FOLDER_ID;
+  }
   const parentClause = parentId ? ` and '${parentId}' in parents` : '';
   const search = await drive.files.list({
     q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`,
-    fields: 'files(id)'
+    fields: 'files(id)',
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true
   });
   if (search.data.files[0]) return search.data.files[0].id;
   const createBody = { name, mimeType: 'application/vnd.google-apps.folder' };
@@ -399,13 +407,15 @@ async function archiveRoomOnDrive(room) {
 async function getDriveFile(drive, fileName, parentId) {
   const search = await drive.files.list({
     q: `name='${fileName}' and '${parentId}' in parents and trashed=false`,
-    fields: 'files(id)'
+    fields: 'files(id)',
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true
   });
   return search.data.files[0]?.id || null;
 }
 
 async function readDriveFile(drive, fileId) {
-  const res = await drive.files.get({ fileId, alt: 'media' });
+  const res = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true });
   return typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
 }
 
