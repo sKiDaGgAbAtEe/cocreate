@@ -232,11 +232,10 @@ async function loadRoomsFromDrive() {
   const drive = await getDrive();
   if (!drive) { console.log('loadRoomsFromDrive: no drive available, skipping'); return; }
   try {
-    console.log('loadRoomsFromDrive: looking for CoCreate/Active/rooms.json...');
-    const activeId = await getActiveFolderId(drive);
-    console.log('loadRoomsFromDrive: Active folder id =', activeId);
-    const fileId = await getDriveFile(drive, 'rooms.json', activeId);
-    if (!fileId) { console.log('loadRoomsFromDrive: rooms.json not found in Active folder'); return; }
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    console.log('loadRoomsFromDrive: CoCreate folder id =', folderId);
+    const fileId = await getDriveFile(drive, 'rooms.json', folderId);
+    if (!fileId) { console.log('loadRoomsFromDrive: rooms.json not found in CoCreate folder'); return; }
     const saved = await readDriveFile(drive, fileId);
     if (saved && typeof saved === 'object') {
       Object.entries(saved).forEach(([id, room]) => {
@@ -253,8 +252,8 @@ async function persistRoomsToDrive() {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
-    await writeDriveFile(drive, 'rooms.json', activeId, rooms);
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    await writeDriveFile(drive, 'rooms.json', folderId, rooms);
   } catch (e) {
     console.error('Could not persist rooms to Drive:', e.message);
   }
@@ -363,9 +362,9 @@ async function archiveRoomOnDrive(room) {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const archiveId = await getArchiveFolderId(drive);
+    const folderId = await getDriveFolder(drive, 'CoCreate');
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
-    await writeDriveFile(drive, fileName, archiveId, { ...room, archivedAt: new Date().toISOString() });
+    await writeDriveFile(drive, fileName, folderId, { ...room, archivedAt: new Date().toISOString() });
     console.log(`Room archived: ${fileName}`);
   } catch (e) { console.error('Could not archive room:', e.message); }
 }
@@ -624,6 +623,29 @@ app.post('/api/rooms/reload', async (req, res) => {
   res.json({ success: true, count: Object.keys(rooms).length });
 });
 
+app.get('/api/debug/folders', async (req, res) => {
+  const drive = await getDrive();
+  if (!drive) return res.json({ error: 'no drive' });
+  try {
+    // Find ALL folders named CoCreate anywhere on Drive
+    const all = await drive.files.list({
+      q: `name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name, parents, createdTime)',
+      spaces: 'drive'
+    });
+    // For each, list its children
+    const results = [];
+    for (const f of all.data.files) {
+      const children = await drive.files.list({
+        q: `'${f.id}' in parents and trashed=false`,
+        fields: 'files(id, name, mimeType)'
+      });
+      results.push({ id: f.id, createdTime: f.createdTime, parents: f.parents, children: children.data.files });
+    }
+    res.json({ cocreatefolders: results });
+  } catch(e) { res.json({ error: e.message }); }
+});
+
 app.get('/api/debug/env', (req, res) => {
   res.json({
     hasToken: !!RAILWAY_TOKEN,
@@ -640,25 +662,14 @@ app.get('/api/debug/drive', async (req, res) => {
   const drive = await getDrive();
   if (!drive) return res.json({ error: 'no drive' });
   try {
-    const root = await getDriveFolder(drive, 'CoCreate');
-    const activeId = await getActiveFolderId(drive);
-    const archiveId = await getArchiveFolderId(drive);
-
-    const activeFiles = await drive.files.list({
-      q: `'${activeId}' in parents and trashed=false`,
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const files = await drive.files.list({
+      q: `'${folderId}' in parents and trashed=false`,
       fields: 'files(id,name,mimeType,size)'
     });
-    const archiveFiles = await drive.files.list({
-      q: `'${archiveId}' in parents and trashed=false`,
-      fields: 'files(id,name,mimeType,size)'
-    });
-
     res.json({
-      rootId: root,
-      activeId,
-      archiveId,
-      activeFiles: activeFiles.data.files,
-      archiveFiles: archiveFiles.data.files,
+      folderId,
+      files: files.data.files,
       roomsInMemory: Object.keys(rooms).length
     });
   } catch(e) {
@@ -670,9 +681,9 @@ app.get('/api/archive', async (req, res) => {
   const drive = await getDrive();
   if (!drive) return res.json({ sessions: [] });
   try {
-    const archiveId = await getArchiveFolderId(drive);
+    const folderId = await getDriveFolder(drive, 'CoCreate');
     const result = await drive.files.list({
-      q: `'${archiveId}' in parents and trashed=false and mimeType='application/json'`,
+      q: `'${folderId}' in parents and trashed=false and mimeType='application/json' and not name='rooms.json' and not name='basins.json'`,
       fields: 'files(id, name, createdTime, modifiedTime)',
       orderBy: 'modifiedTime desc', pageSize: 50
     });
@@ -955,9 +966,9 @@ io.on('connection', (socket) => {
     try {
       const drive = await getDrive();
       if (drive) {
-        const activeId = await getActiveFolderId(drive);
+        const cocreateId = await getDriveFolder(drive, 'CoCreate');
         const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-        const fileId = await getDriveFile(drive, fileName, activeId);
+        const fileId = await getDriveFile(drive, fileName, cocreateId);
         if (fileId) {
           const saved = await readDriveFile(drive, fileId);
           if (saved && saved.contributions && saved.contributions.length > (room.contributions?.length || 0)) {
@@ -1203,8 +1214,8 @@ async function saveRoomToDrive(room) {
   const drive = await getDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
-    const folderId = room.saveFolderId || activeId;
+    const cocreateId = await getDriveFolder(drive, 'CoCreate');
+    const folderId = room.saveFolderId || cocreateId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
     // Also update rooms.json so contributions survive restarts
