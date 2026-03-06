@@ -50,13 +50,121 @@
     }
     input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,169,97,0.1); }
     select option { background: var(--parchment); color: var(--ink); }
-    .btn-primary { background: var(--accent); color: var(--parchment); border: none; border-radius: 6px; padding: 11px 20px; font-size: 14px; letter-spacing: 0.08em; cursor: pointer; font-family: 'Cinzel', serif; transition: all 0.2s; }
-    .btn-primary:hover { background: var(--ink); }
-    .btn-primary:disabled { opacity: 0.35; cursor: default; }
-    .btn-ghost { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 9px 16px; color: var(--accent); font-size: 13px; cursor: pointer; font-family: 'Cinzel', serif; letter-spacing: 0.06em; transition: all 0.2s; }
-    .btn-ghost:hover { border-color: var(--accent); background: rgba(139,111,71,0.08); }
+    .btn-primary {
+      background: linear-gradient(175deg, #9a7244 0%, #7a5530 45%, #6b4a28 100%);
+      color: var(--parchment);
+      border: none;
+      border-top: 1px solid rgba(255,210,120,0.35);
+      border-radius: 7px;
+      padding: 11px 20px;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      font-family: 'Cinzel', serif;
+      transition: all 0.18s;
+      position: relative;
+      overflow: hidden;
+      box-shadow:
+        0 1px 0 rgba(255,220,140,0.25) inset,
+        0 -2px 0 rgba(0,0,0,0.25) inset,
+        0 4px 12px rgba(80,45,10,0.35),
+        0 1px 3px rgba(80,45,10,0.2);
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 50%;
+      background: linear-gradient(180deg, rgba(255,255,255,0.14) 0%, transparent 100%);
+      border-radius: 7px 7px 0 0;
+      pointer-events: none;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(175deg, #a87d4e 0%, #8a6035 45%, #7a5230 100%);
+      box-shadow:
+        0 1px 0 rgba(255,220,140,0.3) inset,
+        0 -2px 0 rgba(0,0,0,0.3) inset,
+        0 6px 18px rgba(80,45,10,0.45),
+        0 2px 5px rgba(80,45,10,0.25);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active {
+      transform: translateY(1px);
+      box-shadow:
+        0 1px 0 rgba(255,220,140,0.15) inset,
+        0 -1px 0 rgba(0,0,0,0.2) inset,
+        0 2px 6px rgba(80,45,10,0.3);
+    }
+    .btn-primary:disabled { opacity: 0.35; cursor: default; transform: none; }
+    .btn-ghost {
+      background: linear-gradient(175deg, rgba(255,255,255,0.5) 0%, rgba(230,220,195,0.3) 100%);
+      border: 1px solid rgba(140,108,60,0.5);
+      border-top: 1px solid rgba(255,230,160,0.4);
+      border-radius: 7px;
+      padding: 9px 16px;
+      color: var(--accent);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: 'Cinzel', serif;
+      letter-spacing: 0.06em;
+      transition: all 0.18s;
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.6) inset,
+        0 -1px 0 rgba(0,0,0,0.08) inset,
+        0 2px 6px rgba(80,55,20,0.12);
+      text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+    }
+    .btn-ghost:hover {
+      border-color: rgba(180,140,70,0.7);
+      background: linear-gradient(175deg, rgba(255,255,255,0.65) 0%, rgba(235,220,185,0.45) 100%);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.7) inset,
+        0 -1px 0 rgba(0,0,0,0.1) inset,
+        0 4px 12px rgba(80,55,20,0.18);
+      transform: translateY(-1px);
+      color: var(--ink);
+    }
     .label { font-size: 10px; letter-spacing: 0.16em; color: var(--accent); text-transform: uppercase; font-family: 'Cinzel', serif; margin-bottom: 5px; display: block; }
     .card { background: rgba(255,255,255,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 24px; box-shadow: 0 4px 20px var(--shadow); }
+    /* ── Landing card fanciful overrides ── */
+    .landing-card.card {
+      background:
+        linear-gradient(160deg, rgba(255,255,255,0.72) 0%, rgba(240,232,210,0.55) 60%, rgba(220,208,180,0.45) 100%);
+      border: 1px solid rgba(180,148,80,0.45);
+      border-radius: 14px;
+      padding: 26px;
+      box-shadow:
+        0 2px 0 rgba(255,255,255,0.9) inset,
+        0 -1px 0 rgba(140,110,60,0.2) inset,
+        0 8px 32px rgba(80,55,20,0.18),
+        0 2px 8px rgba(80,55,20,0.1),
+        0 0 0 1px rgba(180,148,80,0.12);
+      position: relative;
+      overflow: hidden;
+    }
+    .landing-card.card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,240,180,0.9) 40%, rgba(255,240,180,0.9) 60%, transparent);
+      pointer-events: none;
+    }
+    .landing-card.card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: -60%; width: 40%; height: 100%;
+      background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,0.18) 50%, transparent 100%);
+      pointer-events: none;
+      animation: card-sheen 7s ease-in-out infinite;
+    }
+    @keyframes card-sheen {
+      0%   { left: -60%; opacity: 0; }
+      10%  { opacity: 1; }
+      40%  { left: 120%; opacity: 0.6; }
+      100% { left: 120%; opacity: 0; }
+    }
 
     /* ── LANDING ──────────────────── */
     #landing { flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 20px; gap: 14px; }
@@ -183,10 +291,10 @@
     /* ── DARK MODE ────────────────── */
     body.dark {
       --parchment: #0a0a0f; --parchment2: #0d0d14; --parchment3: #13131a;
-      --ink: #e8e4dc; --ink-dim: #d8d4cc; --ink-muted: #7a7068; --ink-faint: #4a4540;
-      --accent: #c4a882; --gold: #c4a882; --gold-dim: rgba(196,168,130,0.15);
-      --border: #1e1c28; --border2: #2a2830;
-      --shadow: rgba(0,0,0,0.3); --green: #5a9e6f;
+      --ink: #f0ece0; --ink-dim: #e4dfd4; --ink-muted: #a09080; --ink-faint: #6a6058;
+      --accent: #d4b882; --gold: #d4a840; --gold-dim: rgba(212,168,64,0.18);
+      --border: #2a2430; --border2: #3a3448;
+      --shadow: rgba(0,0,0,0.45); --green: #5a9e6f;
       background: var(--parchment);
     }
     body.dark::before {
@@ -195,13 +303,52 @@
         radial-gradient(circle at 80% 70%, rgba(196,168,130,0.02) 0%, transparent 50%);
     }
     body.dark .card { background: #13131a; border-color: #2a2830; }
+    body.dark .landing-card.card {
+      background: linear-gradient(160deg, #1a1828 0%, #13121e 60%, #0f0e18 100%);
+      border: 1px solid rgba(180,140,60,0.3);
+      box-shadow:
+        0 2px 0 rgba(255,220,140,0.06) inset,
+        0 -1px 0 rgba(0,0,0,0.5) inset,
+        0 8px 40px rgba(0,0,0,0.6),
+        0 2px 10px rgba(0,0,0,0.4),
+        0 0 0 1px rgba(120,90,40,0.15);
+    }
+    body.dark .landing-card.card::before {
+      background: linear-gradient(90deg, transparent, rgba(212,168,64,0.3) 40%, rgba(212,168,64,0.3) 60%, transparent);
+    }
     body.dark .drive-row { background: #0a0a0f; border-color: #2a2830; }
     body.dark input[type="text"], body.dark select, body.dark textarea { background: #0a0a0f; border-color: #2a2830; }
     body.dark select option { background: #13131a; }
-    body.dark .btn-primary { background: var(--accent); color: #0a0a0f; }
-    body.dark .btn-primary:hover { background: #e8e4dc; color: #0a0a0f; }
-    body.dark .btn-ghost { border-color: #2a2830; color: var(--ink-muted); }
-    body.dark .btn-ghost:hover { border-color: var(--accent); color: var(--accent); background: rgba(196,168,130,0.08); }
+    body.dark .btn-primary {
+      background: linear-gradient(175deg, #c49040 0%, #a87830 45%, #8a6020 100%);
+      color: #f0ece0;
+      border-top: 1px solid rgba(255,220,100,0.3);
+      box-shadow:
+        0 1px 0 rgba(255,220,100,0.2) inset,
+        0 -2px 0 rgba(0,0,0,0.5) inset,
+        0 4px 16px rgba(0,0,0,0.5),
+        0 1px 4px rgba(0,0,0,0.4);
+      text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+    }
+    body.dark .btn-primary:hover {
+      background: linear-gradient(175deg, #d4a050 0%, #b88838 45%, #9a7028 100%);
+    }
+    body.dark .btn-ghost {
+      background: linear-gradient(175deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%);
+      border: 1px solid #3a3448;
+      border-top: 1px solid rgba(200,170,100,0.2);
+      color: var(--ink-muted);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.05) inset,
+        0 -1px 0 rgba(0,0,0,0.3) inset,
+        0 2px 8px rgba(0,0,0,0.3);
+      text-shadow: none;
+    }
+    body.dark .btn-ghost:hover {
+      border-color: rgba(180,140,60,0.5);
+      color: var(--accent);
+      background: linear-gradient(175deg, rgba(180,140,60,0.1) 0%, rgba(180,140,60,0.05) 100%);
+    }
     body.dark .lobby-header { background: rgba(13,13,20,0.8); border-color: #1e1c28; }
     body.dark .player-pill { background: rgba(196,168,130,0.1); border-color: #2a2830; }
     body.dark .room-card { background: #13131a; border-color: #1e1c28; }
@@ -599,7 +746,7 @@
 
     <!-- State B: logged in -->
     <div id="landingLoggedIn" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:rgba(139,111,71,0.06);border:1px solid var(--border);border-radius:8px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:linear-gradient(135deg,rgba(180,148,80,0.1) 0%,rgba(139,111,71,0.05) 100%);border:1px solid rgba(160,128,60,0.35);border-top:1px solid rgba(220,185,100,0.25);border-radius:8px;box-shadow:0 1px 0 rgba(255,255,255,0.5) inset,0 2px 8px rgba(80,55,20,0.08)">
         <img id="landingAvatar" src="" alt="" style="width:32px;height:32px;border-radius:50%;display:none" />
         <div style="flex:1;min-width:0">
           <div id="landingUserName" style="font-family:'Cinzel',serif;font-size:13px;color:var(--ink);font-weight:500"></div>
@@ -608,7 +755,7 @@
         <button onclick="openProfileModal(false)" title="Edit profile" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--ink-muted);padding:4px;transition:color 0.2s" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--ink-muted)'">◈</button>
       </div>
       <div style="display:flex;gap:8px">
-        <a href="/auth/logout" style="flex:1;text-align:center;padding:9px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em;color:var(--ink-faint);border:1px solid var(--border2);border-radius:6px;text-decoration:none;transition:all 0.2s" onmouseover="this.style.borderColor='var(--ink-muted)'" onmouseout="this.style.borderColor='var(--border2)'">Disconnect</a>
+        <a href="/auth/logout" style="flex:1;text-align:center;padding:9px;font-family:'Cinzel',serif;font-size:11px;letter-spacing:0.06em;color:var(--ink-muted);border:1px solid rgba(140,108,60,0.4);border-top:1px solid rgba(220,185,100,0.25);border-radius:7px;text-decoration:none;transition:all 0.18s;background:linear-gradient(175deg,rgba(255,255,255,0.4) 0%,rgba(220,205,175,0.25) 100%);box-shadow:0 1px 0 rgba(255,255,255,0.55) inset,0 -1px 0 rgba(0,0,0,0.07) inset,0 2px 6px rgba(80,55,20,0.1);text-shadow:0 1px 0 rgba(255,255,255,0.5)" onmouseover="this.style.color='var(--ink)';this.style.borderColor='rgba(160,128,60,0.6)'" onmouseout="this.style.color='var(--ink-muted)';this.style.borderColor='rgba(140,108,60,0.4)'">Disconnect</a>
         <button class="btn-primary" id="enterBtn" onclick="enterLobby()" style="flex:2">Enter →</button>
       </div>
     </div>
