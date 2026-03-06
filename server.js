@@ -6,6 +6,7 @@ const { google } = require('googleapis');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const httpServer = createServer(app);
@@ -35,6 +36,28 @@ const oauth2Client = new google.auth.OAuth2(
 
 let userTokens = null;
 let currentUserInfo = null; // tracks logged-in user identity separately from Drive token
+
+const TOKEN_PATH = path.join(__dirname, '.tokens.json');
+
+function saveTokensToDisk() {
+  try {
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify({ userTokens, currentUserInfo }));
+  } catch (e) { console.error('Could not save tokens:', e.message); }
+}
+
+function loadTokensFromDisk() {
+  try {
+    if (fs.existsSync(TOKEN_PATH)) {
+      const data = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
+      if (data.userTokens) {
+        userTokens = data.userTokens;
+        currentUserInfo = data.currentUserInfo || null;
+        oauth2Client.setCredentials(userTokens);
+        console.log('◈ Tokens restored from disk');
+      }
+    }
+  } catch (e) { console.error('Could not load tokens from disk:', e.message); }
+}
 
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
@@ -69,6 +92,7 @@ app.get('/auth/google/callback', async (req, res) => {
       oauth2Client.setCredentials(tokens);
     }
 
+    saveTokensToDisk();
     res.redirect('/?auth=success');
   } catch (e) {
     console.error('Auth callback error:', e.message);
@@ -698,7 +722,7 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`\n◈ CoCreate is running`);
   console.log(`  Open: http://localhost:${PORT}\n`);
-  // Load persisted rooms after a short delay to allow OAuth to be ready
+  loadTokensFromDisk();
   setTimeout(loadRoomsFromDrive, 3000);
   setTimeout(loadProfiles, 3500);
 });
