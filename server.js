@@ -38,7 +38,9 @@ let currentUserInfo = null; // tracks logged-in user identity separately from Dr
 
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.readonly'
+  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/userinfo.profile',
+  'https://www.googleapis.com/auth/userinfo.email'
 ];
 
 app.get('/auth/google', (req, res) => {
