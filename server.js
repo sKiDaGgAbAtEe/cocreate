@@ -37,116 +37,46 @@ let userTokens = null;
 let userInfo = null; // { name, email, picture }
 
 // Persist tokens to disk so they survive Railway restarts
-// ── Token Storage (Railway env vars — survives deploys) ──
-// Tokens are persisted as OAUTH_TOKENS and OAUTH_USER_INFO env vars via Railway API
-const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
-const RAILWAY_TOKEN   = process.env.RAILWAY_API_TOKEN;
-// Railway injects these automatically into every container
-const RAILWAY_PROJECT = process.env.RAILWAY_PROJECT_ID;
-const RAILWAY_ENV     = process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_ENVIRONMENT_NAME;
-const RAILWAY_SERVICE = process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_SERVICE_NAME;
+const TOKEN_FILE = path.join(__dirname, '.oauth-tokens.json');
+const USER_INFO_FILE = path.join(__dirname, '.oauth-userinfo.json');
 
-async function saveTokensToEnv(tokens) {
-  // Always save to disk as fast local cache
-  try { require('fs').writeFileSync('/tmp/.oauth-tokens.json', JSON.stringify(tokens)); } catch(_) {}
-  // Persist to Railway env var so it survives redeploys
-  if (!RAILWAY_TOKEN || !RAILWAY_PROJECT || !RAILWAY_ENV || !RAILWAY_SERVICE) {
-    console.log('Railway API vars not set — token will not survive redeploy');
-    return;
-  }
-  try {
-    const fetch = require('node-fetch');
-    await fetch(RAILWAY_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RAILWAY_TOKEN}` },
-      body: JSON.stringify({
-        query: `mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
-          variableCollectionUpsert(input: $input)
-        }`,
-        variables: {
-          input: {
-            projectId: RAILWAY_PROJECT,
-            environmentId: RAILWAY_ENV,
-            serviceId: RAILWAY_SERVICE,
-            variables: { OAUTH_TOKENS: JSON.stringify(tokens) }
-          }
-        }
-      })
-    });
-    console.log('Token persisted to Railway env');
-  } catch(e) { console.error('Could not persist token to Railway:', e.message); }
+function saveTokensToDisk(tokens) {
+  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens)); } catch(e) { console.error('Could not save tokens:', e.message); }
 }
 
-async function saveUserInfoToEnv(info) {
-  try { require('fs').writeFileSync('/tmp/.oauth-userinfo.json', JSON.stringify(info)); } catch(_) {}
-  if (!RAILWAY_TOKEN || !RAILWAY_PROJECT || !RAILWAY_ENV || !RAILWAY_SERVICE) return;
-  try {
-    const fetch = require('node-fetch');
-    await fetch(RAILWAY_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RAILWAY_TOKEN}` },
-      body: JSON.stringify({
-        query: `mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
-          variableCollectionUpsert(input: $input)
-        }`,
-        variables: {
-          input: {
-            projectId: RAILWAY_PROJECT,
-            environmentId: RAILWAY_ENV,
-            serviceId: RAILWAY_SERVICE,
-            variables: { OAUTH_USER_INFO: JSON.stringify(info) }
-          }
-        }
-      })
-    });
-  } catch(e) {}
+function loadTokensFromDisk() {
+  try { return JSON.parse(require('fs').readFileSync(TOKEN_FILE, 'utf8')); } catch(e) { return null; }
 }
 
-function loadTokens() {
-  // 1. Check env var (persisted from last login)
-  if (process.env.OAUTH_TOKENS) {
-    try { return JSON.parse(process.env.OAUTH_TOKENS); } catch(_) {}
-  }
-  // 2. Check tmp file (same process session)
-  try { return JSON.parse(require('fs').readFileSync('/tmp/.oauth-tokens.json', 'utf8')); } catch(_) {}
-  return null;
+function saveUserInfoToDisk(info) {
+  try { require('fs').writeFileSync(USER_INFO_FILE, JSON.stringify(info)); } catch(e) {}
 }
 
-function loadUserInfo() {
-  if (process.env.OAUTH_USER_INFO) {
-    try { return JSON.parse(process.env.OAUTH_USER_INFO); } catch(_) {}
-  }
-  try { return JSON.parse(require('fs').readFileSync('/tmp/.oauth-userinfo.json', 'utf8')); } catch(_) {}
-  return null;
+function loadUserInfoFromDisk() {
+  try { return JSON.parse(require('fs').readFileSync(USER_INFO_FILE, 'utf8')); } catch(e) { return null; }
 }
 
-// Backwards compat aliases
-const saveTokensToDisk   = saveTokensToEnv;
-const saveUserInfoToDisk = saveUserInfoToEnv;
+// Load tokens on startup
+const savedTokens = loadTokensFromDisk();
+if (savedTokens) {
+  userTokens = savedTokens;
+  oauth2Client.setCredentials(savedTokens);
+  console.log('OAuth tokens loaded from disk');
+}
+userInfo = loadUserInfoFromDisk();
 
-const REQUIRED_SCOPES = [
+const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
-const savedTokens = loadTokens();
-if (savedTokens) {
-  userTokens = savedTokens;
-  oauth2Client.setCredentials(savedTokens);
-  console.log('OAuth tokens loaded, scopes:', savedTokens.scope || 'unknown');
-} else {
-  console.log('No OAuth tokens found — user must sign in');
-}
-userInfo = loadUserInfo();
-
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: REQUIRED_SCOPES,
-    prompt: 'consent',
-    include_granted_scopes: false  // don't merge with previously granted scopes
+    scope: DRIVE_SCOPES,
+    prompt: 'consent'  // force consent screen so Google always returns refresh_token
   });
   res.redirect(url);
 });
@@ -157,7 +87,6 @@ app.get('/auth/google/callback', async (req, res) => {
     userTokens = tokens;
     oauth2Client.setCredentials(tokens);
     saveTokensToDisk(tokens);
-    console.log('OAuth token granted scopes:', tokens.scope);
     // Fetch Google profile info
     try {
       const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
@@ -167,8 +96,6 @@ app.get('/auth/google/callback', async (req, res) => {
       console.log('User info saved:', userInfo.email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
     res.redirect('/?auth=success');
-    // Reload rooms now that we have auth
-    setTimeout(loadRoomsFromDrive, 500);
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
@@ -178,14 +105,15 @@ app.get('/auth/google/callback', async (req, res) => {
 app.get('/auth/logout', (req, res) => {
   userTokens = null;
   userInfo = null;
-  try { require('fs').unlinkSync('/tmp/.oauth-tokens.json'); } catch(_) {}
-  try { require('fs').unlinkSync('/tmp/.oauth-userinfo.json'); } catch(_) {}
+  try { require('fs').unlinkSync(TOKEN_FILE); } catch(e) {}
+  try { require('fs').unlinkSync(USER_INFO_FILE); } catch(e) {}
   oauth2Client.revokeCredentials().catch(() => {});
   res.redirect('/?auth=logout');
 });
 
 app.get('/auth/status', (req, res) => res.json({
-  connected: !!userTokens,
+  connected: !!userTokens || !!getServiceAccountDrive(),
+  serviceAccount: !!getServiceAccountDrive(),
   userOAuth: !!userTokens,
   userInfo: userInfo || null
 }));
@@ -229,60 +157,30 @@ function uniqueMembers(room) {
 }
 
 async function loadRoomsFromDrive() {
-  const drive = await getFileDrive();
-  if (!drive) { console.log('loadRoomsFromDrive: no drive available, skipping'); return; }
+  const drive = await getSystemDrive();
+  if (!drive) return;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    console.log('loadRoomsFromDrive: CoCreate folder id =', folderId);
-
-    // List all JSON files in CoCreate (individual room files + rooms.json)
-    const result = await drive.files.list({
-      q: `'${folderId}' in parents and trashed=false and mimeType='application/json'`,
-      fields: 'files(id,name)',
-      pageSize: 200,
-      includeItemsFromAllDrives: true,
-      supportsAllDrives: true
-    });
-    const files = result.data.files || [];
-    console.log('loadRoomsFromDrive: files found =', files.map(f => f.name));
-
-    // Try rooms.json first (bulk save format)
-    const roomsJson = files.find(f => f.name === 'rooms.json');
-    if (roomsJson) {
-      const saved = await readDriveFile(drive, roomsJson.id);
-      if (saved && typeof saved === 'object') {
-        Object.entries(saved).forEach(([id, room]) => {
-          rooms[id] = { ...room, socketMap: {} };
-        });
-        console.log(`loadRoomsFromDrive: loaded ${Object.keys(rooms).length} rooms from rooms.json`);
-        return;
-      }
+    const activeId = await getActiveFolderId(drive);
+    const fileId = await getDriveFile(drive, 'rooms.json', activeId);
+    if (!fileId) return;
+    const saved = await readDriveFile(drive, fileId);
+    if (saved && typeof saved === 'object') {
+      Object.entries(saved).forEach(([id, room]) => {
+        rooms[id] = { ...room, socketMap: {} };
+      });
+      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive (Active)`);
     }
-
-    // Fall back to individual room files
-    const roomFiles = files.filter(f => f.name !== 'rooms.json' && f.name !== 'basins.json');
-    let count = 0;
-    for (const file of roomFiles) {
-      try {
-        const data = await readDriveFile(drive, file.id);
-        if (data && data.id) {
-          rooms[data.id] = { ...data, socketMap: {} };
-          count++;
-        }
-      } catch(e) { console.error('Could not read room file:', file.name, e.message); }
-    }
-    console.log(`loadRoomsFromDrive: loaded ${count} rooms from individual files`);
   } catch (e) {
-    console.error('loadRoomsFromDrive ERROR:', e.message);
+    console.error('Could not load rooms from Drive:', e.message);
   }
 }
 
 async function persistRoomsToDrive() {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    await writeDriveFile(drive, 'rooms.json', folderId, rooms);
+    const activeId = await getActiveFolderId(drive);
+    await writeDriveFile(drive, 'rooms.json', activeId, rooms);
   } catch (e) {
     console.error('Could not persist rooms to Drive:', e.message);
   }
@@ -340,69 +238,12 @@ Rules:
   }
 ];
 
-// ── Drive Auth ─────────────────────────────────────────
-async function getDrive() {
-  if (!userTokens) return null;
-  oauth2Client.setCredentials(userTokens);
-  const expiryDate = userTokens.expiry_date;
-  const fiveMin = 5 * 60 * 1000;
-  if (expiryDate && Date.now() > expiryDate - fiveMin) {
-    try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      userTokens = credentials;
-      oauth2Client.setCredentials(credentials);
-      saveTokensToDisk(credentials);
-      console.log('OAuth token refreshed');
-    } catch (e) {
-      console.error('Token refresh failed:', e.message);
-      userTokens = null;
-      try { require('fs').unlinkSync('/tmp/.oauth-tokens.json'); } catch(_) {}
-      return null;
-    }
-  }
-  return google.drive({ version: 'v3', auth: oauth2Client });
-}
-
-// Service account drive — owns all CoCreate files, used for all file ops
-let _serviceDrive = null;
-function getServiceDrive() {
-  if (_serviceDrive) return _serviceDrive;
-  const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!saJson) { console.log('No service account JSON — falling back to OAuth for Drive'); return null; }
-  try {
-    const creds = JSON.parse(saJson);
-    const auth = new google.auth.GoogleAuth({
-      credentials: creds,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    });
-    _serviceDrive = google.drive({ version: 'v3', auth });
-    console.log('Service account drive initialised');
-    return _serviceDrive;
-  } catch(e) {
-    console.error('Service account init failed:', e.message);
-    return null;
-  }
-}
-
-// getFileDrive: use service account if available, else OAuth
-async function getFileDrive() {
-  const sa = getServiceDrive();
-  if (sa) return sa;
-  return getDrive();
-}
-
 // ── Drive Helpers ──────────────────────────────────────
 async function getDriveFolder(drive, name, parentId = null) {
-  // If a hardcoded CoCreate folder ID is set, use it directly (bypasses scope issues)
-  if (name === 'CoCreate' && !parentId && process.env.COCREATE_FOLDER_ID) {
-    return process.env.COCREATE_FOLDER_ID;
-  }
   const parentClause = parentId ? ` and '${parentId}' in parents` : '';
   const search = await drive.files.list({
     q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false${parentClause}`,
-    fields: 'files(id)',
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true
+    fields: 'files(id)'
   });
   if (search.data.files[0]) return search.data.files[0].id;
   const createBody = { name, mimeType: 'application/vnd.google-apps.folder' };
@@ -422,12 +263,12 @@ async function getArchiveFolderId(drive) {
 }
 
 async function archiveRoomOnDrive(room) {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const archiveId = await getArchiveFolderId(drive);
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
-    await writeDriveFile(drive, fileName, folderId, { ...room, archivedAt: new Date().toISOString() });
+    await writeDriveFile(drive, fileName, archiveId, { ...room, archivedAt: new Date().toISOString() });
     console.log(`Room archived: ${fileName}`);
   } catch (e) { console.error('Could not archive room:', e.message); }
 }
@@ -435,15 +276,13 @@ async function archiveRoomOnDrive(room) {
 async function getDriveFile(drive, fileName, parentId) {
   const search = await drive.files.list({
     q: `name='${fileName}' and '${parentId}' in parents and trashed=false`,
-    fields: 'files(id)',
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true
+    fields: 'files(id)'
   });
   return search.data.files[0]?.id || null;
 }
 
 async function readDriveFile(drive, fileId) {
-  const res = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true });
+  const res = await drive.files.get({ fileId, alt: 'media' });
   return typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
 }
 
@@ -474,9 +313,62 @@ async function writePlainTextFile(drive, fileName, parentId, content) {
   }
 }
 
+// ── Service Account Drive (system folders) ────────────
+let _serviceAccountDrive = null;
+
+function getServiceAccountDrive() {
+  if (_serviceAccountDrive) return _serviceAccountDrive;
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!raw) return null;
+  try {
+    const key = JSON.parse(raw);
+    const auth = new google.auth.GoogleAuth({
+      credentials: key,
+      scopes: ['https://www.googleapis.com/auth/drive']
+    });
+    _serviceAccountDrive = google.drive({ version: 'v3', auth });
+    console.log('◈ Service account Drive ready:', key.client_email);
+    return _serviceAccountDrive;
+  } catch (e) {
+    console.error('Service account init failed:', e.message);
+    return null;
+  }
+}
+
+// getSystemDrive — uses OAuth (personal account owns all CoCreate folders)
+// Service account is preserved for future use but CoCreate data lives in the personal Drive
+async function getSystemDrive() {
+  return getDrive();
+}
+
+async function getDrive() {
+  if (!userTokens) return null;
+  oauth2Client.setCredentials(userTokens);
+
+  // Auto-refresh if token is expired or expires within 5 minutes
+  const expiryDate = userTokens.expiry_date;
+  const fiveMin = 5 * 60 * 1000;
+  if (expiryDate && Date.now() > expiryDate - fiveMin) {
+    try {
+      const { credentials } = await oauth2Client.refreshAccessToken();
+      userTokens = credentials;
+      oauth2Client.setCredentials(credentials);
+      saveTokensToDisk(credentials);
+      console.log('OAuth token refreshed and saved');
+    } catch (e) {
+      console.error('Token refresh failed:', e.message);
+      userTokens = null;
+      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
+      return null;
+    }
+  }
+
+  return google.drive({ version: 'v3', auth: oauth2Client });
+}
+
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -504,7 +396,7 @@ app.get('/api/basins', async (req, res) => {
 });
 
 app.post('/api/basins', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -537,7 +429,7 @@ app.post('/api/basins', async (req, res) => {
 
 // Synthesize a system prompt from a Drive folder's documents
 app.post('/api/basins/synthesize', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { folderId, folderName, name, description } = req.body;
   if (!folderId) return res.status(400).json({ error: 'folderId required' });
@@ -586,7 +478,7 @@ app.post('/api/basins/generate-bio', async (req, res) => {
 
 // Update basin biography — owner only
 app.patch('/api/basins/:id/bio', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { biography, playerName } = req.body;
   try {
@@ -609,7 +501,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
 
 // Delete a basin — only the creator can remove it; default basins are protected
 app.delete('/api/basins/:id', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { playerName } = req.body;
   if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
@@ -635,7 +527,7 @@ app.delete('/api/basins/:id', async (req, res) => {
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const drive = await getFileDrive();
+  const drive = await getDrive();
   if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
@@ -688,67 +580,13 @@ app.post('/api/rooms/reload', async (req, res) => {
   res.json({ success: true, count: Object.keys(rooms).length });
 });
 
-app.get('/api/debug/folders', async (req, res) => {
-  const drive = await getFileDrive();
-  if (!drive) return res.json({ error: 'no drive' });
-  try {
-    // Find ALL folders named CoCreate anywhere on Drive
-    const all = await drive.files.list({
-      q: `name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields: 'files(id, name, parents, createdTime)',
-      spaces: 'drive'
-    });
-    // For each, list its children
-    const results = [];
-    for (const f of all.data.files) {
-      const children = await drive.files.list({
-        q: `'${f.id}' in parents and trashed=false`,
-        fields: 'files(id, name, mimeType)'
-      });
-      results.push({ id: f.id, createdTime: f.createdTime, parents: f.parents, children: children.data.files });
-    }
-    res.json({ cocreatefolders: results });
-  } catch(e) { res.json({ error: e.message }); }
-});
-
-app.get('/api/debug/env', (req, res) => {
-  res.json({
-    hasToken: !!RAILWAY_TOKEN,
-    projectId: RAILWAY_PROJECT || 'NOT SET',
-    environmentId: RAILWAY_ENV || 'NOT SET',
-    serviceId: RAILWAY_SERVICE || 'NOT SET',
-    hasOauthTokens: !!process.env.OAUTH_TOKENS,
-    hasUserInfo: !!process.env.OAUTH_USER_INFO,
-    nodeEnv: process.env.NODE_ENV || 'not set'
-  });
-});
-
-app.get('/api/debug/drive', async (req, res) => {
-  const drive = await getFileDrive();
-  if (!drive) return res.json({ error: 'no drive' });
-  try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    const files = await drive.files.list({
-      q: `'${folderId}' in parents and trashed=false`,
-      fields: 'files(id,name,mimeType,size)'
-    });
-    res.json({
-      folderId,
-      files: files.data.files,
-      roomsInMemory: Object.keys(rooms).length
-    });
-  } catch(e) {
-    res.json({ error: e.message });
-  }
-});
-
 app.get('/api/archive', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json({ sessions: [] });
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const archiveId = await getArchiveFolderId(drive);
     const result = await drive.files.list({
-      q: `'${folderId}' in parents and trashed=false and mimeType='application/json' and not name='rooms.json' and not name='basins.json'`,
+      q: `'${archiveId}' in parents and trashed=false and mimeType='application/json'`,
       fields: 'files(id, name, createdTime, modifiedTime)',
       orderBy: 'modifiedTime desc', pageSize: 50
     });
@@ -757,7 +595,7 @@ app.get('/api/archive', async (req, res) => {
 });
 
 app.get('/api/archive/:fileId', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try { res.json(await readDriveFile(drive, req.params.fileId)); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -901,7 +739,8 @@ async function getSystemContext() {
   if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
     return _systemContextCache;
   }
-  const drive = await getFileDrive();
+  // Always use OAuth drive — Docs/Profiles live in the personal account, not the service account
+  const drive = await getDrive();
   if (!drive) return '';
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1029,11 +868,11 @@ io.on('connection', (socket) => {
 
     // Always try to load the freshest contributions from the individual room file on Drive
     try {
-      const drive = await getFileDrive();
+      const drive = await getSystemDrive();
       if (drive) {
-        const cocreateId = await getDriveFolder(drive, 'CoCreate');
+        const activeId = await getActiveFolderId(drive);
         const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-        const fileId = await getDriveFile(drive, fileName, cocreateId);
+        const fileId = await getDriveFile(drive, fileName, activeId);
         if (fileId) {
           const saved = await readDriveFile(drive, fileId);
           if (saved && saved.contributions && saved.contributions.length > (room.contributions?.length || 0)) {
@@ -1276,11 +1115,11 @@ io.on('connection', (socket) => {
 
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return;
   try {
-    const cocreateId = await getDriveFolder(drive, 'CoCreate');
-    const folderId = room.saveFolderId || cocreateId;
+    const activeId = await getActiveFolderId(drive);
+    const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
     // Also update rooms.json so contributions survive restarts
@@ -1373,7 +1212,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     }
 
     // Optionally save to Drive
-    const drive = await getFileDrive();
+    const drive = await getSystemDrive();
     if (drive) {
       try {
         const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
@@ -1390,60 +1229,21 @@ app.post('/api/rooms/:id/process', async (req, res) => {
   }
 });
 
-// ── Voice Room (Daily.co) ──────────────────────────────
-app.post('/api/voice/room', async (req, res) => {
-  const apiKey = process.env.DAILY_API_KEY;
-  if (!apiKey) return res.status(503).json({ error: 'Voice not configured' });
-  try {
-    // Use a stable room name — one persistent lobby voice channel
-    const roomName = 'entriference-lobby';
-    // Try to get existing room first
-    const getRes = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
-      headers: { Authorization: `Bearer ${apiKey}` }
-    });
-    if (getRes.ok) {
-      const room = await getRes.json();
-      return res.json({ url: room.url });
-    }
-    // Create it
-    const createRes = await fetch('https://api.daily.co/v1/rooms', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        name: roomName,
-        properties: {
-          enable_chat: false,
-          enable_screenshare: false,
-          start_video_off: true,
-          start_audio_off: false,
-          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 365 // 1 year
-        }
-      })
-    });
-    const room = await createRes.json();
-    if (room.error) throw new Error(room.error);
-    res.json({ url: room.url });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // ── Profile Routes ─────────────────────────────────────
 app.get('/api/profile/by-email/:email', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
     const profilesId = await getDriveFolder(drive, 'Profiles', root);
+    // List all JSON files and find one matching the email
     const files = await drive.files.list({
       q: `'${profilesId}' in parents and mimeType='application/json' and trashed=false`,
       fields: 'files(id, name)', pageSize: 100
     });
     for (const file of files.data.files) {
-      try {
-        const profile = await readDriveFile(drive, file.id);
-        if (profile?.email === req.params.email) return res.json({ exists: true, profile });
-      } catch {}
+      const profile = await readDriveFile(drive, file.id);
+      if (profile?.email === req.params.email) return res.json({ exists: true, profile });
     }
     res.json({ exists: false });
   } catch(e) {
@@ -1452,7 +1252,7 @@ app.get('/api/profile/by-email/:email', async (req, res) => {
 });
 
 app.get('/api/profile/:name', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1469,7 +1269,7 @@ app.get('/api/profile/:name', async (req, res) => {
 });
 
 app.post('/api/profile', async (req, res) => {
-  const drive = await getFileDrive();
+  const drive = await getSystemDrive();
   if (!drive) return res.status(503).json({ error: 'Drive not available' });
   const { name, email, picture, who, what, working, extra } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
