@@ -17,10 +17,15 @@ app.use(express.json({ limit: '10mb' }));
 const session = require('express-session');
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'entriference-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
+  resave: true,
+  saveUninitialized: true,
+  cookie: {
+    secure: false,       // Railway proxy handles HTTPS, app receives HTTP
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  }
 });
+app.set('trust proxy', 1); // trust Railway's reverse proxy
 app.use(sessionMiddleware);
 
 // Share session with Socket.io so socket.request.session works
@@ -80,7 +85,8 @@ app.get('/auth/google/callback', async (req, res) => {
       req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
       console.log('User logged in:', data.email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
-    res.redirect('/?auth=success');
+    // Explicitly save session before redirect so cookie is set
+    req.session.save(() => res.redirect('/?auth=success'));
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
