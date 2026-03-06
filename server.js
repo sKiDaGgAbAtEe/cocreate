@@ -287,24 +287,36 @@ async function getDriveFolder(drive, name, parentId = null) {
   const parent = parentId || await getCoCreateRootId(drive);
   const search = await drive.files.list({
     q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`,
-    fields: 'files(id)'
+    fields: 'files(id)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true
   });
   if (search.data.files[0]) return search.data.files[0].id;
+  // Create the subfolder — use supportsAllDrives so it works in shared drives too
   const folder = await drive.files.create({
     requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parent] },
-    fields: 'id'
+    fields: 'id',
+    supportsAllDrives: true
   });
   return folder.data.id;
 }
 
 async function getActiveFolderId(drive) {
+  // If COCREATE_FOLDER_ID is set, use root directly for Active (avoids SA quota on subfolder create)
+  if (process.env.COCREATE_FOLDER_ID) return process.env.COCREATE_FOLDER_ID;
   const root = await getCoCreateRootId(drive);
   return getDriveFolder(drive, 'Active', root);
 }
 
 async function getArchiveFolderId(drive) {
+  // If COCREATE_FOLDER_ID is set, look for Archive subfolder but don't fail if missing
   const root = await getCoCreateRootId(drive);
-  return getDriveFolder(drive, 'Archive', root);
+  try {
+    return await getDriveFolder(drive, 'Archive', root);
+  } catch(e) {
+    console.warn('Could not get Archive folder, using root:', e.message);
+    return root;
+  }
 }
 
 async function archiveRoomOnDrive(room) {
@@ -321,13 +333,15 @@ async function archiveRoomOnDrive(room) {
 async function getDriveFile(drive, fileName, parentId) {
   const search = await drive.files.list({
     q: `name='${fileName}' and '${parentId}' in parents and trashed=false`,
-    fields: 'files(id)'
+    fields: 'files(id)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true
   });
   return search.data.files[0]?.id || null;
 }
 
 async function readDriveFile(drive, fileId) {
-  const res = await drive.files.get({ fileId, alt: 'media' });
+  const res = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true });
   return typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
 }
 
@@ -335,12 +349,13 @@ async function writeDriveFile(drive, fileName, parentId, content) {
   const existing = await getDriveFile(drive, fileName, parentId);
   const body = JSON.stringify(content, null, 2);
   if (existing) {
-    await drive.files.update({ fileId: existing, media: { mimeType: 'application/json', body } });
+    await drive.files.update({ fileId: existing, media: { mimeType: 'application/json', body }, supportsAllDrives: true });
   } else {
     await drive.files.create({
       requestBody: { name: fileName, parents: [parentId] },
       media: { mimeType: 'application/json', body },
-      fields: 'id'
+      fields: 'id',
+      supportsAllDrives: true
     });
   }
 }
@@ -348,12 +363,13 @@ async function writeDriveFile(drive, fileName, parentId, content) {
 async function writePlainTextFile(drive, fileName, parentId, content) {
   const existing = await getDriveFile(drive, fileName, parentId);
   if (existing) {
-    await drive.files.update({ fileId: existing, media: { mimeType: 'text/plain', body: content } });
+    await drive.files.update({ fileId: existing, media: { mimeType: 'text/plain', body: content }, supportsAllDrives: true });
   } else {
     await drive.files.create({
       requestBody: { name: fileName, parents: [parentId] },
       media: { mimeType: 'text/plain', body: content },
-      fields: 'id'
+      fields: 'id',
+      supportsAllDrives: true
     });
   }
 }
@@ -612,6 +628,7 @@ app.get('/api/drive/folders', async (req, res) => {
 });
 
 async function readFolderContents(drive, folderId, folderName) {
+  if (!folderId) return '';
   try {
     const files = await drive.files.list({
       q: `'${folderId}' in parents and trashed=false and (mimeType='text/plain' or mimeType='application/vnd.google-apps.document')`,
@@ -636,7 +653,13 @@ async function readFolderContents(drive, folderId, folderName) {
     }
     return content;
   } catch (e) {
-    return '';
+    // Log stale/missing folder IDs clearly so they're easy to spot in Railway logs
+    if (e.message?.includes('File not found') || e.code === 404) {
+      console.warn(`⚠ Stale folder ID skipped — "${folderName}" (${folderId}): ${e.message}`);
+    } else {
+      console.error(`readFolderContents error for "${folderName}" (${folderId}):`, e.message);
+    }
+    return ''; // always return empty string, never throw
   }
 }
 
@@ -891,9 +914,9 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   // System context: Docs + Profiles — always injected from service account Drive
   const systemContext = await getSystemContext();
 
-  // User-toggled knowledge folders — from personal OAuth Drive
+  // User-toggled knowledge folders — prefer personal OAuth Drive, fall back to service account
   let knowledgeContext = '';
-  const userDrive = userTokens ? await getDriveFromTokens(userTokens) : null;
+  const userDrive = (userTokens ? await getDriveFromTokens(userTokens) : null) || await getSystemDrive();
   if (userDrive && activeFolders && activeFolders.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
