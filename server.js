@@ -37,26 +37,93 @@ let userTokens = null;
 let userInfo = null; // { name, email, picture }
 
 // Persist tokens to disk so they survive Railway restarts
-const TOKEN_FILE = path.join(__dirname, '.oauth-tokens.json');
-const USER_INFO_FILE = path.join(__dirname, '.oauth-userinfo.json');
+// ── Token Storage (Railway env vars — survives deploys) ──
+// Tokens are persisted as OAUTH_TOKENS and OAUTH_USER_INFO env vars via Railway API
+const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
+const RAILWAY_TOKEN   = process.env.RAILWAY_API_TOKEN;
+// Railway injects these automatically into every container
+const RAILWAY_PROJECT = process.env.RAILWAY_PROJECT_ID;
+const RAILWAY_ENV     = process.env.RAILWAY_ENVIRONMENT_ID || process.env.RAILWAY_ENVIRONMENT_NAME;
+const RAILWAY_SERVICE = process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY_SERVICE_NAME;
 
-function saveTokensToDisk(tokens) {
-  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens)); } catch(e) { console.error('Could not save tokens:', e.message); }
+async function saveTokensToEnv(tokens) {
+  // Always save to disk as fast local cache
+  try { require('fs').writeFileSync('/tmp/.oauth-tokens.json', JSON.stringify(tokens)); } catch(_) {}
+  // Persist to Railway env var so it survives redeploys
+  if (!RAILWAY_TOKEN || !RAILWAY_PROJECT || !RAILWAY_ENV || !RAILWAY_SERVICE) {
+    console.log('Railway API vars not set — token will not survive redeploy');
+    return;
+  }
+  try {
+    const fetch = require('node-fetch');
+    await fetch(RAILWAY_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RAILWAY_TOKEN}` },
+      body: JSON.stringify({
+        query: `mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
+          variableCollectionUpsert(input: $input)
+        }`,
+        variables: {
+          input: {
+            projectId: RAILWAY_PROJECT,
+            environmentId: RAILWAY_ENV,
+            serviceId: RAILWAY_SERVICE,
+            variables: { OAUTH_TOKENS: JSON.stringify(tokens) }
+          }
+        }
+      })
+    });
+    console.log('Token persisted to Railway env');
+  } catch(e) { console.error('Could not persist token to Railway:', e.message); }
 }
 
-function loadTokensFromDisk() {
-  try { return JSON.parse(require('fs').readFileSync(TOKEN_FILE, 'utf8')); } catch(e) { return null; }
+async function saveUserInfoToEnv(info) {
+  try { require('fs').writeFileSync('/tmp/.oauth-userinfo.json', JSON.stringify(info)); } catch(_) {}
+  if (!RAILWAY_TOKEN || !RAILWAY_PROJECT || !RAILWAY_ENV || !RAILWAY_SERVICE) return;
+  try {
+    const fetch = require('node-fetch');
+    await fetch(RAILWAY_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${RAILWAY_TOKEN}` },
+      body: JSON.stringify({
+        query: `mutation UpsertVariables($input: VariableCollectionUpsertInput!) {
+          variableCollectionUpsert(input: $input)
+        }`,
+        variables: {
+          input: {
+            projectId: RAILWAY_PROJECT,
+            environmentId: RAILWAY_ENV,
+            serviceId: RAILWAY_SERVICE,
+            variables: { OAUTH_USER_INFO: JSON.stringify(info) }
+          }
+        }
+      })
+    });
+  } catch(e) {}
 }
 
-function saveUserInfoToDisk(info) {
-  try { require('fs').writeFileSync(USER_INFO_FILE, JSON.stringify(info)); } catch(e) {}
+function loadTokens() {
+  // 1. Check env var (persisted from last login)
+  if (process.env.OAUTH_TOKENS) {
+    try { return JSON.parse(process.env.OAUTH_TOKENS); } catch(_) {}
+  }
+  // 2. Check tmp file (same process session)
+  try { return JSON.parse(require('fs').readFileSync('/tmp/.oauth-tokens.json', 'utf8')); } catch(_) {}
+  return null;
 }
 
-function loadUserInfoFromDisk() {
-  try { return JSON.parse(require('fs').readFileSync(USER_INFO_FILE, 'utf8')); } catch(e) { return null; }
+function loadUserInfo() {
+  if (process.env.OAUTH_USER_INFO) {
+    try { return JSON.parse(process.env.OAUTH_USER_INFO); } catch(_) {}
+  }
+  try { return JSON.parse(require('fs').readFileSync('/tmp/.oauth-userinfo.json', 'utf8')); } catch(_) {}
+  return null;
 }
 
-// Load tokens on startup
+// Backwards compat aliases
+const saveTokensToDisk   = saveTokensToEnv;
+const saveUserInfoToDisk = saveUserInfoToEnv;
+
 const REQUIRED_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly',
@@ -64,13 +131,15 @@ const REQUIRED_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
-const savedTokens = loadTokensFromDisk();
+const savedTokens = loadTokens();
 if (savedTokens) {
   userTokens = savedTokens;
   oauth2Client.setCredentials(savedTokens);
   console.log('OAuth tokens loaded, scopes:', savedTokens.scope || 'unknown');
+} else {
+  console.log('No OAuth tokens found — user must sign in');
 }
-userInfo = loadUserInfoFromDisk();
+userInfo = loadUserInfo();
 
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
@@ -109,8 +178,8 @@ app.get('/auth/google/callback', async (req, res) => {
 app.get('/auth/logout', (req, res) => {
   userTokens = null;
   userInfo = null;
-  try { require('fs').unlinkSync(TOKEN_FILE); } catch(e) {}
-  try { require('fs').unlinkSync(USER_INFO_FILE); } catch(e) {}
+  try { require('fs').unlinkSync('/tmp/.oauth-tokens.json'); } catch(_) {}
+  try { require('fs').unlinkSync('/tmp/.oauth-userinfo.json'); } catch(_) {}
   oauth2Client.revokeCredentials().catch(() => {});
   res.redirect('/?auth=logout');
 });
@@ -259,7 +328,7 @@ async function getDrive() {
     } catch (e) {
       console.error('Token refresh failed:', e.message);
       userTokens = null;
-      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
+      try { require('fs').unlinkSync('/tmp/.oauth-tokens.json'); } catch(_) {}
       return null;
     }
   }
@@ -553,6 +622,18 @@ app.post('/api/rooms/reload', async (req, res) => {
   await loadRoomsFromDrive();
   io.emit('rooms:updated', getRoomList());
   res.json({ success: true, count: Object.keys(rooms).length });
+});
+
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    hasToken: !!RAILWAY_TOKEN,
+    projectId: RAILWAY_PROJECT || 'NOT SET',
+    environmentId: RAILWAY_ENV || 'NOT SET',
+    serviceId: RAILWAY_SERVICE || 'NOT SET',
+    hasOauthTokens: !!process.env.OAUTH_TOKENS,
+    hasUserInfo: !!process.env.OAUTH_USER_INFO,
+    nodeEnv: process.env.NODE_ENV || 'not set'
+  });
 });
 
 app.get('/api/debug/drive', async (req, res) => {
