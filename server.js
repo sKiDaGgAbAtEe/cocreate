@@ -229,7 +229,7 @@ function uniqueMembers(room) {
 }
 
 async function loadRoomsFromDrive() {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) { console.log('loadRoomsFromDrive: no drive available, skipping'); return; }
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -278,7 +278,7 @@ async function loadRoomsFromDrive() {
 }
 
 async function persistRoomsToDrive() {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return;
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -363,6 +363,34 @@ async function getDrive() {
   return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
+// Service account drive — owns all CoCreate files, used for all file ops
+let _serviceDrive = null;
+function getServiceDrive() {
+  if (_serviceDrive) return _serviceDrive;
+  const saJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  if (!saJson) { console.log('No service account JSON — falling back to OAuth for Drive'); return null; }
+  try {
+    const creds = JSON.parse(saJson);
+    const auth = new google.auth.GoogleAuth({
+      credentials: creds,
+      scopes: ['https://www.googleapis.com/auth/drive']
+    });
+    _serviceDrive = google.drive({ version: 'v3', auth });
+    console.log('Service account drive initialised');
+    return _serviceDrive;
+  } catch(e) {
+    console.error('Service account init failed:', e.message);
+    return null;
+  }
+}
+
+// getFileDrive: use service account if available, else OAuth
+async function getFileDrive() {
+  const sa = getServiceDrive();
+  if (sa) return sa;
+  return getDrive();
+}
+
 // ── Drive Helpers ──────────────────────────────────────
 async function getDriveFolder(drive, name, parentId = null) {
   // If a hardcoded CoCreate folder ID is set, use it directly (bypasses scope issues)
@@ -394,7 +422,7 @@ async function getArchiveFolderId(drive) {
 }
 
 async function archiveRoomOnDrive(room) {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return;
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -448,7 +476,7 @@ async function writePlainTextFile(drive, fileName, parentId, content) {
 
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -476,7 +504,7 @@ app.get('/api/basins', async (req, res) => {
 });
 
 app.post('/api/basins', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -509,7 +537,7 @@ app.post('/api/basins', async (req, res) => {
 
 // Synthesize a system prompt from a Drive folder's documents
 app.post('/api/basins/synthesize', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { folderId, folderName, name, description } = req.body;
   if (!folderId) return res.status(400).json({ error: 'folderId required' });
@@ -558,7 +586,7 @@ app.post('/api/basins/generate-bio', async (req, res) => {
 
 // Update basin biography — owner only
 app.patch('/api/basins/:id/bio', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { biography, playerName } = req.body;
   try {
@@ -581,7 +609,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
 
 // Delete a basin — only the creator can remove it; default basins are protected
 app.delete('/api/basins/:id', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { playerName } = req.body;
   if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
@@ -607,7 +635,7 @@ app.delete('/api/basins/:id', async (req, res) => {
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
@@ -661,7 +689,7 @@ app.post('/api/rooms/reload', async (req, res) => {
 });
 
 app.get('/api/debug/folders', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ error: 'no drive' });
   try {
     // Find ALL folders named CoCreate anywhere on Drive
@@ -696,7 +724,7 @@ app.get('/api/debug/env', (req, res) => {
 });
 
 app.get('/api/debug/drive', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ error: 'no drive' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -715,7 +743,7 @@ app.get('/api/debug/drive', async (req, res) => {
 });
 
 app.get('/api/archive', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ sessions: [] });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -729,7 +757,7 @@ app.get('/api/archive', async (req, res) => {
 });
 
 app.get('/api/archive/:fileId', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try { res.json(await readDriveFile(drive, req.params.fileId)); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -873,7 +901,7 @@ async function getSystemContext() {
   if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
     return _systemContextCache;
   }
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return '';
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1001,7 +1029,7 @@ io.on('connection', (socket) => {
 
     // Always try to load the freshest contributions from the individual room file on Drive
     try {
-      const drive = await getDrive();
+      const drive = await getFileDrive();
       if (drive) {
         const cocreateId = await getDriveFolder(drive, 'CoCreate');
         const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
@@ -1248,7 +1276,7 @@ io.on('connection', (socket) => {
 
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return;
   try {
     const cocreateId = await getDriveFolder(drive, 'CoCreate');
@@ -1345,7 +1373,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
     }
 
     // Optionally save to Drive
-    const drive = await getDrive();
+    const drive = await getFileDrive();
     if (drive) {
       try {
         const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
@@ -1402,7 +1430,7 @@ app.post('/api/voice/room', async (req, res) => {
 
 // ── Profile Routes ─────────────────────────────────────
 app.get('/api/profile/by-email/:email', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1424,7 +1452,7 @@ app.get('/api/profile/by-email/:email', async (req, res) => {
 });
 
 app.get('/api/profile/:name', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.json({ exists: false });
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
@@ -1441,7 +1469,7 @@ app.get('/api/profile/:name', async (req, res) => {
 });
 
 app.post('/api/profile', async (req, res) => {
-  const drive = await getDrive();
+  const drive = await getFileDrive();
   if (!drive) return res.status(503).json({ error: 'Drive not available' });
   const { name, email, picture, who, what, working, extra } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
