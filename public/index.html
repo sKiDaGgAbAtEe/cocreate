@@ -51,10 +51,10 @@
     input[type="text"]:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,169,97,0.1); }
     select option { background: var(--parchment); color: var(--ink); }
     .btn-primary {
-      background: linear-gradient(175deg, #9a7244 0%, #7a5530 45%, #6b4a28 100%);
-      color: var(--parchment);
+      background: var(--btn-primary-bg, linear-gradient(175deg, #9a7244 0%, #7a5530 45%, #6b4a28 100%));
+      color: var(--btn-primary-color, var(--parchment));
       border: none;
-      border-top: 1px solid rgba(255,210,120,0.35);
+      border-top: 1px solid var(--btn-primary-shine, rgba(255,210,120,0.35));
       border-radius: 7px;
       padding: 11px 20px;
       font-size: 14px;
@@ -65,10 +65,10 @@
       position: relative;
       overflow: hidden;
       box-shadow:
-        0 1px 0 rgba(255,220,140,0.25) inset,
+        0 1px 0 var(--btn-primary-shine, rgba(255,220,140,0.25)) inset,
         0 -2px 0 rgba(0,0,0,0.25) inset,
-        0 4px 12px rgba(80,45,10,0.35),
-        0 1px 3px rgba(80,45,10,0.2);
+        0 4px 12px var(--btn-primary-shadow, rgba(80,45,10,0.35)),
+        0 1px 3px var(--btn-primary-shadow, rgba(80,45,10,0.2));
       text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
     .btn-primary::before {
@@ -81,20 +81,20 @@
       pointer-events: none;
     }
     .btn-primary:hover {
-      background: linear-gradient(175deg, #a87d4e 0%, #8a6035 45%, #7a5230 100%);
+      background: var(--btn-primary-hover, linear-gradient(175deg, #a87d4e 0%, #8a6035 45%, #7a5230 100%));
       box-shadow:
-        0 1px 0 rgba(255,220,140,0.3) inset,
+        0 1px 0 var(--btn-primary-shine, rgba(255,220,140,0.3)) inset,
         0 -2px 0 rgba(0,0,0,0.3) inset,
-        0 6px 18px rgba(80,45,10,0.45),
-        0 2px 5px rgba(80,45,10,0.25);
+        0 6px 18px var(--btn-primary-shadow, rgba(80,45,10,0.45)),
+        0 2px 5px var(--btn-primary-shadow, rgba(80,45,10,0.25));
       transform: translateY(-1px);
     }
     .btn-primary:active {
       transform: translateY(1px);
       box-shadow:
-        0 1px 0 rgba(255,220,140,0.15) inset,
+        0 1px 0 var(--btn-primary-shine, rgba(255,220,140,0.15)) inset,
         0 -1px 0 rgba(0,0,0,0.2) inset,
-        0 2px 6px rgba(80,45,10,0.3);
+        0 2px 6px var(--btn-primary-shadow, rgba(80,45,10,0.3));
     }
     .btn-primary:disabled { opacity: 0.35; cursor: default; transform: none; }
     .btn-ghost {
@@ -1197,6 +1197,75 @@
       font-family: 'Rajdhani', sans-serif;
       letter-spacing: 0.08em;
     }
+
+    /* ── Dark/Light mode pill toggle ── */
+    .mode-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 10px; cursor: pointer; border-radius: 6px;
+      transition: background 0.12s;
+      user-select: none;
+    }
+    .mode-toggle-row:hover { background: rgba(139,111,71,0.08); }
+    body.dark .mode-toggle-row:hover { background: rgba(196,168,130,0.08); }
+    .mode-toggle-label {
+      font-family: 'Cinzel', serif; font-size: 11px;
+      letter-spacing: 0.06em; color: var(--ink-muted);
+      transition: color 0.2s;
+    }
+    .mode-toggle-track {
+      position: relative;
+      width: 38px; height: 20px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #c8d0dc 0%, #a8b4c4 100%);
+      border: 1px solid rgba(80,100,130,0.30);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.5);
+      transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+      flex-shrink: 0;
+    }
+    body.dark .mode-toggle-track {
+      background: linear-gradient(135deg, var(--accent, #5bb8d4) 0%, var(--gold, #78d0e8) 100%);
+      border-color: rgba(91,184,212,0.50);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(91,184,212,0.20);
+    }
+    .mode-toggle-thumb {
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #ffffff 0%, #e8eef6 100%);
+      border: 1px solid rgba(80,100,130,0.20);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.8) inset;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
+    }
+    body.dark .mode-toggle-thumb {
+      transform: translateX(18px);
+      background: linear-gradient(145deg, #f0f8ff 0%, #d0e8f8 100%);
+      border-color: rgba(91,184,212,0.30);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.35), 0 0 6px rgba(91,184,212,0.25), 0 0 0 1px rgba(255,255,255,0.6) inset;
+    }
+    /* Theme-aware track colors */
+    body.theme-parchment.dark .mode-toggle-track {
+      background: linear-gradient(135deg, #c49040 0%, #d4a840 100%);
+      border-color: rgba(212,168,64,0.45);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(212,168,64,0.18);
+    }
+    body.theme-obsidian .mode-toggle-track,
+    body.theme-obsidian.dark .mode-toggle-track {
+      background: linear-gradient(135deg, #5838b8 0%, #7050d0 100%);
+      border-color: rgba(120,90,220,0.45);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(120,90,220,0.20);
+    }
+    body.theme-obsidian .mode-toggle-track { background: linear-gradient(135deg, #8888aa 0%, #6868aa 100%); border-color: rgba(100,100,180,0.30); box-shadow: inset 0 1px 3px rgba(0,0,0,0.18); }
+    body.theme-verdant.dark .mode-toggle-track {
+      background: linear-gradient(135deg, #2a6a34 0%, #3a8a4a 100%);
+      border-color: rgba(58,138,74,0.50);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(58,138,74,0.18);
+    }
+    body.theme-embers.dark .mode-toggle-track {
+      background: linear-gradient(135deg, #a82e28 0%, #c84038 100%);
+      border-color: rgba(200,64,56,0.50);
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(200,64,56,0.18);
+    }
   </style>
 </head>
 <body>
@@ -1209,9 +1278,12 @@
   </button>
   <div class="pyramid-dropdown" id="globalMenuDropdown">
     <span class="pyramid-section-label">Appearance</span>
-    <button class="pyramid-item" onclick="toggleTheme();closePyramidMenus()">
-      <span class="pi-icon">◑</span> Toggle Dark Mode
-    </button>
+    <div class="mode-toggle-row" onclick="toggleTheme()">
+      <span class="mode-toggle-label" id="modeToggleLabel">Light</span>
+      <div class="mode-toggle-track" id="modeToggleTrack">
+        <div class="mode-toggle-thumb" id="modeToggleThumb"></div>
+      </div>
+    </div>
     <div class="pyramid-divider"></div>
     <span class="pyramid-section-label">Theme</span>
     <div style="padding:4px 6px 6px">
@@ -1977,6 +2049,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(ellipse at 20% 10%, rgba(91,184,212,0.10) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, rgba(60,100,160,0.07) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #3a7a9a 0%, #2a6080 50%, #1a4a68 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #4a8aaa 0%, #3a7090 50%, #2a5878 100%)",
+      btnShine:  "rgba(160,220,248,0.35)", btnShadow: "rgba(10,40,70,0.40)", btnColor: "#f0f8ff",
     },
     dark: {
       parchment:  "#080b10",
@@ -1996,6 +2069,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(ellipse at 20% 15%, rgba(91,184,212,0.06) 0%, transparent 55%), radial-gradient(ellipse at 80% 85%, rgba(60,100,180,0.04) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #2a6888 0%, #1e5070 50%, #123858 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #3a7898 0%, #2e6080 50%, #1e4868 100%)",
+      btnShine:  "rgba(120,210,248,0.22)", btnShadow: "rgba(0,0,0,0.55)",    btnColor: "#d0eeff",
     },
   },
 
@@ -2026,6 +2100,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 20% 30%, rgba(201,169,97,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(45,80,22,0.03) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #9a7244 0%, #7a5530 50%, #6b4a28 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #aa8254 0%, #8a6040 50%, #7a5238 100%)",
+      btnShine:  "rgba(255,210,120,0.35)", btnShadow: "rgba(80,45,10,0.38)", btnColor: "#f5eddc",
     },
     dark: {
       parchment:  "#0e0c08",
@@ -2045,6 +2120,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 20% 30%, rgba(196,148,42,0.05) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(196,148,42,0.03) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #c49040 0%, #a87830 50%, #8a6020 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #d4a050 0%, #b88840 50%, #9a7030 100%)",
+      btnShine:  "rgba(255,200,80,0.30)",  btnShadow: "rgba(0,0,0,0.50)",    btnColor: "#f5eddc",
     },
   },
 
@@ -2075,6 +2151,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(ellipse at 25% 20%, rgba(120,90,220,0.10) 0%, transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(80,50,180,0.06) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #7050d0 0%, #5838b8 50%, #4030a0 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #8060e0 0%, #6848c8 50%, #5040b0 100%)",
+      btnShine:  "rgba(200,180,255,0.35)", btnShadow: "rgba(40,10,120,0.45)", btnColor: "#f0ecff",
     },
     dark: {
       parchment:  "#08080e",
@@ -2094,6 +2171,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(ellipse at 25% 20%, rgba(100,70,200,0.07) 0%, transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(80,50,180,0.04) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #7050d0 0%, #5838b8 50%, #4030a0 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #8060e0 0%, #6848c8 50%, #5040b0 100%)",
+      btnShine:  "rgba(180,160,255,0.22)", btnShadow: "rgba(0,0,0,0.55)",    btnColor: "#ece8ff",
     },
   },
 
@@ -2124,6 +2202,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 20% 25%, rgba(58,138,74,0.08) 0%, transparent 55%), radial-gradient(circle at 80% 75%, rgba(40,100,50,0.05) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #3a8a4a 0%, #2a6a34 50%, #1e5428 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #4a9a5a 0%, #3a7a44 50%, #2a6038 100%)",
+      btnShine:  "rgba(180,255,160,0.30)", btnShadow: "rgba(10,45,15,0.40)", btnColor: "#edf8ee",
     },
     dark: {
       parchment:  "#080e08",
@@ -2143,6 +2222,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 20% 25%, rgba(58,138,74,0.06) 0%, transparent 55%), radial-gradient(circle at 80% 75%, rgba(40,100,50,0.04) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #3a8a4a 0%, #2a6a34 50%, #1e5428 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #4a9a5a 0%, #3a7a44 50%, #2a6038 100%)",
+      btnShine:  "rgba(140,255,120,0.20)", btnShadow: "rgba(0,0,0,0.50)",    btnColor: "#e4f8e4",
     },
   },
 
@@ -2173,6 +2253,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 20% 30%, rgba(210,80,50,0.07) 0%, transparent 55%), radial-gradient(circle at 80% 70%, rgba(160,40,20,0.04) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #c84038 0%, #a82e28 50%, #8a2020 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #d85040 0%, #b83e30 50%, #982828 100%)",
+      btnShine:  "rgba(255,160,120,0.35)", btnShadow: "rgba(80,10,5,0.40)",  btnColor: "#fff0ec",
     },
     dark: {
       parchment:  "#100808",
@@ -2192,6 +2273,7 @@ const PRESET_THEMES = [
       bgGradient: "radial-gradient(circle at 25% 30%, rgba(200,60,40,0.07) 0%, transparent 55%), radial-gradient(circle at 75% 70%, rgba(160,40,20,0.04) 0%, transparent 50%)",
       btnPrimary:      "linear-gradient(175deg, #c84038 0%, #a82e28 50%, #8a2020 100%)",
       btnPrimaryHover: "linear-gradient(175deg, #d85040 0%, #b83e30 50%, #982828 100%)",
+      btnShine:  "rgba(255,120,80,0.22)",  btnShadow: "rgba(0,0,0,0.55)",    btnColor: "#fff0ec",
     },
   },
 
@@ -2221,8 +2303,11 @@ function applyTheme(theme, preferDark) {
   for (const [key, cssVar] of Object.entries(varMap)) {
     if (palette[key]) root.style.setProperty(cssVar, palette[key]);
   }
-  root.style.setProperty('--btn-primary-bg', palette.btnPrimary || '');
-  root.style.setProperty('--btn-primary-hover', palette.btnPrimaryHover || '');
+  root.style.setProperty('--btn-primary-bg',     palette.btnPrimary       || '');
+  root.style.setProperty('--btn-primary-hover',  palette.btnPrimaryHover  || '');
+  root.style.setProperty('--btn-primary-shine',  palette.btnShine         || '');
+  root.style.setProperty('--btn-primary-shadow', palette.btnShadow        || '');
+  root.style.setProperty('--btn-primary-color',  palette.btnColor         || '');
   document.body.style.background = palette.parchment || '';
 
   // Dynamic font loading
@@ -2314,6 +2399,12 @@ function toggleTheme() {
   updateThemeBtns(isDark);
   const theme = PRESET_THEMES.find(t => t.id === _activeThemeId) || PRESET_THEMES[0];
   applyTheme(theme, isDark);
+  updateModeToggleLabel(isDark);
+}
+
+function updateModeToggleLabel(isDark) {
+  const lbl = document.getElementById('modeToggleLabel');
+  if (lbl) lbl.textContent = isDark ? 'Dark' : 'Light';
 }
 
 function updateThemeBtns(isDark) {
@@ -2327,6 +2418,7 @@ function initTheme() {
   if (isDark) document.body.classList.add('dark');
   updateThemeBtns(isDark);
   initThemeSystem();
+  updateModeToggleLabel(isDark);
 }
 
 // ── Init ──────────────────────────────────────
