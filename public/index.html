@@ -1266,6 +1266,11 @@
       border-color: rgba(200,64,56,0.50);
       box-shadow: inset 0 1px 3px rgba(0,0,0,0.30), 0 0 8px rgba(200,64,56,0.18);
     }
+
+    .header-actions {
+      display: flex; align-items: center; gap: 6px;
+      flex-shrink: 0; margin-left: 4px;
+    }
   </style>
 </head>
 <body>
@@ -1540,13 +1545,7 @@
         <div id="voiceAudioContainer" style="display:none"></div>
       </div>
 
-      <!-- ── Session action bar (bottom of sidebar) ── -->
-      <div class="session-action-bar">
-        <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
-        <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
-        <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
-        <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
-      </div>
+
 
     </div>
   </div>
@@ -1794,6 +1793,12 @@
 <div id="session" class="page">
   <div class="header" style="position:relative">
     <button class="back-btn" onclick="leaveRoom()">←</button>
+    <div class="header-actions">
+      <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
+      <button class="save-btn" onclick="openProcessWindow()" style="white-space:nowrap">⊕ Process</button>
+      <button class="field-panel-toggle" id="fieldPanelToggleBtn" onclick="toggleFieldPanel()">◈ Field</button>
+      <button class="save-btn" id="saveBtn" onclick="saveRoom()">save ↑</button>
+    </div>
     <div class="header-center" style="position:absolute;left:50%;transform:translateX(-50%)">
       <span class="session-name" id="headerTitle"></span>
       <span class="basin-tag" id="headerBasin" style="color:var(--basin-color)"></span>
