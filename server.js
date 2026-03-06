@@ -641,6 +641,53 @@ app.get('/api/rooms/:id', (req, res) => {
   res.json(sanitizeRoom(room));
 });
 
+// ── Voice Room (Daily.co) ──────────────────────────────
+app.post('/api/voice/room', async (req, res) => {
+  const DAILY_API_KEY = process.env.DAILY_API_KEY;
+  if (!DAILY_API_KEY) return res.status(500).json({ error: 'DAILY_API_KEY not configured' });
+
+  const { roomId } = req.body;
+  const roomName = roomId
+    ? `entriference-${roomId}`.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 50)
+    : 'entriference-lobby';
+
+  try {
+    const checkRes = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
+      headers: { Authorization: `Bearer ${DAILY_API_KEY}` }
+    });
+    if (checkRes.ok) {
+      const existing = await checkRes.json();
+      return res.json({ url: existing.url });
+    }
+    const createRes = await fetch('https://api.daily.co/v1/rooms', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${DAILY_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        name: roomName,
+        properties: {
+          enable_chat: false,
+          enable_screenshare: false,
+          start_audio_off: false,
+          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
+        }
+      })
+    });
+    if (!createRes.ok) {
+      const err = await createRes.json();
+      throw new Error(err.error || 'Failed to create Daily room');
+    }
+    const created = await createRes.json();
+    console.log('◈ Daily room created:', roomName);
+    res.json({ url: created.url });
+  } catch (e) {
+    console.error('Voice room error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 function sanitizeRoom(room) {
   return {
     id: room.id,

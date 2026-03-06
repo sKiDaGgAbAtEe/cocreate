@@ -1477,7 +1477,7 @@ async function joinVoice() {
   btn.disabled = true;
 
   try {
-    const res = await fetch('/api/voice/room', { method: 'POST' });
+    const res = await fetch('/api/voice/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ roomId: currentRoom?.id }) });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
