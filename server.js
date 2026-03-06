@@ -234,15 +234,42 @@ async function loadRoomsFromDrive() {
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
     console.log('loadRoomsFromDrive: CoCreate folder id =', folderId);
-    const fileId = await getDriveFile(drive, 'rooms.json', folderId);
-    if (!fileId) { console.log('loadRoomsFromDrive: rooms.json not found in CoCreate folder'); return; }
-    const saved = await readDriveFile(drive, fileId);
-    if (saved && typeof saved === 'object') {
-      Object.entries(saved).forEach(([id, room]) => {
-        rooms[id] = { ...room, socketMap: {} };
-      });
-      console.log(`loadRoomsFromDrive: loaded ${Object.keys(rooms).length} rooms`);
+
+    // List all JSON files in CoCreate (individual room files + rooms.json)
+    const result = await drive.files.list({
+      q: `'${folderId}' in parents and trashed=false and mimeType='application/json'`,
+      fields: 'files(id,name)',
+      pageSize: 200
+    });
+    const files = result.data.files || [];
+    console.log('loadRoomsFromDrive: files found =', files.map(f => f.name));
+
+    // Try rooms.json first (bulk save format)
+    const roomsJson = files.find(f => f.name === 'rooms.json');
+    if (roomsJson) {
+      const saved = await readDriveFile(drive, roomsJson.id);
+      if (saved && typeof saved === 'object') {
+        Object.entries(saved).forEach(([id, room]) => {
+          rooms[id] = { ...room, socketMap: {} };
+        });
+        console.log(`loadRoomsFromDrive: loaded ${Object.keys(rooms).length} rooms from rooms.json`);
+        return;
+      }
     }
+
+    // Fall back to individual room files
+    const roomFiles = files.filter(f => f.name !== 'rooms.json' && f.name !== 'basins.json');
+    let count = 0;
+    for (const file of roomFiles) {
+      try {
+        const data = await readDriveFile(drive, file.id);
+        if (data && data.id) {
+          rooms[data.id] = { ...data, socketMap: {} };
+          count++;
+        }
+      } catch(e) { console.error('Could not read room file:', file.name, e.message); }
+    }
+    console.log(`loadRoomsFromDrive: loaded ${count} rooms from individual files`);
   } catch (e) {
     console.error('loadRoomsFromDrive ERROR:', e.message);
   }
