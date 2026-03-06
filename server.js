@@ -14,6 +14,18 @@ const io = new Server(httpServer);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
+const session = require('express-session');
+const sessionMiddleware = session({
+  secret: process.env.SESSION_SECRET || 'entriference-secret-change-me',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false, maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
+});
+app.use(sessionMiddleware);
+
+// Share session with Socket.io so socket.request.session works
+io.engine.use(sessionMiddleware);
+
 // Prevent browser caching of index.html so updates always load fresh
 app.get('/', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -33,49 +45,20 @@ const oauth2Client = new google.auth.OAuth2(
   `${BASE_URL}/auth/google/callback`
 );
 
-let userTokens = null;
-let userInfo = null; // { name, email, picture }
-
-// Persist tokens to disk so they survive Railway restarts
-const TOKEN_FILE = path.join(__dirname, '.oauth-tokens.json');
-const USER_INFO_FILE = path.join(__dirname, '.oauth-userinfo.json');
-
-function saveTokensToDisk(tokens) {
-  try { require('fs').writeFileSync(TOKEN_FILE, JSON.stringify(tokens)); } catch(e) { console.error('Could not save tokens:', e.message); }
-}
-
-function loadTokensFromDisk() {
-  try { return JSON.parse(require('fs').readFileSync(TOKEN_FILE, 'utf8')); } catch(e) { return null; }
-}
-
-function saveUserInfoToDisk(info) {
-  try { require('fs').writeFileSync(USER_INFO_FILE, JSON.stringify(info)); } catch(e) {}
-}
-
-function loadUserInfoFromDisk() {
-  try { return JSON.parse(require('fs').readFileSync(USER_INFO_FILE, 'utf8')); } catch(e) { return null; }
-}
-
-// Load tokens on startup
-const savedTokens = loadTokensFromDisk();
-if (savedTokens) {
-  userTokens = savedTokens;
-  oauth2Client.setCredentials(savedTokens);
-  console.log('OAuth tokens loaded from disk');
-}
-userInfo = loadUserInfoFromDisk();
-
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
+// Each browser session stores its own tokens + userInfo in req.session.
+// No global userTokens — that was the bug causing one login to bleed into all browsers.
+
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: DRIVE_SCOPES,
-    prompt: 'consent'  // force consent screen so Google always returns refresh_token
+    prompt: 'consent'
   });
   res.redirect(url);
 });
@@ -83,16 +66,19 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { tokens } = await oauth2Client.getToken(req.query.code);
-    userTokens = tokens;
-    oauth2Client.setCredentials(tokens);
-    saveTokensToDisk(tokens);
+    req.session.userTokens = tokens;
     // Fetch Google profile info
     try {
-      const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-      const { data } = await oauth2.userinfo.get();
-      userInfo = { name: data.name, email: data.email, picture: data.picture };
-      saveUserInfoToDisk(userInfo);
-      console.log('User info saved:', userInfo.email);
+      const client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        `${BASE_URL}/auth/google/callback`
+      );
+      client.setCredentials(tokens);
+      const oauth2Api = google.oauth2({ version: 'v2', auth: client });
+      const { data } = await oauth2Api.userinfo.get();
+      req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
+      console.log('User logged in:', data.email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
     res.redirect('/?auth=success');
   } catch (e) {
@@ -102,19 +88,21 @@ app.get('/auth/google/callback', async (req, res) => {
 });
 
 app.get('/auth/logout', (req, res) => {
-  userTokens = null;
-  userInfo = null;
-  try { require('fs').unlinkSync(TOKEN_FILE); } catch(e) {}
-  try { require('fs').unlinkSync(USER_INFO_FILE); } catch(e) {}
-  oauth2Client.revokeCredentials().catch(() => {});
+  const tokens = req.session.userTokens;
+  req.session.destroy(() => {});
+  if (tokens) {
+    const client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+    client.setCredentials(tokens);
+    client.revokeCredentials().catch(() => {});
+  }
   res.redirect('/?auth=logout');
 });
 
 app.get('/auth/status', (req, res) => res.json({
-  connected: !!userTokens || !!getServiceAccountDrive(),
+  connected: !!req.session.userTokens || !!getServiceAccountDrive(),
   serviceAccount: !!getServiceAccountDrive(),
-  userOAuth: !!userTokens,
-  userInfo: userInfo || null
+  userOAuth: !!req.session.userTokens,
+  userInfo: req.session.userInfo || null
 }));
 
 // ── Room State (persisted to Drive) ────────────────────
@@ -338,32 +326,49 @@ function getServiceAccountDrive() {
 async function getSystemDrive() {
   const sa = getServiceAccountDrive();
   if (sa) return sa;
-  return getDrive(); // fallback to OAuth
+  return null; // fallback: no req available here, service account required
 }
 
-async function getDrive() {
-  if (!userTokens) return null;
-  oauth2Client.setCredentials(userTokens);
+async function getDrive(req) {
+  // tokens live in the browser's session — each user has their own
+  if (!req?.session?.userTokens) return null;
+  let tokens = req.session.userTokens;
 
-  // Auto-refresh if token is expired or expires within 5 minutes
-  const expiryDate = userTokens.expiry_date;
+  const client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${BASE_URL}/auth/google/callback`
+  );
+  client.setCredentials(tokens);
+
+  // Auto-refresh if expired or expiring within 5 minutes
   const fiveMin = 5 * 60 * 1000;
-  if (expiryDate && Date.now() > expiryDate - fiveMin) {
+  if (tokens.expiry_date && Date.now() > tokens.expiry_date - fiveMin) {
     try {
-      const { credentials } = await oauth2Client.refreshAccessToken();
-      userTokens = credentials;
-      oauth2Client.setCredentials(credentials);
-      saveTokensToDisk(credentials);
-      console.log('OAuth token refreshed and saved');
+      const { credentials } = await client.refreshAccessToken();
+      req.session.userTokens = credentials;
+      client.setCredentials(credentials);
+      console.log('OAuth token refreshed for', req.session.userInfo?.email);
     } catch (e) {
       console.error('Token refresh failed:', e.message);
-      userTokens = null;
-      try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
+      req.session.userTokens = null;
       return null;
     }
   }
 
-  return google.drive({ version: 'v3', auth: oauth2Client });
+  return google.drive({ version: 'v3', auth: client });
+}
+
+// Build a Drive client directly from tokens (for use outside req/res context)
+async function getDriveFromTokens(tokens) {
+  if (!tokens) return null;
+  const client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${BASE_URL}/auth/google/callback`
+  );
+  client.setCredentials(tokens);
+  return google.drive({ version: 'v3', auth: client });
 }
 
 // ── Basin Routes ───────────────────────────────────────
@@ -527,7 +532,7 @@ app.delete('/api/basins/:id', async (req, res) => {
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const drive = await getDrive();
+  const drive = await getDrive(req);
   if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
@@ -818,13 +823,13 @@ async function getSystemContext() {
 }
 
 // ── Claude Resonance ───────────────────────────────────
-async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction) {
+async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction, userTokens) {
   // System context: Docs + Profiles — always injected from service account Drive
   const systemContext = await getSystemContext();
 
   // User-toggled knowledge folders — from personal OAuth Drive
   let knowledgeContext = '';
-  const userDrive = await getDrive();
+  const userDrive = userTokens ? await getDriveFromTokens(userTokens) : null;
   if (userDrive && activeFolders && activeFolders.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
@@ -1026,7 +1031,8 @@ io.on('connection', (socket) => {
           room.basin,
           room.activeFolders,
           room.folderMap,
-          'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.'
+          'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.',
+          socket.request.session?.userTokens
         );
       } else {
         resonanceText = await generateResonance(
@@ -1034,7 +1040,8 @@ io.on('connection', (socket) => {
           room.basin,
           room.activeFolders,
           room.folderMap,
-          modeInstruction || ''
+          modeInstruction || '',
+          socket.request.session?.userTokens
         );
       }
 
