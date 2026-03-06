@@ -3445,6 +3445,7 @@ function onRoomState(room) {
   renderFolderToggles(room);
   resetCanvas();
   room.contributions.forEach(c => renderBubble(c));
+  renderMembers(room.members);
   showPage('session');
   document.getElementById('input').focus();
   document.getElementById('sendBtn').disabled = true;
