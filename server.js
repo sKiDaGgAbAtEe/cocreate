@@ -179,53 +179,76 @@ function uniqueMembers(room) {
   return [...new Set(Object.values(room.socketMap))];
 }
 
+// Scan a single Drive folder for room JSON files and merge into rooms{}
+async function scanFolderForRooms(drive, folderId, label) {
+  try {
+    const result = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
+      fields: 'files(id, name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageSize: 100
+    });
+    const SKIP = new Set(['rooms.json', 'basins.json', 'profiles.json']);
+    const roomFiles = result.data.files.filter(f => !SKIP.has(f.name));
+    console.log(`  [${label}] ${roomFiles.length} room file(s) found`);
+    for (const file of roomFiles) {
+      try {
+        const roomData = await readDriveFile(drive, file.id);
+        if (!roomData?.id) continue;
+        const existing = rooms[roomData.id];
+        const existingCount = existing?.contributions?.length || 0;
+        const newCount = roomData.contributions?.length || 0;
+        const existingTime = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+        const newTime = roomData.updatedAt ? new Date(roomData.updatedAt).getTime() : 0;
+        if (!existing || newCount > existingCount || newTime > existingTime) {
+          rooms[roomData.id] = { ...roomData, socketMap: existing?.socketMap || {} };
+          console.log(`    ✓ "${roomData.title}" (${roomData.id}) — ${newCount} contributions`);
+        }
+      } catch(e) { console.warn(`    Could not read ${file.name}:`, e.message); }
+    }
+  } catch(e) { console.warn(`  Could not scan [${label}]:`, e.message); }
+}
+
 async function loadRoomsFromDrive() {
   const drive = await getSystemDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
+    const rootId = await getCoCreateRootId(drive);
 
-    // Step 1: load rooms.json snapshot as base
+    // Resolve Active subfolder ID if it exists (may differ from rootId)
+    let activeId = rootId;
     try {
-      const fileId = await getDriveFile(drive, 'rooms.json', activeId);
-      if (fileId) {
-        const saved = await readDriveFile(drive, fileId);
-        if (saved && typeof saved === 'object') {
-          Object.entries(saved).forEach(([id, room]) => {
-            rooms[id] = { ...room, socketMap: {} };
-          });
-          console.log(`Loaded ${Object.keys(rooms).length} room(s) from rooms.json`);
-        }
-      }
-    } catch(e) { console.warn('Could not read rooms.json:', e.message); }
-
-    // Step 2: scan for individual room files — always more up-to-date
-    try {
-      const result = await drive.files.list({
-        q: `'${activeId}' in parents and mimeType='application/json' and trashed=false`,
-        fields: 'files(id, name, modifiedTime)',
+      const search = await drive.files.list({
+        q: `name='Active' and mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`,
+        fields: 'files(id)',
         supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-        pageSize: 100
+        includeItemsFromAllDrives: true
       });
-      const roomFiles = result.data.files.filter(f => f.name !== 'rooms.json' && f.name !== 'basins.json');
-      console.log(`Found ${roomFiles.length} individual room file(s) on Drive`);
-      for (const file of roomFiles) {
-        try {
-          const roomData = await readDriveFile(drive, file.id);
-          if (!roomData?.id) continue;
-          const existing = rooms[roomData.id];
-          const existingCount = existing?.contributions?.length || 0;
-          const newCount = roomData.contributions?.length || 0;
-          const existingTime = existing?.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
-          const newTime = roomData.updatedAt ? new Date(roomData.updatedAt).getTime() : 0;
-          if (!existing || newCount > existingCount || newTime > existingTime) {
-            rooms[roomData.id] = { ...roomData, socketMap: existing?.socketMap || {} };
-            console.log(`  ✓ Loaded room "${roomData.title}" (${roomData.id}) — ${newCount} contributions`);
+      if (search.data.files[0]) activeId = search.data.files[0].id;
+    } catch(e) { console.warn('Could not find Active subfolder:', e.message); }
+
+    // Load rooms.json snapshots from both locations as a base
+    for (const [fid, label] of [[rootId, 'root'], [activeId !== rootId ? activeId : null, 'Active']]) {
+      if (!fid) continue;
+      try {
+        const fileId = await getDriveFile(drive, 'rooms.json', fid);
+        if (fileId) {
+          const saved = await readDriveFile(drive, fileId);
+          if (saved && typeof saved === 'object') {
+            Object.entries(saved).forEach(([id, room]) => {
+              if (!rooms[id]) rooms[id] = { ...room, socketMap: {} };
+            });
+            console.log(`  [rooms.json/${label}] merged ${Object.keys(saved).length} room(s)`);
           }
-        } catch(e) { console.warn(`  Could not read room file ${file.name}:`, e.message); }
-      }
-    } catch(e) { console.warn('Could not scan for individual room files:', e.message); }
+        }
+      } catch(e) { console.warn(`Could not read rooms.json from ${label}:`, e.message); }
+    }
+
+    // Scan both root and Active for individual room files
+    console.log('Scanning Drive for room files...');
+    await scanFolderForRooms(drive, rootId, 'CoCreate root');
+    if (activeId !== rootId) await scanFolderForRooms(drive, activeId, 'Active');
 
     console.log(`◈ Total rooms loaded: ${Object.keys(rooms).length}`);
   } catch (e) {
