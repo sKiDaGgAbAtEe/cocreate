@@ -334,10 +334,11 @@ function getServiceAccountDrive() {
   }
 }
 
-// getSystemDrive — uses OAuth (personal account owns all CoCreate folders)
-// Service account is preserved for future use but CoCreate data lives in the personal Drive
+// getSystemDrive — always uses service account if available, falls back to OAuth
 async function getSystemDrive() {
-  return getDrive();
+  const sa = getServiceAccountDrive();
+  if (sa) return sa;
+  return getDrive(); // fallback to OAuth
 }
 
 async function getDrive() {
@@ -738,8 +739,8 @@ async function getSystemContext() {
   if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
     return _systemContextCache;
   }
-  // Always use OAuth drive — Docs/Profiles live in the personal account, not the service account
-  const drive = await getDrive();
+  // Always use service account drive — Docs/Profiles/CoCreate live there, not per-user
+  const drive = await getSystemDrive();
   if (!drive) return '';
   try {
     const root = await getDriveFolder(drive, 'CoCreate');
