@@ -57,25 +57,34 @@ function loadUserInfoFromDisk() {
 }
 
 // Load tokens on startup
-const savedTokens = loadTokensFromDisk();
-if (savedTokens) {
-  userTokens = savedTokens;
-  oauth2Client.setCredentials(savedTokens);
-  console.log('OAuth tokens loaded from disk');
-}
-userInfo = loadUserInfoFromDisk();
-
-const DRIVE_SCOPES = [
+const REQUIRED_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
   'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
+const savedTokens = loadTokensFromDisk();
+if (savedTokens) {
+  // Check token has all required scopes — wipe if not (forces fresh consent)
+  const tokenScopes = (savedTokens.scope || '').split(' ');
+  const hasAllScopes = REQUIRED_SCOPES.every(s => tokenScopes.includes(s));
+  if (hasAllScopes) {
+    userTokens = savedTokens;
+    oauth2Client.setCredentials(savedTokens);
+    console.log('OAuth tokens loaded from disk');
+  } else {
+    console.log('Stored token missing required scopes — clearing, re-login needed');
+    try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
+    try { require('fs').unlinkSync(USER_INFO_FILE); } catch(_) {}
+  }
+}
+userInfo = loadUserInfoFromDisk();
+
 app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: DRIVE_SCOPES,
+    scope: REQUIRED_SCOPES,
     prompt: 'consent'  // force consent screen so Google always returns refresh_token
   });
   res.redirect(url);
