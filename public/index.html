@@ -487,9 +487,9 @@
     @keyframes pulse-green { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(46,204,113,0.4); } 50% { opacity:0.8; box-shadow:0 0 0 4px rgba(46,204,113,0); } }
     .voice-participants { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 14px 10px; min-height: 0; }
     .voice-participant { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: default; }
-    .voice-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(139,111,71,0.15); border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 13px; color: var(--ink-muted); transition: border-color 0.2s, box-shadow 0.2s; position: relative; }
-    .voice-avatar.speaking { border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.25), 0 0 12px rgba(46,204,113,0.3); }
-    .voice-avatar.muted { opacity: 0.5; }
+    .voice-avatar { width: 40px; height: 40px; border-radius: 50%; background: rgba(139,111,71,0.15); border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 14px; color: var(--ink-muted); transition: border-color 0.05s, box-shadow 0.05s; position: relative; }
+    .voice-avatar.speaking { border-color: #2ecc71; }
+    .voice-avatar.muted { opacity: 0.45; filter: grayscale(0.4); }
     .voice-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
     .voice-mute-icon { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-radius: 50%; background: #c0392b; display: none; align-items: center; justify-content: center; font-size: 8px; border: 1px solid var(--parchment); }
     .voice-mute-icon.show { display: flex; }
@@ -1333,8 +1333,143 @@ let _dailyCall = null;
 let _isMuted = false;
 let _volumeLevel = 1.0;
 let _activeSpeakers = new Set();
-let _speakerPollInterval = null;
+let _audioCtx = null;
+let _analyser = null;
+let _analyserSource = null;
+let _analyserRAF = null;
 
+// ── Zen Sound Engine ───────────────────────────────────
+function getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_audioCtx.state === 'suspended') _audioCtx.resume();
+  return _audioCtx;
+}
+
+function playZenTone(type) {
+  try {
+    const ctx = getAudioCtx();
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.connect(ctx.destination);
+
+    if (type === 'join') {
+      // Soft ascending bowl strike — two harmonic partials
+      [220, 440, 660].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.002, now + 1.2);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.12 / (i + 1), now + 0.02 + i * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5 + i * 0.3);
+        osc.connect(gain); gain.connect(master);
+        osc.start(now + i * 0.04);
+        osc.stop(now + 3);
+      });
+
+    } else if (type === 'leave') {
+      // Descending gentle fade — bowl fading out
+      [330, 220].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.15);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.97, now + 1.5);
+        gain.gain.setValueAtTime(0, now + i * 0.15);
+        gain.gain.linearRampToValueAtTime(0.1 / (i + 1), now + i * 0.15 + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+        osc.connect(gain); gain.connect(master);
+        osc.start(now + i * 0.15);
+        osc.stop(now + 2.2);
+      });
+
+    } else if (type === 'mute') {
+      // Single soft low thud
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(120, now + 0.3);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+      osc.connect(gain); gain.connect(master);
+      osc.start(now); osc.stop(now + 0.5);
+
+    } else if (type === 'unmute') {
+      // Quick ascending chime
+      [300, 450].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + i * 0.06);
+        gain.gain.setValueAtTime(0, now + i * 0.06);
+        gain.gain.linearRampToValueAtTime(0.1, now + i * 0.06 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.5);
+        osc.connect(gain); gain.connect(master);
+        osc.start(now + i * 0.06); osc.stop(now + 0.7);
+      });
+    }
+
+    master.gain.setValueAtTime(0.7, now);
+    setTimeout(() => { try { master.disconnect(); } catch(_) {} }, 4000);
+  } catch(e) { console.warn('Sound error:', e); }
+}
+
+// ── Mic Level Analyser ─────────────────────────────────
+function startMicAnalyser(stream) {
+  stopMicAnalyser();
+  try {
+    const ctx = getAudioCtx();
+    _analyser = ctx.createAnalyser();
+    _analyser.fftSize = 256;
+    _analyser.smoothingTimeConstant = 0.6;
+    _analyserSource = ctx.createMediaStreamSource(stream);
+    _analyserSource.connect(_analyser);
+    const buf = new Uint8Array(_analyser.frequencyBinCount);
+
+    function tick() {
+      if (!_analyser) return;
+      _analyser.getByteFrequencyData(buf);
+      // RMS of lower frequencies (voice band)
+      let sum = 0;
+      const bins = Math.floor(buf.length * 0.4);
+      for (let i = 0; i < bins; i++) sum += buf[i] * buf[i];
+      const rms = Math.sqrt(sum / bins) / 255;
+
+      // Scale to visible range — threshold at 0.02 to ignore noise floor
+      const level = rms < 0.02 ? 0 : Math.min(1, (rms - 0.02) / 0.25);
+      applyLocalGlow(level);
+      _analyserRAF = requestAnimationFrame(tick);
+    }
+    tick();
+  } catch(e) { console.warn('Analyser error:', e); }
+}
+
+function stopMicAnalyser() {
+  if (_analyserRAF) { cancelAnimationFrame(_analyserRAF); _analyserRAF = null; }
+  if (_analyserSource) { try { _analyserSource.disconnect(); } catch(_) {} _analyserSource = null; }
+  _analyser = null;
+  applyLocalGlow(0);
+}
+
+function applyLocalGlow(level) {
+  // Find local participant avatar and apply dynamic box-shadow
+  const localEl = document.querySelector('.voice-avatar[data-local="true"]');
+  if (!localEl) return;
+  if (_isMuted || level < 0.01) {
+    localEl.style.boxShadow = '';
+    localEl.classList.remove('speaking');
+    return;
+  }
+  const spread = 2 + level * 6;
+  const blur = 6 + level * 18;
+  const alpha = 0.2 + level * 0.65;
+  localEl.classList.add('speaking');
+  localEl.style.boxShadow = `0 0 0 ${spread.toFixed(1)}px rgba(46,204,113,${alpha.toFixed(2)}), 0 0 ${blur.toFixed(0)}px rgba(46,204,113,${(alpha * 0.6).toFixed(2)})`;
+}
+
+// ── Core Call Logic ────────────────────────────────────
 async function joinVoice() {
   if (_dailyCall) return;
   const btn = document.getElementById('voiceJoinBtn');
@@ -1351,16 +1486,15 @@ async function joinVoice() {
       videoSource: false,
     });
 
-    // Core events
-    _dailyCall.on('joined-meeting',      () => onVoiceJoined());
-    _dailyCall.on('left-meeting',        () => onVoiceLeft());
-    _dailyCall.on('participant-joined',  () => renderVoiceParticipants());
-    _dailyCall.on('participant-updated', () => renderVoiceParticipants());
-    _dailyCall.on('participant-left',    () => renderVoiceParticipants());
-    _dailyCall.on('track-started',       (e) => onTrackStarted(e));
-    _dailyCall.on('track-stopped',       (e) => onTrackStopped(e));
+    _dailyCall.on('joined-meeting',        () => onVoiceJoined());
+    _dailyCall.on('left-meeting',          () => onVoiceLeft());
+    _dailyCall.on('participant-joined',    () => renderVoiceParticipants());
+    _dailyCall.on('participant-updated',   () => renderVoiceParticipants());
+    _dailyCall.on('participant-left',      () => renderVoiceParticipants());
+    _dailyCall.on('track-started',         (e) => onTrackStarted(e));
+    _dailyCall.on('track-stopped',         (e) => onTrackStopped(e));
     _dailyCall.on('active-speaker-change', (e) => onActiveSpeaker(e));
-    _dailyCall.on('error',               (e) => { console.error('Daily error:', e); onVoiceLeft(); });
+    _dailyCall.on('error',                 (e) => { console.error('Daily error:', e); onVoiceLeft(); });
 
     await _dailyCall.join({ url: data.url, userName: playerName });
   } catch(e) {
@@ -1371,15 +1505,23 @@ async function joinVoice() {
 }
 
 function onVoiceJoined() {
+  playZenTone('join');
   document.getElementById('voiceJoinArea').style.display = 'none';
   document.getElementById('voiceCallControls').style.display = '';
   document.getElementById('voiceParticipants').style.display = '';
   document.getElementById('voiceLiveDot').classList.add('active');
+
+  // Start mic analyser on local stream
+  if (_dailyCall) {
+    const local = _dailyCall.participants().local;
+    const audioTrack = local?.tracks?.audio?.persistentTrack;
+    if (audioTrack) startMicAnalyser(new MediaStream([audioTrack]));
+  }
   renderVoiceParticipants();
 }
 
 function onVoiceLeft() {
-  // Clean up audio elements
+  stopMicAnalyser();
   document.getElementById('voiceAudioContainer').innerHTML = '';
   document.getElementById('voiceJoinArea').style.display = '';
   document.getElementById('voiceCallControls').style.display = 'none';
@@ -1389,30 +1531,38 @@ function onVoiceLeft() {
   document.getElementById('voiceCountLabel').textContent = '';
   document.getElementById('voiceJoinBtn').textContent = '🎙 Join Voice';
   document.getElementById('voiceJoinBtn').disabled = false;
+  const muteBtn = document.getElementById('voiceMuteBtn');
+  if (muteBtn) { muteBtn.textContent = '🎙 Mute'; muteBtn.classList.remove('muted-btn'); }
   _isMuted = false;
   _activeSpeakers.clear();
   _dailyCall = null;
 }
 
 function leaveVoice() {
-  if (_dailyCall) {
-    _dailyCall.leave();
-    _dailyCall.destroy();
-  }
-  onVoiceLeft();
+  playZenTone('leave');
+  setTimeout(() => {
+    if (_dailyCall) { _dailyCall.leave(); _dailyCall.destroy(); }
+    onVoiceLeft();
+  }, 200); // slight delay so tone plays before teardown
 }
 
 function toggleMute() {
   if (!_dailyCall) return;
   _isMuted = !_isMuted;
   _dailyCall.setLocalAudio(!_isMuted);
+  playZenTone(_isMuted ? 'mute' : 'unmute');
   const btn = document.getElementById('voiceMuteBtn');
   if (_isMuted) {
     btn.textContent = '🔇 Unmute';
     btn.classList.add('muted-btn');
+    stopMicAnalyser(); // no point analysing when muted
   } else {
     btn.textContent = '🎙 Mute';
     btn.classList.remove('muted-btn');
+    // Restart analyser
+    const local = _dailyCall?.participants()?.local;
+    const audioTrack = local?.tracks?.audio?.persistentTrack;
+    if (audioTrack) startMicAnalyser(new MediaStream([audioTrack]));
   }
   renderVoiceParticipants();
 }
@@ -1420,29 +1570,23 @@ function toggleMute() {
 function setVoiceVolume(val) {
   _volumeLevel = val / 100;
   document.getElementById('voiceVolumeLabel').textContent = val;
-  // Apply to all remote audio elements
-  document.querySelectorAll('#voiceAudioContainer audio').forEach(a => {
-    a.volume = _volumeLevel;
-  });
+  document.querySelectorAll('#voiceAudioContainer audio').forEach(a => { a.volume = _volumeLevel; });
 }
 
 function onTrackStarted(e) {
   if (e.track.kind !== 'audio') return;
-  if (e.participant?.local) return; // never play own audio back
-  const audioEl = document.getElementById(`voice-audio-${e.participant.session_id}`);
-  if (audioEl) {
-    audioEl.srcObject = new MediaStream([e.track]);
-    audioEl.volume = _volumeLevel;
-    audioEl.play().catch(() => {});
-  } else {
-    const el = document.createElement('audio');
-    el.id = `voice-audio-${e.participant.session_id}`;
+  if (e.participant?.local) return;
+  const id = `voice-audio-${e.participant.session_id}`;
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('audio');
+    el.id = id;
     el.autoplay = true;
-    el.volume = _volumeLevel;
-    el.srcObject = new MediaStream([e.track]);
-    el.play().catch(() => {});
     document.getElementById('voiceAudioContainer').appendChild(el);
   }
+  el.srcObject = new MediaStream([e.track]);
+  el.volume = _volumeLevel;
+  el.play().catch(() => {});
 }
 
 function onTrackStopped(e) {
@@ -1461,32 +1605,27 @@ function renderVoiceParticipants() {
   if (!_dailyCall) return;
   const participants = Object.values(_dailyCall.participants());
   const container = document.getElementById('voiceParticipants');
-  const count = participants.length;
-  document.getElementById('voiceCountLabel').textContent = count > 0 ? `${count} connected` : '';
+  document.getElementById('voiceCountLabel').textContent = participants.length > 0 ? `${participants.length} connected` : '';
 
   container.innerHTML = participants.map(p => {
     const name = p.user_name || 'Guest';
     const initial = name.charAt(0).toUpperCase();
     const isLocal = p.local;
     const audioEnabled = isLocal ? !_isMuted : (p.tracks?.audio?.state === 'playable' || p.tracks?.audio?.state === 'loading');
-    const isSpeaking = _activeSpeakers.has(p.session_id) && audioEnabled;
+    const isSpeaking = !isLocal && _activeSpeakers.has(p.session_id) && audioEnabled;
     const isMuted = !audioEnabled;
-
-    // Get avatar from cached profile if available
     const profilePic = (isLocal && currentUserInfo?.picture) ? currentUserInfo.picture : null;
 
+    // data-local marks the element for the analyser glow
     return `<div class="voice-participant" title="${esc(name)}">
-      <div class="voice-avatar ${isSpeaking ? 'speaking' : ''} ${isMuted ? 'muted' : ''}">
-        ${profilePic
-          ? `<img src="${profilePic}" alt="${esc(initial)}" />`
-          : `<span>${esc(initial)}</span>`}
+      <div class="voice-avatar ${isSpeaking ? 'speaking' : ''} ${isMuted ? 'muted' : ''}" ${isLocal ? 'data-local="true"' : ''}>
+        ${profilePic ? `<img src="${profilePic}" alt="${esc(initial)}" />` : `<span>${esc(initial)}</span>`}
         <div class="voice-mute-icon ${isMuted ? 'show' : ''}">🔇</div>
       </div>
       <div class="voice-name">${esc(name.split(' ')[0])}</div>
     </div>`;
   }).join('');
 }
-
 function sendLobbyMessage() {
   const input = document.getElementById('lobbyChatInput');
   const text = input.value.trim();
