@@ -130,12 +130,16 @@ app.get('/auth/logout', (req, res) => {
   res.redirect('/?auth=logout');
 });
 
-app.get('/auth/status', (req, res) => res.json({
-  connected: !!req.session.userTokens || !!getServiceAccountDrive(),
-  serviceAccount: !!getServiceAccountDrive(),
-  userOAuth: !!req.session.userTokens,
-  userInfo: req.session.userInfo || null
-}));
+app.get('/auth/status', (req, res) => {
+  const hasUserOAuth = !!req.session.userTokens;
+  const hasServiceAccount = !!getServiceAccountDrive();
+  res.json({
+    connected: hasUserOAuth || hasServiceAccount,  // Drive is available via either path
+    serviceAccount: hasServiceAccount,
+    userOAuth: hasUserOAuth,                        // true only when user has personally signed in
+    userInfo: req.session.userInfo || null
+  });
+});
 
 // ── Room State (persisted to Drive) ────────────────────
 const rooms = {};
@@ -435,7 +439,7 @@ app.get('/api/basins', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const folderId = await getCoCreateRootId(drive);  // respects COCREATE_FOLDER_ID env var
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
     if (!fileId) {
       // First time — write defaults to Drive and return them
@@ -463,7 +467,7 @@ app.post('/api/basins', async (req, res) => {
   const drive = await getSystemDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const folderId = await getCoCreateRootId(drive);  // respects COCREATE_FOLDER_ID env var
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
     const basins = fileId ? await readDriveFile(drive, fileId) : [...DEFAULT_BASINS];
     const newBasin = {
@@ -546,7 +550,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   const { biography, playerName } = req.body;
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const folderId = await getCoCreateRootId(drive);  // respects COCREATE_FOLDER_ID
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
     if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
     const basins = await readDriveFile(drive, fileId);
@@ -572,7 +576,7 @@ app.delete('/api/basins/:id', async (req, res) => {
     return res.status(403).json({ error: 'Default basins cannot be removed.' });
   }
   try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const folderId = await getCoCreateRootId(drive);  // respects COCREATE_FOLDER_ID
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
     if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
     const basins = await readDriveFile(drive, fileId);
@@ -591,7 +595,8 @@ app.delete('/api/basins/:id', async (req, res) => {
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const drive = await getDrive(req);
+  // Prefer user's personal OAuth (so they see their own folders), fall back to service account
+  const drive = (await getDrive(req)) || (await getSystemDrive());
   if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
@@ -1083,6 +1088,10 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('room:thinking', true);
 
       let resonanceText;
+      // Pass user tokens from socket session so knowledge folders can be read from their personal Drive.
+      // Falls back gracefully to undefined (service account context only) if not present.
+      const socketUserTokens = socket.request.session?.userTokens || null;
+
       if (modeInstruction && modeInstruction.includes('SILENT mode')) {
         // Tagged in silent mode — respond briefly
         resonanceText = await generateResonance(
@@ -1091,7 +1100,7 @@ io.on('connection', (socket) => {
           room.activeFolders,
           room.folderMap,
           'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.',
-          socket.request.session?.userTokens
+          socketUserTokens
         );
       } else {
         resonanceText = await generateResonance(
@@ -1100,7 +1109,7 @@ io.on('connection', (socket) => {
           room.activeFolders,
           room.folderMap,
           modeInstruction || '',
-          socket.request.session?.userTokens
+          socketUserTokens
         );
       }
 
@@ -1414,6 +1423,21 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`\n◈ CoCreate is running`);
   console.log(`  Open: http://localhost:${PORT}\n`);
+
+  // ── Auth diagnostics at startup ──────────────────────
+  const hasSA = !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const hasClientId = !!process.env.GOOGLE_CLIENT_ID;
+  const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET;
+  const hasFolderId = !!process.env.COCREATE_FOLDER_ID;
+  const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+  console.log('◈ Auth check:');
+  console.log(`  GOOGLE_SERVICE_ACCOUNT_JSON : ${hasSA ? '✓ set' : '✗ MISSING — Drive writes will use persisted OAuth tokens'}`);
+  console.log(`  GOOGLE_CLIENT_ID            : ${hasClientId ? '✓ set' : '✗ MISSING — user sign-in will fail'}`);
+  console.log(`  GOOGLE_CLIENT_SECRET        : ${hasClientSecret ? '✓ set' : '✗ MISSING — user sign-in will fail'}`);
+  console.log(`  COCREATE_FOLDER_ID          : ${hasFolderId ? '✓ set' : '— not set (will use SA root drive)'}`);
+  console.log(`  ANTHROPIC_API_KEY           : ${hasAnthropicKey ? '✓ set' : '✗ MISSING — AI responses will fail'}`);
+  if (hasSA) getServiceAccountDrive(); // warm up service account client
+  console.log('');
   // Load persisted rooms after a short delay to allow OAuth to be ready
   // Small delay so service account or persisted tokens are ready
   setTimeout(loadRoomsFromDrive, 2000);
