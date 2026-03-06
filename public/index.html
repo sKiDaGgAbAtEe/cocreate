@@ -478,7 +478,33 @@
     @keyframes pulse { 0%,100%{opacity:.55} 50%{opacity:1} }
     @keyframes breathe { 0%,100%{width:80px;opacity:0.5} 50%{width:160px;opacity:1} }
     @keyframes dotPulse { 0%,100%{opacity:.2;transform:scale(.8)} 50%{opacity:.8;transform:scale(1.2)} }
-    /* Profile card popup */
+    /* Voice channel */
+    .voice-panel { border-top: 1px solid var(--border); flex-shrink: 0; }
+    .voice-header { padding: 10px 14px 8px; display: flex; align-items: center; justify-content: space-between; }
+    .voice-label { font-family: 'Cinzel', serif; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; gap: 6px; }
+    .voice-live-dot { width: 6px; height: 6px; border-radius: 50%; background: #2ecc71; display: none; animation: pulse-green 1.5s infinite; }
+    .voice-live-dot.active { display: inline-block; }
+    @keyframes pulse-green { 0%,100% { opacity:1; box-shadow:0 0 0 0 rgba(46,204,113,0.4); } 50% { opacity:0.8; box-shadow:0 0 0 4px rgba(46,204,113,0); } }
+    .voice-participants { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 14px 10px; min-height: 0; }
+    .voice-participant { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: default; }
+    .voice-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(139,111,71,0.15); border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 13px; color: var(--ink-muted); transition: border-color 0.2s, box-shadow 0.2s; position: relative; }
+    .voice-avatar.speaking { border-color: #2ecc71; box-shadow: 0 0 0 3px rgba(46,204,113,0.25), 0 0 12px rgba(46,204,113,0.3); }
+    .voice-avatar.muted { opacity: 0.5; }
+    .voice-avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+    .voice-mute-icon { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-radius: 50%; background: #c0392b; display: none; align-items: center; justify-content: center; font-size: 8px; border: 1px solid var(--parchment); }
+    .voice-mute-icon.show { display: flex; }
+    .voice-name { font-family: 'Cinzel', serif; font-size: 8px; letter-spacing: 0.06em; color: var(--ink-faint); max-width: 44px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+    .voice-controls { display: flex; gap: 6px; padding: 0 14px 12px; align-items: center; }
+    .voice-btn { flex: 1; padding: 7px; font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.08em; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border2); background: rgba(139,111,71,0.08); color: var(--ink-muted); }
+    .voice-btn:hover { background: rgba(139,111,71,0.15); border-color: var(--accent); }
+    .voice-btn.danger { background: rgba(192,57,43,0.08); border-color: rgba(192,57,43,0.3); color: #c0392b; }
+    .voice-btn.danger:hover { background: rgba(192,57,43,0.15); }
+    .voice-btn.muted-btn { background: rgba(192,57,43,0.12); border-color: rgba(192,57,43,0.4); color: #c0392b; }
+    .voice-volume { display: flex; align-items: center; gap: 6px; padding: 0 14px 10px; }
+    .voice-volume input[type=range] { flex:1; height: 3px; accent-color: var(--accent); cursor: pointer; }
+    .voice-volume-label { font-size: 9px; color: var(--ink-faint); font-family: 'Cinzel', serif; width: 24px; text-align: right; }
+    body.dark .voice-avatar { background: rgba(196,168,130,0.1); }
+    body.dark .voice-mute-icon { border-color: #0d0d14; }
     .profile-card-popup { position: fixed; z-index: 200; background: var(--parchment); border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 12px 40px rgba(42,37,32,0.18); padding: 16px; width: 240px; display: none; }
     .profile-card-popup.open { display: block; }
     .profile-card-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--border2); margin-bottom: 8px; display: block; }
@@ -658,21 +684,38 @@
       </div>
 
       <!-- Voice channel -->
-      <div id="voicePanel" style="border-top:1px solid var(--border);flex-shrink:0">
-        <div style="padding:10px 14px 8px;display:flex;align-items:center;justify-content:space-between">
-          <span style="font-family:'Cinzel',serif;font-size:9px;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent)">Voice</span>
-          <div id="voiceMembers" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap"></div>
+      <div class="voice-panel" id="voicePanel">
+        <div class="voice-header">
+          <div class="voice-label">
+            <span class="voice-live-dot" id="voiceLiveDot"></span>
+            Voice
+          </div>
+          <span id="voiceCountLabel" style="font-size:10px;color:var(--ink-faint)"></span>
         </div>
-        <div style="padding:0 14px 10px">
-          <button id="voiceJoinBtn" onclick="joinVoice()" style="width:100%;padding:7px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;background:rgba(139,111,71,0.08);border:1px solid var(--border2);border-radius:6px;cursor:pointer;color:var(--ink-muted);transition:all 0.2s" onmouseover="this.style.background='rgba(139,111,71,0.15)';this.style.borderColor='var(--accent)'" onmouseout="this.style.background='rgba(139,111,71,0.08)';this.style.borderColor='var(--border2)'">
-            🎙 Join Voice
-          </button>
-          <button id="voiceLeaveBtn" onclick="leaveVoice()" style="display:none;width:100%;padding:7px;font-family:'Cinzel',serif;font-size:10px;letter-spacing:0.1em;background:rgba(192,57,43,0.08);border:1px solid rgba(192,57,43,0.3);border-radius:6px;cursor:pointer;color:#c0392b;transition:all 0.2s">
-            ✕ Leave Voice
-          </button>
+
+        <!-- Participant avatars — hidden until in call -->
+        <div class="voice-participants" id="voiceParticipants" style="display:none"></div>
+
+        <!-- Join button (pre-call) -->
+        <div id="voiceJoinArea" class="voice-controls">
+          <button class="voice-btn" id="voiceJoinBtn" onclick="joinVoice()">🎙 Join Voice</button>
         </div>
-        <!-- Daily iframe injected here -->
-        <div id="voiceFrame" style="display:none;height:0;overflow:hidden"></div>
+
+        <!-- In-call controls -->
+        <div id="voiceCallControls" style="display:none">
+          <div class="voice-volume">
+            <span style="font-size:10px;color:var(--ink-faint)">🔊</span>
+            <input type="range" id="voiceVolume" min="0" max="100" value="100" oninput="setVoiceVolume(this.value)" />
+            <span class="voice-volume-label" id="voiceVolumeLabel">100</span>
+          </div>
+          <div class="voice-controls">
+            <button class="voice-btn" id="voiceMuteBtn" onclick="toggleMute()">🎙 Mute</button>
+            <button class="voice-btn danger" onclick="leaveVoice()">✕ Leave</button>
+          </div>
+        </div>
+
+        <!-- Hidden audio container for remote tracks -->
+        <div id="voiceAudioContainer" style="display:none"></div>
       </div>
 
     </div>
@@ -1287,7 +1330,10 @@ function leaveLobbyChat() {
 
 // ── Voice Channel (Daily.co) ───────────────────────────
 let _dailyCall = null;
-let _voiceRoomUrl = null;
+let _isMuted = false;
+let _volumeLevel = 1.0;
+let _activeSpeakers = new Set();
+let _speakerPollInterval = null;
 
 async function joinVoice() {
   if (_dailyCall) return;
@@ -1296,63 +1342,148 @@ async function joinVoice() {
   btn.disabled = true;
 
   try {
-    // Get or create a Daily room for the lobby
     const res = await fetch('/api/voice/room', { method: 'POST' });
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    _voiceRoomUrl = data.url;
 
-    // Create Daily call object (audio only)
     _dailyCall = window.DailyIframe.createCallObject({
       audioSource: true,
       videoSource: false,
-      dailyConfig: { experimentalChromeVideoMuteLightOff: true }
     });
 
-    _dailyCall.on('joined-meeting', updateVoiceUI);
-    _dailyCall.on('left-meeting', onVoiceLeft);
-    _dailyCall.on('participant-joined', updateVoiceUI);
-    _dailyCall.on('participant-left', updateVoiceUI);
-    _dailyCall.on('error', e => { console.error('Daily error:', e); onVoiceLeft(); });
+    // Core events
+    _dailyCall.on('joined-meeting',      () => onVoiceJoined());
+    _dailyCall.on('left-meeting',        () => onVoiceLeft());
+    _dailyCall.on('participant-joined',  () => renderVoiceParticipants());
+    _dailyCall.on('participant-updated', () => renderVoiceParticipants());
+    _dailyCall.on('participant-left',    () => renderVoiceParticipants());
+    _dailyCall.on('track-started',       (e) => onTrackStarted(e));
+    _dailyCall.on('track-stopped',       (e) => onTrackStopped(e));
+    _dailyCall.on('active-speaker-change', (e) => onActiveSpeaker(e));
+    _dailyCall.on('error',               (e) => { console.error('Daily error:', e); onVoiceLeft(); });
 
-    await _dailyCall.join({ url: _voiceRoomUrl, userName: playerName });
+    await _dailyCall.join({ url: data.url, userName: playerName });
   } catch(e) {
-    console.error('Voice join error:', e);
+    console.error('Voice join error:', e.message);
     btn.textContent = '🎙 Join Voice';
     btn.disabled = false;
-    onVoiceLeft();
   }
+}
+
+function onVoiceJoined() {
+  document.getElementById('voiceJoinArea').style.display = 'none';
+  document.getElementById('voiceCallControls').style.display = '';
+  document.getElementById('voiceParticipants').style.display = '';
+  document.getElementById('voiceLiveDot').classList.add('active');
+  renderVoiceParticipants();
+}
+
+function onVoiceLeft() {
+  // Clean up audio elements
+  document.getElementById('voiceAudioContainer').innerHTML = '';
+  document.getElementById('voiceJoinArea').style.display = '';
+  document.getElementById('voiceCallControls').style.display = 'none';
+  document.getElementById('voiceParticipants').style.display = 'none';
+  document.getElementById('voiceParticipants').innerHTML = '';
+  document.getElementById('voiceLiveDot').classList.remove('active');
+  document.getElementById('voiceCountLabel').textContent = '';
+  document.getElementById('voiceJoinBtn').textContent = '🎙 Join Voice';
+  document.getElementById('voiceJoinBtn').disabled = false;
+  _isMuted = false;
+  _activeSpeakers.clear();
+  _dailyCall = null;
 }
 
 function leaveVoice() {
   if (_dailyCall) {
     _dailyCall.leave();
     _dailyCall.destroy();
-    _dailyCall = null;
   }
   onVoiceLeft();
 }
 
-function onVoiceLeft() {
-  _dailyCall = null;
-  document.getElementById('voiceJoinBtn').style.display = '';
-  document.getElementById('voiceJoinBtn').textContent = '🎙 Join Voice';
-  document.getElementById('voiceJoinBtn').disabled = false;
-  document.getElementById('voiceLeaveBtn').style.display = 'none';
-  document.getElementById('voiceMembers').innerHTML = '';
+function toggleMute() {
+  if (!_dailyCall) return;
+  _isMuted = !_isMuted;
+  _dailyCall.setLocalAudio(!_isMuted);
+  const btn = document.getElementById('voiceMuteBtn');
+  if (_isMuted) {
+    btn.textContent = '🔇 Unmute';
+    btn.classList.add('muted-btn');
+  } else {
+    btn.textContent = '🎙 Mute';
+    btn.classList.remove('muted-btn');
+  }
+  renderVoiceParticipants();
 }
 
-function updateVoiceUI() {
-  if (!_dailyCall) return;
-  document.getElementById('voiceJoinBtn').style.display = 'none';
-  document.getElementById('voiceLeaveBtn').style.display = '';
+function setVoiceVolume(val) {
+  _volumeLevel = val / 100;
+  document.getElementById('voiceVolumeLabel').textContent = val;
+  // Apply to all remote audio elements
+  document.querySelectorAll('#voiceAudioContainer audio').forEach(a => {
+    a.volume = _volumeLevel;
+  });
+}
 
+function onTrackStarted(e) {
+  if (e.track.kind !== 'audio') return;
+  if (e.participant?.local) return; // never play own audio back
+  const audioEl = document.getElementById(`voice-audio-${e.participant.session_id}`);
+  if (audioEl) {
+    audioEl.srcObject = new MediaStream([e.track]);
+    audioEl.volume = _volumeLevel;
+    audioEl.play().catch(() => {});
+  } else {
+    const el = document.createElement('audio');
+    el.id = `voice-audio-${e.participant.session_id}`;
+    el.autoplay = true;
+    el.volume = _volumeLevel;
+    el.srcObject = new MediaStream([e.track]);
+    el.play().catch(() => {});
+    document.getElementById('voiceAudioContainer').appendChild(el);
+  }
+}
+
+function onTrackStopped(e) {
+  if (e.track.kind !== 'audio') return;
+  const el = document.getElementById(`voice-audio-${e.participant?.session_id}`);
+  if (el) el.remove();
+}
+
+function onActiveSpeaker(e) {
+  _activeSpeakers.clear();
+  if (e.activeSpeaker?.peerId) _activeSpeakers.add(e.activeSpeaker.peerId);
+  renderVoiceParticipants();
+}
+
+function renderVoiceParticipants() {
+  if (!_dailyCall) return;
   const participants = Object.values(_dailyCall.participants());
-  const members = document.getElementById('voiceMembers');
-  members.innerHTML = participants.map(p => {
+  const container = document.getElementById('voiceParticipants');
+  const count = participants.length;
+  document.getElementById('voiceCountLabel').textContent = count > 0 ? `${count} connected` : '';
+
+  container.innerHTML = participants.map(p => {
     const name = p.user_name || 'Guest';
-    const speaking = p.audio ? '' : ' style="opacity:0.4"';
-    return `<span title="${esc(name)}" style="font-size:10px;background:rgba(139,111,71,0.12);border:1px solid var(--border2);border-radius:10px;padding:2px 7px;font-family:Cinzel,serif;color:var(--ink-muted)"${speaking}>${esc(name.split(' ')[0])}</span>`;
+    const initial = name.charAt(0).toUpperCase();
+    const isLocal = p.local;
+    const audioEnabled = isLocal ? !_isMuted : (p.tracks?.audio?.state === 'playable' || p.tracks?.audio?.state === 'loading');
+    const isSpeaking = _activeSpeakers.has(p.session_id) && audioEnabled;
+    const isMuted = !audioEnabled;
+
+    // Get avatar from cached profile if available
+    const profilePic = (isLocal && currentUserInfo?.picture) ? currentUserInfo.picture : null;
+
+    return `<div class="voice-participant" title="${esc(name)}">
+      <div class="voice-avatar ${isSpeaking ? 'speaking' : ''} ${isMuted ? 'muted' : ''}">
+        ${profilePic
+          ? `<img src="${profilePic}" alt="${esc(initial)}" />`
+          : `<span>${esc(initial)}</span>`}
+        <div class="voice-mute-icon ${isMuted ? 'show' : ''}">🔇</div>
+      </div>
+      <div class="voice-name">${esc(name.split(' ')[0])}</div>
+    </div>`;
   }).join('');
 }
 
