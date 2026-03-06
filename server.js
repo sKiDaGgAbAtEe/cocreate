@@ -84,7 +84,8 @@ app.get('/auth/google', (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: REQUIRED_SCOPES,
-    prompt: 'consent'  // force consent screen so Google always returns refresh_token
+    prompt: 'consent',
+    include_granted_scopes: false  // don't merge with previously granted scopes
   });
   res.redirect(url);
 });
@@ -95,6 +96,7 @@ app.get('/auth/google/callback', async (req, res) => {
     userTokens = tokens;
     oauth2Client.setCredentials(tokens);
     saveTokensToDisk(tokens);
+    console.log('OAuth token granted scopes:', tokens.scope);
     // Fetch Google profile info
     try {
       const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
