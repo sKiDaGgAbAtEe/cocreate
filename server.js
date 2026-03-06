@@ -105,6 +105,8 @@ app.get('/auth/google/callback', async (req, res) => {
       console.log('User info saved:', userInfo.email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
     res.redirect('/?auth=success');
+    // Reload rooms now that we have auth
+    setTimeout(loadRoomsFromDrive, 500);
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
@@ -166,7 +168,7 @@ function uniqueMembers(room) {
 
 async function loadRoomsFromDrive() {
   const drive = await getDrive();
-  if (!drive) return;
+  if (!drive) { console.log('loadRoomsFromDrive: no drive available, skipping'); return; }
   try {
     const activeId = await getActiveFolderId(drive);
     const fileId = await getDriveFile(drive, 'rooms.json', activeId);
