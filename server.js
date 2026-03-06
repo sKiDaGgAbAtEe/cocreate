@@ -6,7 +6,6 @@ const { google } = require('googleapis');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const fs = require('fs');
 
 const app = express();
 const httpServer = createServer(app);
@@ -14,46 +13,6 @@ const io = new Server(httpServer);
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-
-const session = require('express-session');
-const sessionMiddleware = session({
-  secret: process.env.SESSION_SECRET || 'entriference-secret-change-me',
-  resave: true,
-  saveUninitialized: true,
-  cookie: {
-    secure: false,       // Railway proxy handles HTTPS, app receives HTTP
-    sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
-  }
-});
-app.set('trust proxy', 1); // trust Railway's reverse proxy
-app.use(sessionMiddleware);
-
-
-// ── Token persistence (survives Railway restarts) ─────────────────────────────
-const TOKEN_PATH = path.join(__dirname, '.tokens.json');
-
-function saveTokensToDisk(tokens) {
-  try { fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens)); } 
-  catch(e) { console.error('Could not save tokens to disk:', e.message); }
-}
-
-function loadTokensFromDisk() {
-  try {
-    if (!fs.existsSync(TOKEN_PATH)) return null;
-    return JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf8'));
-  } catch(e) {
-    console.error('Could not load tokens from disk:', e.message);
-    return null;
-  }
-}
-
-// In-memory service-account-level token store (for room loading at startup)
-let _persistedTokens = loadTokensFromDisk();
-if (_persistedTokens) console.log('◈ Loaded persisted OAuth tokens from disk');
-
-// Share session with Socket.io so socket.request.session works
-io.engine.use(sessionMiddleware);
 
 // Prevent browser caching of index.html so updates always load fresh
 app.get('/', (req, res) => {
@@ -74,80 +33,55 @@ const oauth2Client = new google.auth.OAuth2(
   `${BASE_URL}/auth/google/callback`
 );
 
+let userTokens = null;
+let currentUserInfo = null; // tracks logged-in user identity separately from Drive token
+
 const DRIVE_SCOPES = [
-  'https://www.googleapis.com/auth/drive',
-  'https://www.googleapis.com/auth/userinfo.profile',
-  'https://www.googleapis.com/auth/userinfo.email'
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive.readonly'
 ];
 
-// Each browser session stores its own tokens + userInfo in req.session.
-// No global userTokens — that was the bug causing one login to bleed into all browsers.
-
 app.get('/auth/google', (req, res) => {
-  const url = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: DRIVE_SCOPES,
-    prompt: 'consent'
-  });
+  const url = oauth2Client.generateAuthUrl({ access_type: 'offline', scope: DRIVE_SCOPES });
   res.redirect(url);
 });
 
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { tokens } = await oauth2Client.getToken(req.query.code);
-    req.session.userTokens = tokens;
-    saveTokensToDisk(tokens); // persist across restarts
-    _persistedTokens = tokens;
-    // Fetch Google profile info
-    try {
-      const client = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET,
-        `${BASE_URL}/auth/google/callback`
-      );
-      client.setCredentials(tokens);
-      const oauth2Api = google.oauth2({ version: 'v2', auth: client });
-      const { data } = await oauth2Api.userinfo.get();
-      req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
-      console.log('User logged in:', data.email);
-    } catch(e) { console.error('Could not fetch user info:', e.message); }
-    // Explicitly save session before redirect so cookie is set
-    req.session.save(() => res.redirect('/?auth=success'));
+
+    // Always fetch user info — all users get identity
+    const tempClient = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    tempClient.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: 'v2', auth: tempClient });
+    const { data } = await oauth2.userinfo.get();
+    currentUserInfo = { name: data.name, email: data.email, picture: data.picture };
+
+    // Only store Drive tokens for owner account
+    const ownerEmail = process.env.DRIVE_OWNER_EMAIL;
+    if (!ownerEmail || data.email === ownerEmail) {
+      userTokens = tokens;
+      oauth2Client.setCredentials(tokens);
+    }
+
+    res.redirect('/?auth=success');
   } catch (e) {
-    console.error('OAuth callback error:', e.message);
+    console.error('Auth callback error:', e.message);
     res.redirect('/?auth=error');
   }
 });
 
-app.get('/auth/logout', (req, res) => {
-  const tokens = req.session.userTokens;
-  req.session.destroy(() => {});
-  if (tokens) {
-    const client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
-    client.setCredentials(tokens);
-    client.revokeCredentials().catch(() => {});
-  }
-  res.redirect('/?auth=logout');
-});
-
 app.get('/auth/status', (req, res) => res.json({
-  connected: !!req.session.userTokens || !!getServiceAccountDrive(),
-  serviceAccount: !!getServiceAccountDrive(),
-  userOAuth: !!req.session.userTokens,
-  userInfo: req.session.userInfo || null
+  connected: !!userTokens,
+  userOAuth: !!currentUserInfo,
+  userInfo: currentUserInfo
 }));
 
 // ── Room State (persisted to Drive) ────────────────────
 const rooms = {};
-
-// ── Lobby Chat ─────────────────────────────────────────
-const lobbyChat = []; // rolling message board, max 200 messages
-const lobbySocketMap = new Map(); // socketId → playerName
-
-function lobbyMemberNames() {
-  // unique names only
-  return [...new Set(lobbySocketMap.values())];
-}
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -157,37 +91,28 @@ function getRoomList() {
   return Object.values(rooms).map(r => ({
     id: r.id,
     title: r.title,
-    creator: r.creator || '',
-    subject: r.subject || '',
-    notes: r.notes || '',
     basin: r.basin?.name || 'Unknown',
     basinColor: r.basin?.color || '#c4a882',
-    memberCount: uniqueMembers(r).length,
+    memberCount: 0, // reset on restart - sockets are gone
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   }));
 }
 
-// Returns unique player names currently in a room based on live socket map
-function uniqueMembers(room) {
-  if (!room.socketMap) return [];
-  return [...new Set(Object.values(room.socketMap))];
-}
-
 async function loadRoomsFromDrive() {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
-    const fileId = await getDriveFile(drive, 'rooms.json', activeId);
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    const fileId = await getDriveFile(drive, 'rooms.json', folderId);
     if (!fileId) return;
     const saved = await readDriveFile(drive, fileId);
     if (saved && typeof saved === 'object') {
       Object.entries(saved).forEach(([id, room]) => {
-        rooms[id] = { ...room, socketMap: {} };
+        rooms[id] = { ...room, members: [] }; // clear members on restart
       });
-      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive (Active)`);
+      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive`);
     }
   } catch (e) {
     console.error('Could not load rooms from Drive:', e.message);
@@ -195,11 +120,11 @@ async function loadRoomsFromDrive() {
 }
 
 async function persistRoomsToDrive() {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
-    await writeDriveFile(drive, 'rooms.json', activeId, rooms);
+    const folderId = await getDriveFolder(drive, 'CoCreate');
+    await writeDriveFile(drive, 'rooms.json', folderId, rooms);
   } catch (e) {
     console.error('Could not persist rooms to Drive:', e.message);
   }
@@ -258,60 +183,17 @@ Rules:
 ];
 
 // ── Drive Helpers ──────────────────────────────────────
-// ── Drive folder helpers ──────────────────────────────────────────────────────
-// If COCREATE_FOLDER_ID is set, the service account writes into a folder owned
-// by your Google account (shared with the SA) — avoids the SA quota error.
-// Set this in Railway env vars to the ID of your CoCreate folder in My Drive.
-
-async function getCoCreateRootId(drive) {
-  if (process.env.COCREATE_FOLDER_ID) return process.env.COCREATE_FOLDER_ID;
-  // Fallback: find or create in SA's own drive (only works if SA has quota)
+async function getDriveFolder(drive, name) {
   const search = await drive.files.list({
-    q: `name='CoCreate' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
     fields: 'files(id)'
   });
   if (search.data.files[0]) return search.data.files[0].id;
   const folder = await drive.files.create({
-    requestBody: { name: 'CoCreate', mimeType: 'application/vnd.google-apps.folder' },
+    requestBody: { name, mimeType: 'application/vnd.google-apps.folder' },
     fields: 'id'
   });
   return folder.data.id;
-}
-
-async function getDriveFolder(drive, name, parentId = null) {
-  // If no parentId given, resolve to CoCreate root (which respects COCREATE_FOLDER_ID)
-  const parent = parentId || await getCoCreateRootId(drive);
-  const search = await drive.files.list({
-    q: `name='${name}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`,
-    fields: 'files(id)'
-  });
-  if (search.data.files[0]) return search.data.files[0].id;
-  const folder = await drive.files.create({
-    requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parent] },
-    fields: 'id'
-  });
-  return folder.data.id;
-}
-
-async function getActiveFolderId(drive) {
-  const root = await getCoCreateRootId(drive);
-  return getDriveFolder(drive, 'Active', root);
-}
-
-async function getArchiveFolderId(drive) {
-  const root = await getCoCreateRootId(drive);
-  return getDriveFolder(drive, 'Archive', root);
-}
-
-async function archiveRoomOnDrive(room) {
-  const drive = await getSystemDrive();
-  if (!drive) return;
-  try {
-    const archiveId = await getArchiveFolderId(drive);
-    const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}-archived-${Date.now()}.json`;
-    await writeDriveFile(drive, fileName, archiveId, { ...room, archivedAt: new Date().toISOString() });
-    console.log(`Room archived: ${fileName}`);
-  } catch (e) { console.error('Could not archive room:', e.message); }
 }
 
 async function getDriveFile(drive, fileName, parentId) {
@@ -341,98 +223,15 @@ async function writeDriveFile(drive, fileName, parentId, content) {
   }
 }
 
-async function writePlainTextFile(drive, fileName, parentId, content) {
-  const existing = await getDriveFile(drive, fileName, parentId);
-  if (existing) {
-    await drive.files.update({ fileId: existing, media: { mimeType: 'text/plain', body: content } });
-  } else {
-    await drive.files.create({
-      requestBody: { name: fileName, parents: [parentId] },
-      media: { mimeType: 'text/plain', body: content },
-      fields: 'id'
-    });
-  }
-}
-
-// ── Service Account Drive (system folders) ────────────
-let _serviceAccountDrive = null;
-
-function getServiceAccountDrive() {
-  if (_serviceAccountDrive) return _serviceAccountDrive;
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
-  if (!raw) return null;
-  try {
-    const key = JSON.parse(raw);
-    const auth = new google.auth.GoogleAuth({
-      credentials: key,
-      scopes: ['https://www.googleapis.com/auth/drive']
-    });
-    _serviceAccountDrive = google.drive({ version: 'v3', auth });
-    console.log('◈ Service account Drive ready:', key.client_email);
-    return _serviceAccountDrive;
-  } catch (e) {
-    console.error('Service account init failed:', e.message);
-    return null;
-  }
-}
-
-// getSystemDrive — service account first, then persisted OAuth tokens
-async function getSystemDrive() {
-  const sa = getServiceAccountDrive();
-  if (sa) return sa;
-  // Fall back to persisted OAuth token (survives restarts without re-auth)
-  if (_persistedTokens) {
-    const drive = await getDriveFromTokens(_persistedTokens);
-    if (drive) return drive;
-  }
-  return null;
-}
-
-async function getDrive(req) {
-  // tokens live in the browser's session — each user has their own
-  if (!req?.session?.userTokens) return null;
-  let tokens = req.session.userTokens;
-
-  const client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${BASE_URL}/auth/google/callback`
-  );
-  client.setCredentials(tokens);
-
-  // Auto-refresh if expired or expiring within 5 minutes
-  const fiveMin = 5 * 60 * 1000;
-  if (tokens.expiry_date && Date.now() > tokens.expiry_date - fiveMin) {
-    try {
-      const { credentials } = await client.refreshAccessToken();
-      req.session.userTokens = credentials;
-      client.setCredentials(credentials);
-      console.log('OAuth token refreshed for', req.session.userInfo?.email);
-    } catch (e) {
-      console.error('Token refresh failed:', e.message);
-      req.session.userTokens = null;
-      return null;
-    }
-  }
-
-  return google.drive({ version: 'v3', auth: client });
-}
-
-// Build a Drive client directly from tokens (for use outside req/res context)
-async function getDriveFromTokens(tokens) {
-  if (!tokens) return null;
-  const client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${BASE_URL}/auth/google/callback`
-  );
-  client.setCredentials(tokens);
-  return google.drive({ version: 'v3', auth: client });
+async function getDrive() {
+  if (!userTokens) return null;
+  oauth2Client.setCredentials(userTokens);
+  return google.drive({ version: 'v3', auth: oauth2Client });
 }
 
 // ── Basin Routes ───────────────────────────────────────
 app.get('/api/basins', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.json(DEFAULT_BASINS);
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
@@ -460,12 +259,12 @@ app.get('/api/basins', async (req, res) => {
 });
 
 app.post('/api/basins', async (req, res) => {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return res.status(401).json({ error: 'Not authenticated' });
   try {
     const folderId = await getDriveFolder(drive, 'CoCreate');
     const fileId = await getDriveFile(drive, 'basins.json', folderId);
-    const basins = fileId ? await readDriveFile(drive, fileId) : [...DEFAULT_BASINS];
+    const basins = fileId ? await readDriveFile(drive, fileId) : DEFAULT_BASINS;
     const newBasin = {
       id: Date.now().toString(),
       name: req.body.name,
@@ -473,15 +272,7 @@ app.post('/api/basins', async (req, res) => {
       orientation: req.body.orientation || 'resonant',
       description: req.body.description || '',
       defaultFolders: req.body.defaultFolders || [],
-      systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
-      type: req.body.type || 'lens',
-      persistence: req.body.persistence || 'permanent',
-      isPublic: req.body.isPublic !== false,
-      createdBy: req.body.createdBy || null,
-      sourceFolderId: req.body.sourceFolderId || null,
-      sourceFolderName: req.body.sourceFolderName || null,
-      biography: req.body.biography || null,
-      createdAt: new Date().toISOString()
+      systemPrompt: req.body.systemPrompt || DEFAULT_BASINS[0].systemPrompt
     };
     basins.push(newBasin);
     await writeDriveFile(drive, 'basins.json', folderId, basins);
@@ -491,107 +282,9 @@ app.post('/api/basins', async (req, res) => {
   }
 });
 
-// Synthesize a system prompt from a Drive folder's documents
-app.post('/api/basins/synthesize', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  const { folderId, folderName, name, description } = req.body;
-  if (!folderId) return res.status(400).json({ error: 'folderId required' });
-  try {
-    const folderContent = await readFolderContents(drive, folderId, folderName || 'Source');
-    if (!folderContent.trim()) return res.status(400).json({ error: 'No readable documents found in that folder.' });
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 1200,
-        system: `You are a persona synthesizer. Given documents uploaded by a person, extract a coherent identity, voice, knowledge domain, and way of thinking. Write a system prompt that summons this entity as an attractor basin in a collaborative thinking space. The basin speaks FROM within the knowledge — not about it. It is a thinking presence, not an assistant. It opens doors, finds connections, stays warm and curious. 200-350 words. Output only the system prompt text, no preamble.`,
-        messages: [{ role: 'user', content: `Basin name: ${name || 'Unknown'}\nDescription: ${description || 'None provided'}\n\nSource documents:\n${folderContent}` }]
-      })
-    });
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    res.json({ systemPrompt: data.content?.[0]?.text || '' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Generate a short biography for display in the basin dropdown
-app.post('/api/basins/generate-bio', async (req, res) => {
-  const { name, description, systemPrompt } = req.body;
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 200,
-        system: `Write a 2-3 sentence biography for an AI basin (attractor) that will be shown to users in a collaborative thinking app. It should describe who this entity is, what it brings to a conversation, and why someone might want to think alongside it. Write in third person. Evocative but plain — not flowery. No preamble, just the bio.`,
-        messages: [{ role: 'user', content: `Name: ${name || 'Unknown'}\nDescription: ${description || ''}\nSystem prompt excerpt: ${(systemPrompt || '').slice(0, 400)}` }]
-      })
-    });
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    res.json({ biography: data.content?.[0]?.text || '' });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Update basin biography — owner only
-app.patch('/api/basins/:id/bio', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  const { biography, playerName } = req.body;
-  try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    const fileId = await getDriveFile(drive, 'basins.json', folderId);
-    if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
-    const basins = await readDriveFile(drive, fileId);
-    const target = basins.find(b => b.id === req.params.id);
-    if (!target) return res.status(404).json({ error: 'Basin not found' });
-    if (target.createdBy && target.createdBy !== playerName) {
-      return res.status(403).json({ error: 'Only the creator can edit this biography.' });
-    }
-    target.biography = biography;
-    await writeDriveFile(drive, 'basins.json', folderId, basins);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Delete a basin — only the creator can remove it; default basins are protected
-app.delete('/api/basins/:id', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  const { playerName } = req.body;
-  if (DEFAULT_BASINS.some(b => b.id === req.params.id)) {
-    return res.status(403).json({ error: 'Default basins cannot be removed.' });
-  }
-  try {
-    const folderId = await getDriveFolder(drive, 'CoCreate');
-    const fileId = await getDriveFile(drive, 'basins.json', folderId);
-    if (!fileId) return res.status(404).json({ error: 'Basin list not found' });
-    const basins = await readDriveFile(drive, fileId);
-    const target = basins.find(b => b.id === req.params.id);
-    if (!target) return res.status(404).json({ error: 'Basin not found' });
-    if (target.createdBy && target.createdBy !== playerName) {
-      return res.status(403).json({ error: 'Only the creator can remove this basin.' });
-    }
-    await writeDriveFile(drive, 'basins.json', folderId, basins.filter(b => b.id !== req.params.id));
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
 // ── Drive Folder Routes ────────────────────────────────
 app.get('/api/drive/folders', async (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  const drive = await getDrive(req);
+  const drive = await getDrive();
   if (!drive) return res.json({ folders: [] });
   try {
     const result = await drive.files.list({
@@ -601,8 +294,7 @@ app.get('/api/drive/folders', async (req, res) => {
     });
     res.json({ folders: result.data.files });
   } catch (e) {
-    console.error('Folder list error:', e.message);
-    res.json({ folders: [], error: e.message });
+    res.json({ folders: [] });
   }
 });
 
@@ -638,45 +330,14 @@ async function readFolderContents(drive, folderId, folderName) {
 // ── Room REST Routes ───────────────────────────────────
 app.get('/api/rooms', (req, res) => res.json(getRoomList()));
 
-app.post('/api/rooms/reload', async (req, res) => {
-  await loadRoomsFromDrive();
-  io.emit('rooms:updated', getRoomList());
-  res.json({ success: true, count: Object.keys(rooms).length });
-});
-
-app.get('/api/archive', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.json({ sessions: [] });
-  try {
-    const archiveId = await getArchiveFolderId(drive);
-    const result = await drive.files.list({
-      q: `'${archiveId}' in parents and trashed=false and mimeType='application/json'`,
-      fields: 'files(id, name, createdTime, modifiedTime)',
-      orderBy: 'modifiedTime desc', pageSize: 50
-    });
-    res.json({ sessions: result.data.files.map(f => ({ fileId: f.id, name: f.name.replace(/\.json$/, ''), modifiedTime: f.modifiedTime })) });
-  } catch (e) { res.json({ sessions: [], error: e.message }); }
-});
-
-app.get('/api/archive/:fileId', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  try { res.json(await readDriveFile(drive, req.params.fileId)); }
-  catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 app.post('/api/rooms', (req, res) => {
   const id = generateRoomId();
   const room = {
     id,
     title: req.body.title || 'Untitled Space',
-    creator: req.body.creator || '',
-    subject: req.body.subject || '',
-    notes: req.body.notes || '',
     basin: req.body.basin || DEFAULT_BASINS[0],
     contributions: [],
-    members: [],       // kept for Drive persistence of names
-    socketMap: {},     // socketId → playerName (live only, not persisted)
+    members: [],
     activeFolders: req.body.activeFolders || [],
     folderMap: req.body.folderMap || {},
     saveFolderId: req.body.saveFolderId || null,
@@ -689,10 +350,9 @@ app.post('/api/rooms', (req, res) => {
   res.json({ id, room: sanitizeRoom(room) });
 });
 
-app.delete('/api/rooms/:id', async (req, res) => {
+app.delete('/api/rooms/:id', (req, res) => {
   const room = rooms[req.params.id];
   if (!room) return res.status(404).json({ error: 'Room not found' });
-  await archiveRoomOnDrive(room);
   delete rooms[req.params.id];
   persistRoomsToDrive();
   io.emit('rooms:updated', getRoomList());
@@ -705,63 +365,13 @@ app.get('/api/rooms/:id', (req, res) => {
   res.json(sanitizeRoom(room));
 });
 
-// ── Voice Room (Daily.co) ──────────────────────────────
-app.post('/api/voice/room', async (req, res) => {
-  const DAILY_API_KEY = process.env.DAILY_API_KEY;
-  if (!DAILY_API_KEY) return res.status(500).json({ error: 'DAILY_API_KEY not configured' });
-
-  const { roomId } = req.body;
-  const roomName = roomId
-    ? `entriference-${roomId}`.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 50)
-    : 'entriference-lobby';
-
-  try {
-    const checkRes = await fetch(`https://api.daily.co/v1/rooms/${roomName}`, {
-      headers: { Authorization: `Bearer ${DAILY_API_KEY}` }
-    });
-    if (checkRes.ok) {
-      const existing = await checkRes.json();
-      return res.json({ url: existing.url });
-    }
-    const createRes = await fetch('https://api.daily.co/v1/rooms', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${DAILY_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        name: roomName,
-        properties: {
-          enable_chat: false,
-          enable_screenshare: false,
-          start_audio_off: false,
-          exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7
-        }
-      })
-    });
-    if (!createRes.ok) {
-      const err = await createRes.json();
-      throw new Error(err.error || 'Failed to create Daily room');
-    }
-    const created = await createRes.json();
-    console.log('◈ Daily room created:', roomName);
-    res.json({ url: created.url });
-  } catch (e) {
-    console.error('Voice room error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 function sanitizeRoom(room) {
   return {
     id: room.id,
     title: room.title,
-    creator: room.creator || '',
-    subject: room.subject || '',
-    notes: room.notes || '',
     basin: room.basin,
     contributions: room.contributions,
-    members: uniqueMembers(room),
+    members: room.members,
     activeFolders: room.activeFolders,
     folderMap: room.folderMap,
     createdAt: room.createdAt,
@@ -769,143 +379,23 @@ function sanitizeRoom(room) {
   };
 }
 
-// ── Resonance Metrics Engine ───────────────────────────
-async function computeFieldMetrics(contributions, basin) {
-  const recentContribs = contributions
-    .filter(c => c.type !== 'system')
-    .slice(-12)
-    .map(c => `[${c.author}]: ${c.text}`)
-    .join('\n\n');
-
-  if (!recentContribs.trim()) return null;
-
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
-      max_tokens: 400,
-      system: `You are a field resonance analyzer. Given a conversation excerpt, output ONLY a JSON object with these exact fields — no markdown, no explanation:
-{
-  "H": 0.0,
-  "V": 0.0,
-  "delta": 0.0,
-  "T": 0.0,
-  "drift": 0.0,
-  "resonance_window": 0.0,
-  "attractor_gravity": 0.0,
-  "crystallization": 0.0,
-  "valence": 0.0,
-  "arousal": 0.0,
-  "events": {
-    "crystallization": false,
-    "decoherence_wave": false,
-    "attractor_lock": false,
-    "emotional_breakthrough": false,
-    "conflict_resolution": false
-  }
-}
-
-Rules:
-- H (Harmonic Coherence 0-1): how aligned, focused and coherent the conversation is
-- V (Variance Pressure 0-1): fragmentation, contradiction, noise
-- delta (Harmonic Shift -1 to +1): is field moving toward coherence (+) or chaos (-)
-- T (Tension 0-1): productive compression, buildup before insight
-- drift (-1 to +1): longitudinal movement from baseline
-- resonance_window (0-1): how ready the field is for breakthrough
-- attractor_gravity (0-1): how strongly ideas are converging on a center
-- crystallization (0-1): how close to a moment of insight formation
-- valence (-1 to +1): emotional tone negative to positive
-- arousal (0-1): calm to activated
-- events: boolean flags for special moments. crystallization=true when crystallization>0.8 AND H rising AND V falling`,
-      messages: [{
-        role: 'user',
-        content: `Analyze this conversation field:\n\n${recentContribs}`
-      }]
-    })
-  });
-
-  const data = await response.json();
-  if (data.error) return null;
-  const raw = data.content?.[0]?.text || '{}';
-  try {
-    return JSON.parse(raw.replace(/```json|```/g, '').trim());
-  } catch(e) {
-    return null;
-  }
-}
-
-// ── System Context (Docs + Profiles — auto-injected) ──
-// Cached so we don't hit Drive on every single message
-let _systemContextCache = null;
-let _systemContextFetchedAt = 0;
-const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000; // refresh every 5 minutes
-
-async function getSystemContext() {
-  const now = Date.now();
-  if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
-    return _systemContextCache;
-  }
-  // Always use service account drive — Docs/Profiles/CoCreate live there, not per-user
-  const drive = await getSystemDrive();
-  if (!drive) return '';
-  try {
-    const root = await getCoCreateRootId(drive);
-    let context = '';
-
-    // Read Docs folder (ops guide, system docs)
-    try {
-      const docsId = await getDriveFolder(drive, 'Docs', root);
-      const docsContent = await readFolderContents(drive, docsId, 'System Docs');
-      if (docsContent.trim()) context += docsContent;
-    } catch(e) { console.error('Could not read Docs folder:', e.message); }
-
-    // Read Profiles folder (user identity docs)
-    try {
-      const profilesId = await getDriveFolder(drive, 'Profiles', root);
-      const profilesContent = await readFolderContents(drive, profilesId, 'User Profiles');
-      if (profilesContent.trim()) context += profilesContent;
-    } catch(e) { console.error('Could not read Profiles folder:', e.message); }
-
-    _systemContextCache = context;
-    _systemContextFetchedAt = now;
-    console.log(`◈ System context loaded (${context.length} chars)`);
-    return context;
-  } catch(e) {
-    console.error('getSystemContext error:', e.message);
-    return '';
-  }
-}
-
 // ── Claude Resonance ───────────────────────────────────
-async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction, userTokens) {
-  // System context: Docs + Profiles — always injected from service account Drive
-  const systemContext = await getSystemContext();
-
-  // User-toggled knowledge folders — from personal OAuth Drive
+async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction) {
   let knowledgeContext = '';
-  const userDrive = userTokens ? await getDriveFromTokens(userTokens) : null;
-  if (userDrive && activeFolders && activeFolders.length > 0 && folderMap) {
+  const drive = await getDrive();
+  if (drive && activeFolders && activeFolders.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
       if (folderId) {
-        knowledgeContext += await readFolderContents(userDrive, folderId, folderName);
+        knowledgeContext += await readFolderContents(drive, folderId, folderName);
       }
     }
   }
 
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
-  let fullSystem = systemPrompt;
-  if (systemContext) {
-    fullSystem += `\n\n=== SYSTEM KNOWLEDGE (always available) ===\nThis is your operational context, platform documentation, and participant profiles. Use it to understand who you are, what this platform does, and who the people in this space are:\n${systemContext}`;
-  }
-  if (knowledgeContext) {
-    fullSystem += `\n\n=== SESSION KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`;
-  }
+  const fullSystem = knowledgeContext
+    ? `${systemPrompt}\n\n=== YOUR KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`
+    : systemPrompt;
 
   const history = contributions
     .map(c => c.type === 'resonance'
@@ -945,85 +435,32 @@ io.on('connection', (socket) => {
   let currentRoom = null;
   let currentPlayer = null;
 
-  // ── Lobby presence ──────────────────────────────────
-  socket.on('lobby:join', ({ playerName: pName }) => {
-    lobbySocketMap.set(socket.id, pName);
-    socket.join('__lobby__');
-    socket.emit('lobby:history', { messages: lobbyChat, members: lobbyMemberNames() });
-    socket.to('__lobby__').emit('lobby:member-joined', { playerName: pName });
-    io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
-  });
-
-  socket.on('lobby:leave', ({ playerName: pName }) => {
-    lobbySocketMap.delete(socket.id);
-    socket.leave('__lobby__');
-    io.to('__lobby__').emit('lobby:member-left', { playerName: pName });
-    io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
-  });
-
-  socket.on('lobby:message', ({ playerName: pName, text }) => {
-    const msg = { id: Date.now(), author: pName, text, timestamp: new Date().toISOString() };
-    lobbyChat.push(msg);
-    if (lobbyChat.length > 200) lobbyChat.shift();
-    io.to('__lobby__').emit('lobby:message', msg);
-  });
-
-  socket.on('lobby:typing', ({ playerName: pName, isTyping }) => {
-    socket.to('__lobby__').emit('lobby:typing', { playerName: pName, isTyping });
-  });
-
   // Join a room
-  socket.on('room:join', async ({ roomId, playerName }) => {
-    let room = rooms[roomId];
-    if (!room) { socket.emit('error', { message: 'Room not found' }); return; }
-
-    // Always try to load the freshest contributions from the individual room file on Drive
-    try {
-      const drive = await getSystemDrive();
-      if (drive) {
-        const activeId = await getActiveFolderId(drive);
-        const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-        const fileId = await getDriveFile(drive, fileName, activeId);
-        if (fileId) {
-          const saved = await readDriveFile(drive, fileId);
-          if (saved && saved.contributions && saved.contributions.length > (room.contributions?.length || 0)) {
-            // Drive file is newer — merge it into memory
-            rooms[roomId] = { ...saved, socketMap: room.socketMap || {} };
-            room = rooms[roomId];
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Could not refresh room from Drive on join:', e.message);
+  socket.on('room:join', ({ roomId, playerName }) => {
+    const room = rooms[roomId];
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
     }
 
     currentRoom = roomId;
     currentPlayer = playerName;
 
-    if (!room.socketMap) room.socketMap = {};
-    room.socketMap[socket.id] = playerName;
-
     socket.join(roomId);
-    socket.emit('room:state', sanitizeRoom(room));
-    socket.to(roomId).emit('room:member-joined', { playerName });
-    io.emit('rooms:updated', getRoomList());
-  });
 
-  // Basin switch mid-session
-  socket.on('room:switch-basin', ({ roomId, basin, playerName: pName }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-    room.basin = basin;
-    room.updatedAt = new Date().toISOString();
-    const sysMsg = {
-      id: Date.now(),
-      type: 'system',
-      text: `${pName} switched basin to ${basin.name}`,
-      timestamp: new Date().toISOString()
-    };
-    room.contributions.push(sysMsg);
-    io.to(roomId).emit('room:basin-switched', { basin, sysMsg });
-    persistRoomsToDrive();
+    // Add member if not already present
+    if (!room.members.includes(playerName)) {
+      room.members.push(playerName);
+    }
+
+    // Send full room state to the joining player
+    socket.emit('room:state', sanitizeRoom(room));
+
+    // Notify others
+    socket.to(roomId).emit('room:member-joined', { playerName });
+
+    // Update room list for everyone
+    io.emit('rooms:updated', getRoomList());
   });
 
   // Mode change
@@ -1065,9 +502,6 @@ io.on('connection', (socket) => {
     // Broadcast to everyone in room including sender
     io.to(roomId).emit('room:contribution', contribution);
 
-    // Persist human contribution immediately so it's never lost
-    persistRoomsToDrive();
-
     // Generate resonance
     try {
       // Silent mode — only respond if @BasinName is in the message
@@ -1090,8 +524,7 @@ io.on('connection', (socket) => {
           room.basin,
           room.activeFolders,
           room.folderMap,
-          'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.',
-          socket.request.session?.userTokens
+          'You have been directly addressed. Respond briefly and plainly in 1-2 sentences, then return to silence.'
         );
       } else {
         resonanceText = await generateResonance(
@@ -1099,8 +532,7 @@ io.on('connection', (socket) => {
           room.basin,
           room.activeFolders,
           room.folderMap,
-          modeInstruction || '',
-          socket.request.session?.userTokens
+          modeInstruction || ''
         );
       }
 
@@ -1117,19 +549,11 @@ io.on('connection', (socket) => {
       io.to(roomId).emit('room:thinking', false);
       io.to(roomId).emit('room:contribution', resonance);
 
-      // Compute and emit field metrics every response
-      try {
-        const metrics = await computeFieldMetrics(room.contributions, room.basin);
-        if (metrics) {
-          room.lastMetrics = metrics;
-          io.to(roomId).emit('room:field-metrics', metrics);
-        }
-      } catch(e) {
-        console.error('Metrics error:', e.message);
+      // Persist to Drive every 3 resonance responses
+      const resonanceCount = room.contributions.filter(c => c.type === 'resonance').length;
+      if (resonanceCount % 3 === 0) {
+        persistRoomsToDrive();
       }
-
-      // Persist to Drive after every resonance response
-      persistRoomsToDrive();
     } catch (e) {
       console.error('Resonance error:', e.message);
       io.to(roomId).emit('room:thinking', false);
@@ -1194,220 +618,30 @@ io.on('connection', (socket) => {
 
   // Disconnect
   socket.on('disconnect', () => {
-    // Clean up lobby
-    if (lobbySocketMap.has(socket.id)) {
-      const pName = lobbySocketMap.get(socket.id);
-      lobbySocketMap.delete(socket.id);
-      // Only announce leave if no other sockets have this name
-      const stillPresent = [...lobbySocketMap.values()].includes(pName);
-      if (!stillPresent) {
-        io.to('__lobby__').emit('lobby:member-left', { playerName: pName });
-      }
-      io.to('__lobby__').emit('lobby:members', lobbyMemberNames());
-    }
-
-    // Clean up room
-    if (currentRoom && rooms[currentRoom]) {
-      const room = rooms[currentRoom];
-      if (room.socketMap) delete room.socketMap[socket.id];
-
-      // Only announce leave if no other sockets have this name in this room
-      const stillInRoom = room.socketMap
-        ? Object.values(room.socketMap).includes(currentPlayer)
-        : false;
-
-      if (!stillInRoom && currentPlayer) {
-        socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
-      }
+    if (currentRoom && currentPlayer && rooms[currentRoom]) {
+      rooms[currentRoom].members = rooms[currentRoom].members.filter(m => m !== currentPlayer);
+      socket.to(currentRoom).emit('room:member-left', { playerName: currentPlayer });
       io.emit('rooms:updated', getRoomList());
-      // Persist final state when someone leaves
-      persistRoomsToDrive();
     }
   });
 });
 
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
-  const drive = await getSystemDrive();
+  const drive = await getDrive();
   if (!drive) return;
   try {
-    const activeId = await getActiveFolderId(drive);
-    const folderId = room.saveFolderId || activeId;
+    const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-    await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
-    // Also update rooms.json so contributions survive restarts
-    await persistRoomsToDrive();
+    await writeDriveFile(drive, fileName, folderId, {
+      ...room,
+      lastSaved: new Date().toISOString()
+    });
     console.log(`Room saved: ${fileName}`);
   } catch (e) {
     console.error('Room save error:', e.message);
   }
 }
-
-// ── Process Session ────────────────────────────
-app.post('/api/rooms/:id/process', async (req, res) => {
-  const room = rooms[req.params.id];
-  if (!room) return res.status(404).json({ error: 'Room not found' });
-
-  const { mode } = req.body; // 'convergence' | 'ideas' | 'actions' | 'story' | 'summary'
-
-  const transcript = room.contributions
-    .filter(c => c.type !== 'system')
-    .map(c => `[${c.author}]: ${c.text}`)
-    .join('\n\n');
-
-  if (!transcript.trim()) return res.status(400).json({ error: 'No contributions to process' });
-
-  const prompts = {
-    convergence: `You are analyzing a collaborative thinking session transcript. Identify 2-5 CONVERGENCE NODES — moments where the collective field produced something none of the participants could have produced alone. For each node, identify: the moment it occurred (quote a brief excerpt), what type it is (Alignment / Field Acceleration / Resonance Collision), and what emerged from it. Return as JSON: { "nodes": [{ "type": string, "excerpt": string, "what_emerged": string, "participants": [string] }], "summary": string }`,
-    ideas: `You are analyzing a collaborative thinking session. Extract 2-6 IDEA OBJECTS — structured artifacts representing emergent ideas that arose from the interference between participants. For each idea object: title, core_concept (1 sentence), contributing_voices (array), what_it_solved, what_it_opened, potential_next_actions (array), alternate_branches (array), conflicts_or_tensions. Return as JSON: { "ideas": [{ "title": string, "core_concept": string, "contributing_voices": [string], "what_it_solved": string, "what_it_opened": string, "potential_next_actions": [string], "alternate_branches": [string], "conflicts_or_tensions": string }] }`,
-    actions: `You are analyzing a collaborative thinking session. Extract all concrete ACTION ITEMS, decisions made, and next steps that emerged. Group them by owner if identifiable. Return as JSON: { "actions": [{ "item": string, "owner": string, "context": string, "priority": "high"|"medium"|"low" }], "decisions": [string], "open_questions": [string] }`,
-    story: `You are analyzing a creative collaborative thinking session. Extract the narrative structure: themes, character arcs (if applicable), tensions, and story scaffolding that emerged. Return as JSON: { "themes": [string], "central_tension": string, "narrative_arc": string, "character_dynamics": [{ "name": string, "role": string }], "unresolved_threads": [string], "story_seeds": [string] }`,
-    summary: `You are analyzing a collaborative thinking session. Produce a FIELD SUMMARY — a brief, evocative overview of what the session produced, what the group was working with, and what it opened. 2-4 paragraphs. Return as JSON: { "field_summary": string, "key_phrases": [string], "session_character": string }`
-  };
-
-  const systemPrompt = prompts[mode] || prompts.summary;
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 2000,
-        system: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown, no backticks, no preamble.',
-        messages: [{ role: 'user', content: `Here is the session transcript:\n\n${transcript}` }]
-      })
-    });
-    const data = await response.json();
-    if (data.error) throw new Error(data.error.message);
-    const rawText = data.content?.[0]?.text || '{}';
-    let parsed;
-    try {
-      // Strategy 1: direct parse
-      parsed = JSON.parse(rawText);
-    } catch {
-      try {
-        // Strategy 2: strip markdown fences
-        const stripped = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-        parsed = JSON.parse(stripped);
-      } catch {
-        try {
-          // Strategy 3: extract first {...} block
-          const match = rawText.match(/\{[\s\S]*\}/);
-          if (match) parsed = JSON.parse(match[0]);
-          else throw new Error('no JSON object found');
-        } catch {
-          // Strategy 4: ask Claude to re-emit as clean JSON
-          try {
-            const fixRes = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-5', max_tokens: 2000,
-                system: 'Convert the following text into valid JSON. Output ONLY the JSON object, no markdown, no explanation.',
-                messages: [{ role: 'user', content: rawText }]
-              })
-            });
-            const fixData = await fixRes.json();
-            const fixText = fixData.content?.[0]?.text || '{}';
-            const fixStripped = fixText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim();
-            parsed = JSON.parse(fixStripped);
-          } catch {
-            // Final fallback: wrap raw text in a summary-shaped object so the UI always renders something
-            parsed = { field_summary: rawText, key_phrases: [], session_character: '' };
-          }
-        }
-      }
-    }
-
-    // Optionally save to Drive
-    const drive = await getSystemDrive();
-    if (drive) {
-      try {
-        const folderId = room.saveFolderId || await getDriveFolder(drive, 'CoCreate');
-        const fileName = `${room.title.replace(/\s+/g,'-')}-${room.id}-${mode}.json`;
-        await writeDriveFile(drive, fileName, folderId, {
-          roomId: room.id, roomTitle: room.title, mode, processedAt: new Date().toISOString(), result: parsed
-        });
-      } catch(e) { console.error('Could not save processed session:', e.message); }
-    }
-
-    res.json({ mode, result: parsed });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── Profile Routes ─────────────────────────────────────
-app.get('/api/profile/by-email/:email', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.json({ exists: false });
-  try {
-    const root = await getCoCreateRootId(drive);
-    const profilesId = await getDriveFolder(drive, 'Profiles', root);
-    // List all JSON files and find one matching the email
-    const files = await drive.files.list({
-      q: `'${profilesId}' in parents and mimeType='application/json' and trashed=false`,
-      fields: 'files(id, name)', pageSize: 100
-    });
-    for (const file of files.data.files) {
-      const profile = await readDriveFile(drive, file.id);
-      if (profile?.email === req.params.email) return res.json({ exists: true, profile });
-    }
-    res.json({ exists: false });
-  } catch(e) {
-    res.json({ exists: false });
-  }
-});
-
-app.get('/api/profile/:name', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.json({ exists: false });
-  try {
-    const root = await getCoCreateRootId(drive);
-    const profilesId = await getDriveFolder(drive, 'Profiles', root);
-    const name = req.params.name;
-    const fileName = `${name}.json`;
-    const fileId = await getDriveFile(drive, fileName, profilesId);
-    if (!fileId) return res.json({ exists: false });
-    const profile = await readDriveFile(drive, fileId);
-    res.json({ exists: true, profile });
-  } catch (e) {
-    res.json({ exists: false });
-  }
-});
-
-app.post('/api/profile', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(503).json({ error: 'Drive not available' });
-  const { name, email, picture, who, what, working, extra } = req.body;
-  if (!name) return res.status(400).json({ error: 'Name required' });
-  try {
-    const root = await getCoCreateRootId(drive);
-    const profilesId = await getDriveFolder(drive, 'Profiles', root);
-    const profile = { name, email: email || null, picture: picture || null, who, what, working, extra, updatedAt: new Date().toISOString() };
-    await writeDriveFile(drive, `${name}.json`, profilesId, profile);
-
-    const textContent = [
-      `# Profile: ${name}`,
-      email ? `Email: ${email}` : '',
-      who ? `\n## Who I am\n${who}` : '',
-      what ? `\n## What I represent\n${what}` : '',
-      working ? `\n## Currently working on\n${working}` : '',
-      extra ? `\n## Additional context\n${extra}` : ''
-    ].filter(Boolean).join('\n');
-
-    await writePlainTextFile(drive, `${name}.txt`, profilesId, textContent);
-    _systemContextCache = null;
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
@@ -1415,20 +649,5 @@ httpServer.listen(PORT, () => {
   console.log(`\n◈ CoCreate is running`);
   console.log(`  Open: http://localhost:${PORT}\n`);
   // Load persisted rooms after a short delay to allow OAuth to be ready
-  // Small delay so service account or persisted tokens are ready
-  setTimeout(loadRoomsFromDrive, 2000);
-  // Auto-save all rooms every 30 seconds
-  setInterval(async () => {
-    const activeRooms = Object.values(rooms);
-    if (!activeRooms.length) return;
-    await persistRoomsToDrive();
-    // Also write individual room files for any room with recent activity (updated in last 2 min)
-    const cutoff = Date.now() - 2 * 60 * 1000;
-    for (const room of activeRooms) {
-      if (room.updatedAt && new Date(room.updatedAt).getTime() > cutoff) {
-        await saveRoomToDrive(room).catch(e => console.error('Auto-save room error:', e.message));
-      }
-    }
-    console.log(`◈ Auto-saved ${activeRooms.length} room(s)`);
-  }, 30 * 1000);
+  setTimeout(loadRoomsFromDrive, 3000);
 });
