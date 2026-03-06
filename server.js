@@ -58,8 +58,7 @@ function loadUserInfoFromDisk() {
 
 // Load tokens on startup
 const REQUIRED_SCOPES = [
-  'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email'
 ];
@@ -170,18 +169,20 @@ async function loadRoomsFromDrive() {
   const drive = await getDrive();
   if (!drive) { console.log('loadRoomsFromDrive: no drive available, skipping'); return; }
   try {
+    console.log('loadRoomsFromDrive: looking for CoCreate/Active/rooms.json...');
     const activeId = await getActiveFolderId(drive);
+    console.log('loadRoomsFromDrive: Active folder id =', activeId);
     const fileId = await getDriveFile(drive, 'rooms.json', activeId);
-    if (!fileId) return;
+    if (!fileId) { console.log('loadRoomsFromDrive: rooms.json not found in Active folder'); return; }
     const saved = await readDriveFile(drive, fileId);
     if (saved && typeof saved === 'object') {
       Object.entries(saved).forEach(([id, room]) => {
         rooms[id] = { ...room, socketMap: {} };
       });
-      console.log(`Loaded ${Object.keys(rooms).length} rooms from Drive (Active)`);
+      console.log(`loadRoomsFromDrive: loaded ${Object.keys(rooms).length} rooms`);
     }
   } catch (e) {
-    console.error('Could not load rooms from Drive:', e.message);
+    console.error('loadRoomsFromDrive ERROR:', e.message);
   }
 }
 
