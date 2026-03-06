@@ -34,6 +34,7 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 let userTokens = null;
+let currentUserInfo = null; // tracks logged-in user identity separately from Drive token
 
 const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
@@ -48,34 +49,36 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     const { tokens } = await oauth2Client.getToken(req.query.code);
-    // Only store Drive tokens for the owner account
-    // All users can sign in for presence/identity, but Drive stays owner-only
+
+    // Always fetch user info — all users get identity
+    const tempClient = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
+    );
+    tempClient.setCredentials(tokens);
+    const oauth2 = google.oauth2({ version: 'v2', auth: tempClient });
+    const { data } = await oauth2.userinfo.get();
+    currentUserInfo = { name: data.name, email: data.email, picture: data.picture };
+
+    // Only store Drive tokens for owner account
     const ownerEmail = process.env.DRIVE_OWNER_EMAIL;
-    if (ownerEmail) {
-      const tempClient = new google.auth.OAuth2(
-        process.env.GOOGLE_CLIENT_ID,
-        process.env.GOOGLE_CLIENT_SECRET
-      );
-      tempClient.setCredentials(tokens);
-      const oauth2 = google.oauth2({ version: 'v2', auth: tempClient });
-      const { data } = await oauth2.userinfo.get();
-      if (data.email === ownerEmail) {
-        userTokens = tokens;
-        oauth2Client.setCredentials(tokens);
-      }
-      // All users redirect to success — they're in the UI regardless
-    } else {
-      // No owner email set — original behavior (first login wins)
+    if (!ownerEmail || data.email === ownerEmail) {
       userTokens = tokens;
       oauth2Client.setCredentials(tokens);
     }
+
     res.redirect('/?auth=success');
   } catch (e) {
+    console.error('Auth callback error:', e.message);
     res.redirect('/?auth=error');
   }
 });
 
-app.get('/auth/status', (req, res) => res.json({ connected: !!userTokens }));
+app.get('/auth/status', (req, res) => res.json({
+  connected: !!userTokens,
+  userOAuth: !!currentUserInfo,
+  userInfo: currentUserInfo
+}));
 
 // ── Room State (persisted to Drive) ────────────────────
 const rooms = {};
