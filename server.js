@@ -58,25 +58,17 @@ function loadUserInfoFromDisk() {
 
 // Load tokens on startup
 const REQUIRED_SCOPES = [
-  'https://www.googleapis.com/auth/drive',
+  'https://www.googleapis.com/auth/drive.file',
+  'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
 const savedTokens = loadTokensFromDisk();
 if (savedTokens) {
-  // Check token has all required scopes — wipe if not (forces fresh consent)
-  const tokenScopes = (savedTokens.scope || '').split(' ');
-  const hasAllScopes = REQUIRED_SCOPES.every(s => tokenScopes.includes(s));
-  if (hasAllScopes) {
-    userTokens = savedTokens;
-    oauth2Client.setCredentials(savedTokens);
-    console.log('OAuth tokens loaded from disk');
-  } else {
-    console.log('Stored token missing required scopes — clearing, re-login needed');
-    try { require('fs').unlinkSync(TOKEN_FILE); } catch(_) {}
-    try { require('fs').unlinkSync(USER_INFO_FILE); } catch(_) {}
-  }
+  userTokens = savedTokens;
+  oauth2Client.setCredentials(savedTokens);
+  console.log('OAuth tokens loaded, scopes:', savedTokens.scope || 'unknown');
 }
 userInfo = loadUserInfoFromDisk();
 
