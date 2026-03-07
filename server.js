@@ -400,7 +400,28 @@ async function getDriveFile(drive, fileName, parentId) {
 
 async function readDriveFile(drive, fileId) {
   const res = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true });
-  return typeof res.data === 'string' ? JSON.parse(res.data) : res.data;
+  if (typeof res.data !== 'string') return res.data;
+  // Sanitize literal newlines inside JSON string values (from Drive text editor)
+  // Replace unescaped newlines/tabs inside strings with proper escape sequences
+  const sanitized = res.data.replace(/("(?:[^"\\]|\\.)*")|([\r\n\t])/g, (match, str, ws) => {
+    if (str) return str; // inside a quoted string — leave it alone, it's already valid
+    return ws === '\n' ? '\\n' : ws === '\r' ? '\\r' : '\\t';
+  });
+  try {
+    return JSON.parse(sanitized);
+  } catch(e) {
+    console.error('readDriveFile JSON parse error:', e.message);
+    // Last resort: try replacing literal newlines in string values specifically
+    try {
+      const fixed = res.data.replace(/:\s*"((?:[^"\\]|\\[\s\S])*?)"/gs, (m, val) => {
+        return ': "' + val.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t') + '"';
+      });
+      return JSON.parse(fixed);
+    } catch(e2) {
+      console.error('readDriveFile fallback parse also failed:', e2.message);
+      throw e2;
+    }
+  }
 }
 
 async function writeDriveFile(drive, fileName, parentId, content) {
@@ -522,12 +543,14 @@ app.get('/api/basins', async (req, res) => {
     }
     const saved = await readDriveFile(drive, fileId);
     const savedArr = Array.isArray(saved) ? saved : [];
-    // Merge: ensure all DEFAULT_BASINS are present, then append any user-created ones
-    const defaultIds = new Set(DEFAULT_BASINS.map(b => b.id));
-    const userBasins = savedArr.filter(b => !defaultIds.has(b.id));
-    const merged = [...DEFAULT_BASINS, ...userBasins];
-    // If Drive was missing defaults, update it
-    if (savedArr.length !== merged.length) {
+    // Drive wins for all basins — including defaults.
+    // This lets you update Sage/Lumen's systemPrompt, sourceFolderId etc. from Drive
+    // without redeploying. Only fall back to DEFAULT_BASINS for any IDs missing entirely.
+    const savedIds = new Set(savedArr.map(b => b.id));
+    const missingDefaults = DEFAULT_BASINS.filter(b => !savedIds.has(b.id));
+    const merged = [...savedArr, ...missingDefaults];
+    // If Drive was missing any defaults, write them in
+    if (missingDefaults.length > 0) {
       await writeDriveFile(drive, 'basins.json', folderId, merged);
     }
     res.json(merged);
