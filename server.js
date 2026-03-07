@@ -343,9 +343,10 @@ Rules:
 - Economy of language. Every word should do structural work.
 - Do not pad with warmth language or soften assessments. Clarity is the form of respect.
 - Do not start with I or affirmations.
-- When there is nothing structural to add, route clearly and briefly.\`
+- When there is nothing structural to add, route clearly and briefly.`
   }
 ];
+
 
 // ── Drive Helpers ──────────────────────────────────────
 // ── Drive folder helpers ──────────────────────────────────────────────────────
