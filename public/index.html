@@ -627,8 +627,7 @@
     .res-author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .res-basin-avatar {
       width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-      border: 1px solid rgba(201,169,97,0.35);
-      box-shadow: 0 1px 4px rgba(30,26,22,0.15); transition: opacity 0.2s;
+      border: 1px solid rgba(201,169,97,0.35); box-shadow: 0 1px 4px rgba(30,26,22,0.15);
     }
     .res-basin-avatar.speaking-gif {
       border-color: var(--gold);
@@ -654,7 +653,7 @@
     .res-read-btn:hover { background: rgba(201,169,97,0.1); border-color: var(--gold); }
     .res-read-btn.playing { background: rgba(201,169,97,0.12); border-color: var(--gold); }
     .res-read-btn:disabled { opacity: 0.4; cursor: default; }
-    .res-read-btn svg { width: 10px; height: 10px; flex-shrink: 0; }
+    .res-read-btn svg { width: 10px; height: 10px; flex-shrink: 0; pointer-events: none; }
     .res-audio-wave { display: none; align-items: center; gap: 2px; height: 14px; }
     .res-audio-wave.visible { display: flex; }
     .res-audio-wave span {
@@ -3961,6 +3960,7 @@ function renderMembers(members) {
 }
 
 function leaveRoom() {
+  AudioManager.stop();
   currentRoom = null;
   showPage('lobby');
   loadRoomList();
@@ -4078,7 +4078,26 @@ function getBasinId(author) {
   return currentRoom?.basin?.id || null;
 }
 
-let _activeAudio = null;
+// Single audio manager — only one voice plays at a time, ever
+const AudioManager = {
+  _audio: null,
+  _cleanup: null,
+  stop() {
+    if (this._audio) { this._audio.pause(); this._audio.src = ''; this._audio = null; }
+    if (this._cleanup) { this._cleanup(); this._cleanup = null; }
+    document.querySelectorAll('.res-read-btn.playing').forEach(b => {
+      b.classList.remove('playing');
+      b.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read';
+      b.disabled = false;
+    });
+    document.querySelectorAll('.res-audio-wave.visible').forEach(w => w.classList.remove('visible'));
+    document.querySelectorAll('.res-speaking-label.visible').forEach(l => l.classList.remove('visible'));
+    document.querySelectorAll('.res-basin-avatar.speaking-gif').forEach(img => {
+      img.src = img.dataset.portrait; img.classList.remove('speaking-gif');
+    });
+  },
+  play(audio, cleanup) { this.stop(); this._audio = audio; this._cleanup = cleanup; }
+};
 
 function renderBubble(c) {
   const empty = document.getElementById('emptyState');
@@ -4087,42 +4106,44 @@ function renderBubble(c) {
 
   if (c.type === 'system') {
     div.className = 'bubble system';
-    div.innerHTML = `<div class="sys-text">◈ ${esc(c.text)}</div>`;
+    div.innerHTML = '<div class="sys-text">◈ ' + esc(c.text) + '</div>';
 
   } else if (c.type === 'resonance') {
     div.className = 'bubble resonance';
     const bid = getBasinId(c.author);
     const vcfg = BASIN_VOICE_CONFIG[bid];
     const avatarHtml = vcfg
-      ? `<img class="res-basin-avatar" src="${vcfg.portrait}" data-portrait="${vcfg.portrait}" data-gif="${vcfg.gif}" alt="${esc(c.author)}">`
+      ? '<img class="res-basin-avatar" src="' + vcfg.portrait + '" data-portrait="' + vcfg.portrait + '" data-gif="' + vcfg.gif + '" alt="">'
       : '';
-    div.innerHTML = `
-      <div class="res-author-row">
-        ${avatarHtml}
-        <div class="res-basin-name-wrap">
-          <div class="res-glyph">◈ ${esc(c.author)}</div>
-          <div class="res-speaking-label">Speaking…</div>
-        </div>
-      </div>
-      <div class="res-text">${esc(c.text)}</div>
-      <div class="ts" style="margin-top:6px">${fmt(c.timestamp)}</div>
-      <div class="res-readback-row">
-        <button class="res-read-btn">
-          <svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg>
-          Read
-        </button>
-        <div class="res-audio-wave"><span></span><span></span><span></span><span></span><span></span></div>
-      </div>`;
-    // attach click handler — basin resolved fresh at click time
-    div.querySelector('.res-read-btn').addEventListener('click', function() {
-      const resolvedBid = bid || currentRoom?.basin?.id || '';
-      handleReadAloud(this, div, c.text, resolvedBid);
+    const msgText = c.text;
+    const msgBasin = bid || currentRoom?.basin?.id || '';
+
+    div.innerHTML =
+      '<div class="res-author-row">' + avatarHtml +
+        '<div class="res-basin-name-wrap">' +
+          '<div class="res-glyph">◈ ' + esc(c.author) + '</div>' +
+          '<div class="res-speaking-label">Speaking\u2026</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="res-text">' + esc(c.text) + '</div>' +
+      '<div class="ts" style="margin-top:6px">' + fmt(c.timestamp) + '</div>' +
+      '<div class="res-readback-row">' +
+        '<button class="res-read-btn" type="button">' +
+          '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read' +
+        '</button>' +
+        '<div class="res-audio-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
+      '</div>';
+
+    const btn = div.querySelector('.res-read-btn');
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      handleReadAloud(btn, div, msgText, msgBasin);
     });
 
   } else {
     const isMe = c.author === playerName;
-    div.className = `bubble human${isMe ? ' mine' : ''}`;
-    div.innerHTML = `<div class="author-row"><span class="author">${esc(c.author)}</span><span class="ts">${fmt(c.timestamp)}</span></div><div class="human-text">${esc(c.text)}</div>`;
+    div.className = 'bubble human' + (isMe ? ' mine' : '');
+    div.innerHTML = '<div class="author-row"><span class="author">' + esc(c.author) + '</span><span class="ts">' + fmt(c.timestamp) + '</span></div><div class="human-text">' + esc(c.text) + '</div>';
   }
 
   document.getElementById('canvas').appendChild(div);
@@ -4134,25 +4155,11 @@ function renderSystemMsg(text) {
 }
 
 async function handleReadAloud(btn, bubbleEl, text, basinId) {
-  // Stop anything currently playing
-  if (_activeAudio) {
-    _activeAudio.pause();
-    _activeAudio = null;
-    document.querySelectorAll('.res-read-btn.playing').forEach(b => {
-      b.classList.remove('playing');
-      b.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
-    });
-    document.querySelectorAll('.res-audio-wave.visible').forEach(w => w.classList.remove('visible'));
-    document.querySelectorAll('.res-speaking-label.visible').forEach(l => l.classList.remove('visible'));
-    document.querySelectorAll('.res-basin-avatar.speaking-gif').forEach(img => {
-      img.src = img.dataset.portrait; img.classList.remove('speaking-gif');
-    });
-  }
-
-  console.log('◈ Read aloud — basin:', basinId);
+  if (btn.classList.contains('playing')) { AudioManager.stop(); return; }
+  AudioManager.stop();
 
   btn.disabled = true;
-  btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="2" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite"/></circle></svg> Loading…`;
+  btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="2" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite"/></circle></svg> Loading\u2026';
 
   try {
     const res = await fetch('/speak', {
@@ -4160,42 +4167,43 @@ async function handleReadAloud(btn, bubbleEl, text, basinId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, basin: basinId })
     });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-    _activeAudio = audio;
 
-    btn.classList.add('playing');
-    btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop`;
-
-    const wave = bubbleEl.querySelector('.res-audio-wave');
-    const label = bubbleEl.querySelector('.res-speaking-label');
+    const wave   = bubbleEl.querySelector('.res-audio-wave');
+    const label  = bubbleEl.querySelector('.res-speaking-label');
     const avatar = bubbleEl.querySelector('.res-basin-avatar');
-    if (wave) wave.classList.add('visible');
-    if (label) label.classList.add('visible');
-    if (avatar?.dataset.gif) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
 
-    const reset = () => {
-      _activeAudio = null;
+    const cleanup = () => {
       btn.classList.remove('playing');
-      btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
-      if (wave) wave.classList.remove('visible');
-      if (label) label.classList.remove('visible');
+      btn.disabled = false;
+      btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read';
+      if (wave)   wave.classList.remove('visible');
+      if (label)  label.classList.remove('visible');
       if (avatar) { avatar.src = avatar.dataset.portrait; avatar.classList.remove('speaking-gif'); }
       URL.revokeObjectURL(url);
     };
 
-    audio.onended = reset;
-    btn.onclick = () => { audio.pause(); reset(); btn.onclick = null; btn.addEventListener('click', () => handleReadAloud(btn, bubbleEl, text, basinId)); };
+    audio.onended = () => AudioManager.stop();
+    audio.onerror = () => AudioManager.stop();
+    AudioManager.play(audio, cleanup);
+
+    btn.classList.add('playing');
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop';
+    if (wave)   wave.classList.add('visible');
+    if (label)  label.classList.add('visible');
+    if (avatar?.dataset.gif) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
+
     audio.play();
 
   } catch(e) {
     console.error('Read aloud error:', e);
     btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
+    btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read';
   }
 }
 
@@ -4205,15 +4213,16 @@ function onThinking(isThinking) {
     thinkingEl.className = 'bubble resonance';
     const tbid = currentRoom?.basin?.id;
     const tvcfg = BASIN_VOICE_CONFIG[tbid];
-    const tavatar = tvcfg ? `<img class="res-basin-avatar" src="${tvcfg.portrait}" data-portrait="${tvcfg.portrait}" data-gif="${tvcfg.gif}" alt="">` : '';
-    thinkingEl.innerHTML = `
-      <div class="res-author-row">
-        ${tavatar}
-        <div class="res-basin-name-wrap">
-          <div class="res-glyph">◈ ${esc(currentRoom?.basin?.name || '')}</div>
-        </div>
-      </div>
-      <div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>`;
+    const tavatar = tvcfg
+      ? '<img class="res-basin-avatar" src="' + tvcfg.portrait + '" data-portrait="' + tvcfg.portrait + '" data-gif="' + tvcfg.gif + '" alt="">'
+      : '';
+    thinkingEl.innerHTML =
+      '<div class="res-author-row">' + tavatar +
+        '<div class="res-basin-name-wrap">' +
+          '<div class="res-glyph">◈ ' + esc(currentRoom?.basin?.name || '') + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>';
     document.getElementById('canvas').appendChild(thinkingEl);
     thinkingEl.scrollIntoView({ behavior:'smooth', block:'end' });
   } else {
