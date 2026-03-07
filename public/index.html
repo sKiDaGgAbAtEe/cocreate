@@ -1367,9 +1367,9 @@
         <div class="persona-card" style="--persona-color:#9b7fd4">
           <div class="persona-glyph">◈</div>
           <div class="persona-body">
-            <div class="persona-name">Orycl</div>
-            <div class="persona-role">Basin · Mystical</div>
-            <p>Finds the pattern beneath the pattern. Speaks through resonance and connection rather than analysis. Opens doors without pushing you through them.</p>
+            <div class="persona-name">Oryc</div>
+            <div class="persona-role">Basin · Structural</div>
+            <p>Reads the mechanism beneath the situation. Finds what is load-bearing and what will fail. Maps the invisible architecture that determines whether something works or collapses.</p>
           </div>
         </div>
         <div class="persona-card" style="--persona-color:#d47f9b">
@@ -1395,7 +1395,7 @@
       <h3>How to navigate</h3>
       <ul>
         <li><strong>Spaces</strong> — Each session lives in a Space. Create one from the lobby, share the code to invite others.</li>
-        <li><strong>Basins</strong> — The Oracle's orientation. Orycl holds the mystical, Clio holds the emotional, Sage holds the theoretical. Build your own from any document or prompt.</li>
+        <li><strong>Basins</strong> — The Oracle's orientation. Oryc holds the structural, Clio holds the emotional, Sage holds the theoretical. Build your own from any document or prompt.</li>
         <li><strong>Modes</strong> — The tuning of the basin. Resonant connects gently. Friction interrogates. Solve goes practical. Storm generates freely.</li>
         <li><strong>Knowledge Folders</strong> — Connect Google Drive folders. The basin thinks from within your knowledge, not about it.</li>
         <li><strong>Process Session</strong> — After a session, extract what the space produced: convergence nodes, idea objects, action items, field summaries.</li>
@@ -3340,7 +3340,7 @@ function renderBasinBrowser() {
   }
 
   el.innerHTML = basins.map(b => {
-    const isDefault = ['sage', 'clio'].includes(b.id);
+    const isDefault = ['sage', 'clio', 'oryc'].includes(b.id);
     const isOwner = b.createdBy === playerName;
     const canDelete = !isDefault && isOwner;
     const agentBadge = b.type === 'agent'
