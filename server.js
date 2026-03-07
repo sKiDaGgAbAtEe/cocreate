@@ -1968,25 +1968,30 @@ app.post('/api/basin-dialog', async (req, res) => {
 
 // ── Dialog: Save conversation to Drive ────────────────
 app.post('/api/dialog/save', async (req, res) => {
-  const drive = await getSystemDrive();
-  if (!drive) return res.status(401).json({ error: 'Drive not available' });
+  // Dialog saves go to the OAuth user's Drive (reyortsedlana@gmail.com),
+  // NOT the service account — service accounts have no storage quota.
+  const drive = (await getDrive(req)) || (await getDriveFromTokens(_persistedTokens));
+  if (!drive) return res.status(401).json({ error: 'Not authenticated — visit /auth/google to connect your Google account' });
   try {
     const { messages, title, basins } = req.body;
-    const root = await getCoCreateRootId(drive);
-    // Find or create Dialog subfolder inside CoCreate root
-    let dialogFolderId;
-    const search = await drive.files.list({
-      q: `name='Dialog' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`,
-      fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
-    });
-    if (search.data.files[0]) {
-      dialogFolderId = search.data.files[0].id;
-    } else {
-      const created = await drive.files.create({
-        requestBody: { name: 'Dialog', mimeType: 'application/vnd.google-apps.folder', parents: [root] },
-        fields: 'id', supportsAllDrives: true
+    // Use DIALOG_FOLDER_ID env var if set, otherwise find/create a "Dialog"
+    // folder in the OAuth user's personal Drive (not the service account)
+    let dialogFolderId = process.env.DIALOG_FOLDER_ID;
+    if (!dialogFolderId) {
+      const search = await drive.files.list({
+        q: `name='Dialog' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id)',
+        spaces: 'drive'
       });
-      dialogFolderId = created.data.id;
+      if (search.data.files[0]) {
+        dialogFolderId = search.data.files[0].id;
+      } else {
+        const created = await drive.files.create({
+          requestBody: { name: 'Dialog', mimeType: 'application/vnd.google-apps.folder' },
+          fields: 'id'
+        });
+        dialogFolderId = created.data.id;
+      }
     }
     const now = new Date();
     const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
