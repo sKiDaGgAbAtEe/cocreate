@@ -628,10 +628,15 @@
     .res-basin-avatar {
       width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
       border: 1px solid rgba(201,169,97,0.35); box-shadow: 0 1px 4px rgba(30,26,22,0.15);
+      cursor: pointer; transition: box-shadow 0.2s, border-color 0.2s;
+    }
+    .res-basin-avatar:hover {
+      border-color: rgba(201,169,97,0.7);
+      box-shadow: 0 0 0 2px rgba(201,169,97,0.2), 0 1px 6px rgba(30,26,22,0.2);
     }
     .res-basin-avatar.speaking-gif {
       border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(201,169,97,0.35), 0 0 10px rgba(201,169,97,0.25);
+      box-shadow: 0 0 0 2px rgba(201,169,97,0.35), 0 0 10px rgba(201,169,97,0.3);
     }
     .res-basin-name-wrap { display: flex; flex-direction: column; gap: 1px; }
     .res-speaking-label {
@@ -4065,9 +4070,9 @@ function onContribution(c) {
 
 // ── Basin voice config ────────────────────────
 const BASIN_VOICE_CONFIG = {
-  sage: { portrait: '/sage-portrait.jpg', gif: '/sage-speaking.gif' },
-  clio: { portrait: '/clio-portrait.jpg', gif: '/clio-speaking.gif' },
-  oryc: { portrait: '/oryc-portrait.jpg', gif: '/oryc-speaking.gif' },
+  sage: { still: '/sage-speaking.png', gif: '/sage-speaking.gif' },
+  clio: { still: '/clio-speaking.png', gif: '/clio-speaking.gif' },
+  oryc: { still: '/oryc-speaking.png', gif: '/oryc-speaking.gif' },
 };
 
 function getBasinId(author) {
@@ -4078,7 +4083,21 @@ function getBasinId(author) {
   return currentRoom?.basin?.id || null;
 }
 
-// Single audio manager — only one voice plays at a time, ever
+// Attach hover GIF swap to an avatar img element
+function attachAvatarHover(img) {
+  img.addEventListener('mouseenter', () => {
+    if (!img.classList.contains('speaking-gif')) {
+      img.src = img.dataset.gif;
+    }
+  });
+  img.addEventListener('mouseleave', () => {
+    if (!img.classList.contains('speaking-gif')) {
+      img.src = img.dataset.still;
+    }
+  });
+}
+
+// Single audio manager — one voice at a time, always
 const AudioManager = {
   _audio: null,
   _cleanup: null,
@@ -4093,7 +4112,8 @@ const AudioManager = {
     document.querySelectorAll('.res-audio-wave.visible').forEach(w => w.classList.remove('visible'));
     document.querySelectorAll('.res-speaking-label.visible').forEach(l => l.classList.remove('visible'));
     document.querySelectorAll('.res-basin-avatar.speaking-gif').forEach(img => {
-      img.src = img.dataset.portrait; img.classList.remove('speaking-gif');
+      img.src = img.dataset.still;
+      img.classList.remove('speaking-gif');
     });
   },
   play(audio, cleanup) { this.stop(); this._audio = audio; this._cleanup = cleanup; }
@@ -4112,11 +4132,12 @@ function renderBubble(c) {
     div.className = 'bubble resonance';
     const bid = getBasinId(c.author);
     const vcfg = BASIN_VOICE_CONFIG[bid];
-    const avatarHtml = vcfg
-      ? '<img class="res-basin-avatar" src="' + vcfg.portrait + '" data-portrait="' + vcfg.portrait + '" data-gif="' + vcfg.gif + '" alt="">'
-      : '';
     const msgText = c.text;
     const msgBasin = bid || currentRoom?.basin?.id || '';
+
+    const avatarHtml = vcfg
+      ? '<img class="res-basin-avatar" src="' + vcfg.still + '" data-still="' + vcfg.still + '" data-gif="' + vcfg.gif + '" alt="">'
+      : '';
 
     div.innerHTML =
       '<div class="res-author-row">' + avatarHtml +
@@ -4134,10 +4155,14 @@ function renderBubble(c) {
         '<div class="res-audio-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
       '</div>';
 
-    const btn = div.querySelector('.res-read-btn');
-    btn.addEventListener('click', function(e) {
+    // Attach hover behaviour to avatar
+    const avatarEl = div.querySelector('.res-basin-avatar');
+    if (avatarEl) attachAvatarHover(avatarEl);
+
+    // Attach read button
+    div.querySelector('.res-read-btn').addEventListener('click', function(e) {
       e.stopPropagation();
-      handleReadAloud(btn, div, msgText, msgBasin);
+      handleReadAloud(this, div, msgText, msgBasin);
     });
 
   } else {
@@ -4183,7 +4208,7 @@ async function handleReadAloud(btn, bubbleEl, text, basinId) {
       btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read';
       if (wave)   wave.classList.remove('visible');
       if (label)  label.classList.remove('visible');
-      if (avatar) { avatar.src = avatar.dataset.portrait; avatar.classList.remove('speaking-gif'); }
+      if (avatar) { avatar.src = avatar.dataset.still; avatar.classList.remove('speaking-gif'); }
       URL.revokeObjectURL(url);
     };
 
@@ -4196,7 +4221,7 @@ async function handleReadAloud(btn, bubbleEl, text, basinId) {
     btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop';
     if (wave)   wave.classList.add('visible');
     if (label)  label.classList.add('visible');
-    if (avatar?.dataset.gif) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
+    if (avatar) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
 
     audio.play();
 
@@ -4214,8 +4239,15 @@ function onThinking(isThinking) {
     const tbid = currentRoom?.basin?.id;
     const tvcfg = BASIN_VOICE_CONFIG[tbid];
     const tavatar = tvcfg
-      ? '<img class="res-basin-avatar" src="' + tvcfg.portrait + '" data-portrait="' + tvcfg.portrait + '" data-gif="' + tvcfg.gif + '" alt="">'
+      ? '<img class="res-basin-avatar" src="' + tvcfg.still + '" data-still="' + tvcfg.still + '" data-gif="' + tvcfg.gif + '" alt="">'
       : '';
+    if (tavatar) {
+      // thinking avatar gets hover too
+      setTimeout(() => {
+        const img = thinkingEl.querySelector('.res-basin-avatar');
+        if (img) attachAvatarHover(img);
+      }, 0);
+    }
     thinkingEl.innerHTML =
       '<div class="res-author-row">' + tavatar +
         '<div class="res-basin-name-wrap">' +
