@@ -1939,6 +1939,84 @@ app.post('/speak', async (req, res) => {
   }
 });
 
+// ── Dialog: Proxy AI call (keeps API key server-side) ─
+app.post('/api/basin-dialog', async (req, res) => {
+  const { basinId, system, messages } = req.body;
+  if (!basinId || !messages) return res.status(400).json({ error: 'basinId and messages required' });
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 350,
+        system: system || '',
+        messages
+      })
+    });
+    const data = await response.json();
+    if (data.error) return res.status(500).json({ error: data.error.message });
+    res.json({ text: data.content?.[0]?.text?.trim() || '' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dialog: Save conversation to Drive ────────────────
+app.post('/api/dialog/save', async (req, res) => {
+  const drive = await getSystemDrive();
+  if (!drive) return res.status(401).json({ error: 'Drive not available' });
+  try {
+    const { messages, title, basins } = req.body;
+    const root = await getCoCreateRootId(drive);
+    // Find or create Dialog subfolder inside CoCreate root
+    let dialogFolderId;
+    const search = await drive.files.list({
+      q: `name='Dialog' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`,
+      fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+    });
+    if (search.data.files[0]) {
+      dialogFolderId = search.data.files[0].id;
+    } else {
+      const created = await drive.files.create({
+        requestBody: { name: 'Dialog', mimeType: 'application/vnd.google-apps.folder', parents: [root] },
+        fields: 'id', supportsAllDrives: true
+      });
+      dialogFolderId = created.data.id;
+    }
+    const now = new Date();
+    const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const fileName = `dialog-${stamp}.json`;
+    const payload = {
+      title: title || `Dialog ${now.toLocaleDateString()}`,
+      basins: basins || ['clio', 'oryc', 'sage'],
+      savedAt: now.toISOString(),
+      messages
+    };
+    await writeDriveFile(drive, fileName, dialogFolderId, payload);
+    console.log(`◈ Dialog saved: ${fileName}`);
+    res.json({ success: true, fileName });
+  } catch (e) {
+    console.error('Dialog save error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dialog: Load shared physics context for Sage ──────
+app.get('/api/dialog/physics', async (req, res) => {
+  try {
+    const physics = await getSharedPhysicsContext();
+    res.json({ context: physics || '' });
+  } catch (e) {
+    console.error('Dialog physics error:', e.message);
+    res.json({ context: '' });
+  }
+});
+
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
