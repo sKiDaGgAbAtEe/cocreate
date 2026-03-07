@@ -624,61 +624,42 @@
     @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
     /* ── BASIN VOICE READBACK ─────────────────── */
-    .bubble.resonance { position: relative; }
-    .res-author-row {
-      display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
-    }
+    .res-author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
     .res-basin-avatar {
-      width: 28px; height: 28px; border-radius: 50%;
-      object-fit: cover; flex-shrink: 0;
+      width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
       border: 1px solid rgba(201,169,97,0.35);
-      box-shadow: 0 1px 4px rgba(30,26,22,0.15);
-      transition: opacity 0.2s;
+      box-shadow: 0 1px 4px rgba(30,26,22,0.15); transition: opacity 0.2s;
     }
     .res-basin-avatar.speaking-gif {
-      /* GIF swaps in when audio plays */
       border-color: var(--gold);
       box-shadow: 0 0 0 2px rgba(201,169,97,0.35), 0 0 10px rgba(201,169,97,0.25);
     }
-    .res-basin-name-wrap {
-      display: flex; flex-direction: column; gap: 1px;
-    }
-    .res-glyph { font-family: 'Cinzel', serif; font-size: 10px; color: var(--gold); letter-spacing: 0.14em; }
+    .res-basin-name-wrap { display: flex; flex-direction: column; gap: 1px; }
     .res-speaking-label {
       font-family: 'Cinzel', serif; font-size: 8px; color: var(--gold);
-      letter-spacing: 0.12em; opacity: 0; transition: opacity 0.3s;
-      text-transform: uppercase;
+      letter-spacing: 0.12em; opacity: 0; transition: opacity 0.3s; text-transform: uppercase;
     }
     .res-speaking-label.visible { opacity: 1; }
-
     .res-readback-row {
       display: flex; align-items: center; gap: 8px;
       margin-top: 10px; padding-top: 8px;
       border-top: 1px solid rgba(201,169,97,0.15);
     }
     .res-read-btn {
-      display: flex; align-items: center; gap: 5px;
-      background: none; border: 1px solid rgba(201,169,97,0.3);
-      border-radius: 20px; padding: 4px 10px;
-      font-family: 'Cinzel', serif; font-size: 9px;
-      letter-spacing: 0.1em; color: var(--gold);
-      cursor: pointer; transition: all 0.18s;
+      display: inline-flex; align-items: center; gap: 5px;
+      background: none; border: 1px solid rgba(201,169,97,0.3); border-radius: 20px;
+      padding: 4px 10px; font-family: 'Cinzel', serif; font-size: 9px;
+      letter-spacing: 0.1em; color: var(--gold); cursor: pointer; transition: all 0.18s;
     }
     .res-read-btn:hover { background: rgba(201,169,97,0.1); border-color: var(--gold); }
-    .res-read-btn.playing {
-      background: rgba(201,169,97,0.12);
-      border-color: var(--gold);
-      color: var(--gold);
-    }
+    .res-read-btn.playing { background: rgba(201,169,97,0.12); border-color: var(--gold); }
     .res-read-btn:disabled { opacity: 0.4; cursor: default; }
     .res-read-btn svg { width: 10px; height: 10px; flex-shrink: 0; }
-    .res-audio-wave {
-      display: none; align-items: center; gap: 2px; height: 14px;
-    }
+    .res-audio-wave { display: none; align-items: center; gap: 2px; height: 14px; }
     .res-audio-wave.visible { display: flex; }
     .res-audio-wave span {
-      display: block; width: 2px; background: var(--gold);
-      border-radius: 2px; animation: audioWave 0.8s ease-in-out infinite;
+      display: block; width: 2px; background: var(--gold); border-radius: 2px;
+      animation: audioWave 0.8s ease-in-out infinite;
     }
     .res-audio-wave span:nth-child(1) { height: 4px; animation-delay: 0s; }
     .res-audio-wave span:nth-child(2) { height: 8px; animation-delay: 0.1s; }
@@ -3535,12 +3516,7 @@ async function viewArchivedSession(fileId, name) {
     if (!contribs.length) { body.innerHTML = '<div style="font-size:13px;color:var(--ink-faint);font-style:italic;text-align:center">No contributions recorded.</div>'; return; }
     body.innerHTML = contribs.map(c => {
       if (c.type === 'system') return `<div style="text-align:center;font-family:'Cinzel',serif;font-size:10px;color:var(--ink-faint);letter-spacing:0.1em;padding:2px 0">◈ ${esc(c.text)}</div>`;
-      if (c.type === 'resonance') {
-        const abId = getBasinIdFromAuthor(c.author);
-        const aVcfg = BASIN_VOICE_CONFIG[abId] || null;
-        const aPortrait = aVcfg ? `<img src="${aVcfg.portrait}" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid rgba(201,169,97,0.35);flex-shrink:0" alt="${esc(c.author)}">` : '';
-        return `<div style="background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.3);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;max-width:80%"><div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">${aPortrait}<div style="font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:0.14em">◈ ${esc(c.author)}</div></div><div style="font-size:14px;line-height:1.8;color:var(--ink-dim);font-style:italic">${esc(c.text)}</div></div>`;
-      }
+      if (c.type === 'resonance') return `<div style="background:rgba(201,169,97,0.08);border:1px solid rgba(201,169,97,0.3);border-left:3px solid var(--gold);border-radius:8px;padding:12px 14px;max-width:80%"><div style="font-family:'Cinzel',serif;font-size:9px;color:var(--gold);letter-spacing:0.14em;margin-bottom:5px">◈ ${esc(c.author)}</div><div style="font-size:14px;line-height:1.8;color:var(--ink-dim);font-style:italic">${esc(c.text)}</div></div>`;
       return `<div style="background:rgba(255,255,255,0.7);border:1px solid var(--border);border-radius:8px;padding:12px 14px;max-width:80%;align-self:flex-end;margin-left:auto"><div style="font-family:'Cinzel',serif;font-size:9px;color:var(--accent);letter-spacing:0.14em;margin-bottom:5px">${esc(c.author)}</div><div style="font-size:14px;line-height:1.75;color:var(--ink)">${esc(c.text)}</div></div>`;
     }).join('');
   } catch(e) {
@@ -4089,23 +4065,20 @@ function onContribution(c) {
 
 // ── Basin voice config ────────────────────────
 const BASIN_VOICE_CONFIG = {
-  sage: { portrait: '/sage-portrait.jpg', gif: '/sage-speaking.gif', label: 'Sage' },
-  clio: { portrait: '/clio-portrait.jpg', gif: '/clio-speaking.gif', label: 'Clio' },
-  oryc: { portrait: '/oryc-portrait.jpg', gif: '/oryc-speaking.gif', label: 'Oryc' },
+  sage: { portrait: '/sage-portrait.jpg', gif: '/sage-speaking.gif' },
+  clio: { portrait: '/clio-portrait.jpg', gif: '/clio-speaking.gif' },
+  oryc: { portrait: '/oryc-portrait.jpg', gif: '/oryc-speaking.gif' },
 };
 
-function getBasinIdFromAuthor(author) {
-  if (!author) return null;
-  const lower = author.toLowerCase();
-  if (lower.includes('sage')) return 'sage';
-  if (lower.includes('clio')) return 'clio';
-  if (lower.includes('oryc')) return 'oryc';
-  // Also check currentRoom basin as fallback
-  if (currentRoom?.basin?.id) return currentRoom.basin.id;
-  return null;
+function getBasinId(author) {
+  const s = (author || '').toLowerCase();
+  if (s.includes('sage')) return 'sage';
+  if (s.includes('clio')) return 'clio';
+  if (s.includes('oryc')) return 'oryc';
+  return currentRoom?.basin?.id || null;
 }
 
-let _activeAudio = null; // track currently playing audio
+let _activeAudio = null;
 
 function renderBubble(c) {
   const empty = document.getElementById('emptyState');
@@ -4115,39 +4088,36 @@ function renderBubble(c) {
   if (c.type === 'system') {
     div.className = 'bubble system';
     div.innerHTML = `<div class="sys-text">◈ ${esc(c.text)}</div>`;
+
   } else if (c.type === 'resonance') {
     div.className = 'bubble resonance';
-    const basinId = getBasinIdFromAuthor(c.author);
-    const vcfg = BASIN_VOICE_CONFIG[basinId] || null;
-    const portraitSrc = vcfg ? vcfg.portrait : null;
-
+    const bid = getBasinId(c.author);
+    const vcfg = BASIN_VOICE_CONFIG[bid];
+    const avatarHtml = vcfg
+      ? `<img class="res-basin-avatar" src="${vcfg.portrait}" data-portrait="${vcfg.portrait}" data-gif="${vcfg.gif}" alt="${esc(c.author)}">`
+      : '';
     div.innerHTML = `
       <div class="res-author-row">
-        ${portraitSrc ? `<img class="res-basin-avatar" src="${portraitSrc}" alt="${esc(c.author)}" data-portrait="${portraitSrc}" data-gif="${vcfg.gif}">` : ''}
+        ${avatarHtml}
         <div class="res-basin-name-wrap">
           <div class="res-glyph">◈ ${esc(c.author)}</div>
-          <div class="res-speaking-label" id="speaking-label-${Date.now()}">Speaking…</div>
+          <div class="res-speaking-label">Speaking…</div>
         </div>
       </div>
       <div class="res-text">${esc(c.text)}</div>
       <div class="ts" style="margin-top:6px">${fmt(c.timestamp)}</div>
       <div class="res-readback-row">
-        <button class="res-read-btn" data-text="${esc(c.text)}" data-basin="${basinId || ''}" title="Read aloud">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
-            <polygon points="2,1 10,6 2,11" fill="currentColor" stroke="none"/>
-          </svg>
+        <button class="res-read-btn">
+          <svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg>
           Read
         </button>
-        <div class="res-audio-wave">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
+        <div class="res-audio-wave"><span></span><span></span><span></span><span></span><span></span></div>
       </div>`;
-
-    // Wire up the read button after insertion
-    setTimeout(() => {
-      const btn = div.querySelector('.res-read-btn');
-      if (btn) btn.addEventListener('click', () => handleReadAloud(btn, div));
-    }, 0);
+    // attach click handler — basin resolved fresh at click time
+    div.querySelector('.res-read-btn').addEventListener('click', function() {
+      const resolvedBid = bid || currentRoom?.basin?.id || '';
+      handleReadAloud(this, div, c.text, resolvedBid);
+    });
 
   } else {
     const isMe = c.author === playerName;
@@ -4159,35 +4129,28 @@ function renderBubble(c) {
   div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
-async function handleReadAloud(btn, bubbleEl) {
-  // Stop any currently playing audio
+function renderSystemMsg(text) {
+  renderBubble({ type: 'system', text, timestamp: new Date().toISOString() });
+}
+
+async function handleReadAloud(btn, bubbleEl, text, basinId) {
+  // Stop anything currently playing
   if (_activeAudio) {
     _activeAudio.pause();
     _activeAudio = null;
-    // Reset all other buttons
     document.querySelectorAll('.res-read-btn.playing').forEach(b => {
-      b.innerHTML = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,1 10,6 2,11" fill="currentColor" stroke="none"/></svg> Read`;
       b.classList.remove('playing');
-      b.disabled = false;
+      b.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
     });
     document.querySelectorAll('.res-audio-wave.visible').forEach(w => w.classList.remove('visible'));
     document.querySelectorAll('.res-speaking-label.visible').forEach(l => l.classList.remove('visible'));
     document.querySelectorAll('.res-basin-avatar.speaking-gif').forEach(img => {
-      img.src = img.dataset.portrait;
-      img.classList.remove('speaking-gif');
+      img.src = img.dataset.portrait; img.classList.remove('speaking-gif');
     });
   }
 
-  const text = btn.dataset.text;
-  // Resolve basin ID at click time — dataset.basin may be empty if author didn't match at render
-  const basinId = btn.dataset.basin
-    || getBasinIdFromAuthor(btn.closest('.bubble')?.querySelector('.res-glyph')?.textContent)
-    || currentRoom?.basin?.id
-    || '';
-  console.log('◈ Read aloud — basin:', basinId, '| room basin:', currentRoom?.basin?.id);
-  if (!text) return;
+  console.log('◈ Read aloud — basin:', basinId);
 
-  // Set loading state
   btn.disabled = true;
   btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="2" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite"/></circle></svg> Loading…`;
 
@@ -4197,7 +4160,6 @@ async function handleReadAloud(btn, bubbleEl) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, basin: basinId })
     });
-
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
     const blob = await res.blob();
@@ -4205,66 +4167,48 @@ async function handleReadAloud(btn, bubbleEl) {
     const audio = new Audio(url);
     _activeAudio = audio;
 
-    // Swap to playing state
     btn.classList.add('playing');
-    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop`;
     btn.disabled = false;
+    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop`;
 
-    // Animate wave
     const wave = bubbleEl.querySelector('.res-audio-wave');
-    if (wave) wave.classList.add('visible');
-
-    // Swap portrait to speaking GIF
+    const label = bubbleEl.querySelector('.res-speaking-label');
     const avatar = bubbleEl.querySelector('.res-basin-avatar');
-    if (avatar && avatar.dataset.gif) {
-      avatar.src = avatar.dataset.gif;
-      avatar.classList.add('speaking-gif');
-    }
+    if (wave) wave.classList.add('visible');
+    if (label) label.classList.add('visible');
+    if (avatar?.dataset.gif) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
 
-    // Show speaking label
-    const speakLabel = bubbleEl.querySelector('.res-speaking-label');
-    if (speakLabel) speakLabel.classList.add('visible');
-
-    audio.onended = () => {
+    const reset = () => {
       _activeAudio = null;
       btn.classList.remove('playing');
-      btn.innerHTML = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,1 10,6 2,11" fill="currentColor" stroke="none"/></svg> Read`;
+      btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
       if (wave) wave.classList.remove('visible');
+      if (label) label.classList.remove('visible');
       if (avatar) { avatar.src = avatar.dataset.portrait; avatar.classList.remove('speaking-gif'); }
-      if (speakLabel) speakLabel.classList.remove('visible');
       URL.revokeObjectURL(url);
     };
 
-    // Stop button re-click
-    btn.onclick = () => {
-      audio.pause();
-      audio.dispatchEvent(new Event('ended'));
-      btn.onclick = null;
-      btn.addEventListener('click', () => handleReadAloud(btn, bubbleEl));
-    };
-
+    audio.onended = reset;
+    btn.onclick = () => { audio.pause(); reset(); btn.onclick = null; btn.addEventListener('click', () => handleReadAloud(btn, bubbleEl, text, basinId)); };
     audio.play();
 
-  } catch (err) {
-    console.error('Read aloud error:', err);
+  } catch(e) {
+    console.error('Read aloud error:', e);
     btn.disabled = false;
-    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="2,1 10,6 2,11" fill="currentColor" stroke="none"/></svg> Read`;
+    btn.innerHTML = `<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read`;
   }
-}
-
-function renderSystemMsg(text) {
-  renderBubble({ type: 'system', text, timestamp: new Date().toISOString() });
 }
 
 function onThinking(isThinking) {
   if (isThinking) {
     thinkingEl = document.createElement('div');
     thinkingEl.className = 'bubble resonance';
-    const tBasinId = currentRoom?.basin?.id;
-    const tVcfg = BASIN_VOICE_CONFIG[tBasinId] || null;
+    const tbid = currentRoom?.basin?.id;
+    const tvcfg = BASIN_VOICE_CONFIG[tbid];
+    const tavatar = tvcfg ? `<img class="res-basin-avatar" src="${tvcfg.portrait}" data-portrait="${tvcfg.portrait}" data-gif="${tvcfg.gif}" alt="">` : '';
     thinkingEl.innerHTML = `
       <div class="res-author-row">
-        ${tVcfg ? `<img class="res-basin-avatar" src="${tVcfg.portrait}" alt="${esc(currentRoom?.basin?.name||'')}" data-portrait="${tVcfg.portrait}" data-gif="${tVcfg.gif}">` : ''}
+        ${tavatar}
         <div class="res-basin-name-wrap">
           <div class="res-glyph">◈ ${esc(currentRoom?.basin?.name || '')}</div>
         </div>
