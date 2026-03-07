@@ -1941,7 +1941,7 @@ app.post('/speak', async (req, res) => {
 
 // ── Dialog: Proxy AI call (keeps API key server-side) ─
 app.post('/api/basin-dialog', async (req, res) => {
-  const { basinId, system, messages } = req.body;
+  const { basinId, system, messages, max_tokens } = req.body;
   if (!basinId || !messages) return res.status(400).json({ error: 'basinId and messages required' });
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -1953,7 +1953,7 @@ app.post('/api/basin-dialog', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-5',
-        max_tokens: 350,
+        max_tokens: max_tokens || 350,
         system: system || '',
         messages
       })
