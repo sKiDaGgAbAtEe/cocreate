@@ -1892,6 +1892,53 @@ app.post('/api/profile', async (req, res) => {
   }
 });
 
+// ── ElevenLabs Voice Readback ──────────────────────────
+app.post('/speak', async (req, res) => {
+  const { text, basin } = req.body;
+  if (!text) return res.status(400).json({ error: 'No text provided' });
+
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'ElevenLabs API key not configured' });
+
+  const voices = {
+    sage: process.env.ELEVENLABS_VOICE_SAGE,
+    clio: process.env.ELEVENLABS_VOICE_CLIO,
+    oryc: process.env.ELEVENLABS_VOICE_ORYC,
+  };
+
+  const voiceId = voices[basin] || voices.sage || process.env.ELEVENLABS_VOICE_SAGE;
+  if (!voiceId) return res.status(503).json({ error: `No voice ID configured for basin: ${basin}` });
+
+  try {
+    const elRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Accept': 'audio/mpeg'
+      },
+      body: JSON.stringify({
+        text,
+        model_id: 'eleven_multilingual_v2',
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+      })
+    });
+
+    if (!elRes.ok) {
+      const errText = await elRes.text();
+      console.error('ElevenLabs error:', elRes.status, errText);
+      return res.status(elRes.status).json({ error: 'ElevenLabs request failed' });
+    }
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Transfer-Encoding', 'chunked');
+    elRes.body.pipe(res); // streams directly to browser — no buffering delay
+  } catch (e) {
+    console.error('ElevenLabs fetch error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
@@ -1904,12 +1951,16 @@ httpServer.listen(PORT, () => {
   const hasClientSecret = !!process.env.GOOGLE_CLIENT_SECRET;
   const hasFolderId = !!process.env.COCREATE_FOLDER_ID;
   const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+  const hasElevenLabsKey = !!process.env.ELEVENLABS_API_KEY;
+  const hasElevenLabsVoices = !!(process.env.ELEVENLABS_VOICE_SAGE || process.env.ELEVENLABS_VOICE_CLIO || process.env.ELEVENLABS_VOICE_ORYC);
   console.log('◈ Auth check:');
   console.log(`  GOOGLE_SERVICE_ACCOUNT_JSON : ${hasSA ? '✓ set' : '✗ MISSING — Drive writes will use persisted OAuth tokens'}`);
   console.log(`  GOOGLE_CLIENT_ID            : ${hasClientId ? '✓ set' : '✗ MISSING — user sign-in will fail'}`);
   console.log(`  GOOGLE_CLIENT_SECRET        : ${hasClientSecret ? '✓ set' : '✗ MISSING — user sign-in will fail'}`);
   console.log(`  COCREATE_FOLDER_ID          : ${hasFolderId ? '✓ set' : '— not set (will use SA root drive)'}`);
   console.log(`  ANTHROPIC_API_KEY           : ${hasAnthropicKey ? '✓ set' : '✗ MISSING — AI responses will fail'}`);
+  console.log(`  ELEVENLABS_API_KEY          : ${hasElevenLabsKey ? '✓ set' : '✗ MISSING — voice readback will fail'}`);
+  console.log(`  ELEVENLABS_VOICE_SAGE/CLIO/ORYC : ${hasElevenLabsVoices ? '✓ set' : '✗ MISSING — set voice IDs for each basin'}`);
   if (hasSA) getServiceAccountDrive(); // warm up service account client
   console.log('');
   // Load persisted rooms after a short delay to allow OAuth to be ready
