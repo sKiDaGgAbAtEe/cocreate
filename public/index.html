@@ -3752,7 +3752,7 @@ function renderBasinBrowser() {
     return `<div class="basin-row">
       <div class="basin-row-header" onclick="toggleBasinRow('${b.id}')">
         <div style="width:8px;height:8px;border-radius:50%;background:${b.color};flex-shrink:0"></div>
-        <span class="basin-row-name${['oryc','clio','sage'].includes(b.id)?' bpc-trigger':''}" ${['oryc','clio','sage'].includes(b.id)?'onclick="event.stopPropagation();showBpcMini(b.id,this)" title="View '+b.name+' profile"':''}>${esc(b.name)}${agentBadge}</span>
+        <span class="basin-row-name${['oryc','clio','sage'].includes(b.id)?' bpc-trigger':''}" ${['oryc','clio','sage'].includes(b.id)?'onclick="event.stopPropagation();showBpcMini(\'' + b.id + '\',this)" title="View ' + b.name + ' profile"':''}>${esc(b.name)}${agentBadge}</span>
         <span class="basin-row-caret" id="basin-caret-${b.id}">▾</span>
       </div>
       <div class="basin-row-body" id="basin-body-${b.id}">
@@ -3854,8 +3854,19 @@ function updateBasinDisplay(basin) {
   document.documentElement.style.setProperty('--basin-color', basin?.color || '#c4a882');
   document.getElementById('headerBasin').textContent = basin?.name || '';
   document.getElementById('sideBasinCircle').style.background = basin?.color || '#c4a882';
-  document.getElementById('sideBasinName').textContent = basin?.name || '';
   document.getElementById('sideBasinDesc').textContent = basin?.description || '';
+  // Sidebar basin name — clickable for triad basins
+  const nameEl = document.getElementById('sideBasinName');
+  nameEl.textContent = basin?.name || '';
+  const triad = ['oryc','clio','sage'];
+  if (basin && triad.includes(basin.id)) {
+    nameEl.classList.add('bpc-trigger');
+    nameEl.title = 'View ' + basin.name + ' profile';
+    nameEl.onclick = (e) => { e.stopPropagation(); showBpcMini(basin.id, nameEl); };
+  } else {
+    nameEl.classList.remove('bpc-trigger');
+    nameEl.onclick = null; nameEl.title = '';
+  }
 }
 
 function buildBasinSwitcher() {
@@ -4796,28 +4807,6 @@ document.addEventListener('keydown', (e) => {
   hideBpcMini();
 });
 
-// Patch sidebar basin label to be clickable for triad basins
-function patchBpcSidebarLabel() {
-  const nameEl = document.getElementById('sideBasinName');
-  if (!nameEl) return;
-  const update = () => {
-    const text = nameEl.textContent.trim().toLowerCase();
-    const triad = ['oryc', 'clio', 'sage'];
-    if (triad.includes(text)) {
-      nameEl.classList.add('bpc-trigger');
-      nameEl.title = 'View ' + nameEl.textContent.trim() + ' profile';
-      nameEl.onclick = (e) => { e.stopPropagation(); showBpcMini(text, nameEl); };
-    } else {
-      nameEl.classList.remove('bpc-trigger');
-      nameEl.onclick = null; nameEl.title = '';
-    }
-  };
-  const obs = new MutationObserver(update);
-  obs.observe(nameEl, { childList: true, characterData: true, subtree: true });
-  update();
-}
-document.addEventListener('DOMContentLoaded', patchBpcSidebarLabel);
-setTimeout(patchBpcSidebarLabel, 600);
 
 </script>
 </body>
