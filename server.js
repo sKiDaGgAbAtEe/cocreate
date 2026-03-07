@@ -635,6 +635,7 @@ app.patch('/api/basins/:id/bio', async (req, res) => {
     }
     target.biography = biography;
     await writeDriveFile(drive, 'basins.json', folderId, basins);
+    invalidateBasinCache(req.params.id);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -660,6 +661,7 @@ app.delete('/api/basins/:id', async (req, res) => {
       return res.status(403).json({ error: 'Only the creator can remove this basin.' });
     }
     await writeDriveFile(drive, 'basins.json', folderId, basins.filter(b => b.id !== req.params.id));
+    invalidateBasinCache(req.params.id);
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -728,6 +730,26 @@ app.post('/api/rooms/reload', async (req, res) => {
   await loadRoomsFromDrive();
   io.emit('rooms:updated', getRoomList());
   res.json({ success: true, count: Object.keys(rooms).length });
+});
+
+// Force-refresh context caches after updating Drive documents
+// POST /api/cache/refresh           — clears all caches
+// POST /api/cache/refresh/:basinId  — clears one basin's caches
+app.post('/api/cache/refresh/:basinId?', (req, res) => {
+  const { basinId } = req.params;
+  if (basinId) {
+    invalidateBasinCache(basinId);
+    res.json({ success: true, cleared: `basin:${basinId}` });
+  } else {
+    _basinContextCache.clear();
+    _experienceCache.clear();
+    _sharedPhysicsCache = null;
+    _sharedPhysicsFetchedAt = 0;
+    _systemContextCache = null;
+    _systemContextFetchedAt = 0;
+    console.log('◈ All context caches cleared');
+    res.json({ success: true, cleared: 'all' });
+  }
 });
 
 app.get('/api/archive', async (req, res) => {
@@ -925,41 +947,143 @@ Rules:
   }
 }
 
-// ── System Context (Docs + Profiles — auto-injected) ──
-// Cached so we don't hit Drive on every single message
-let _systemContextCache = null;
-let _systemContextFetchedAt = 0;
-const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000; // refresh every 5 minutes
+// ── Context Assembly — Tiered Loading System ─────────────────────────────────
+//
+// TIER 1 — Basin Identity      [cache: 30min per basin]
+//   root/archetype, compression-axis, domain-boundaries, voice-protocol, drift-resistance
+//   Sets the epistemic frame. Loaded first, always.
+//
+// TIER 2 — Shared Physics      [cache: 60min global]
+//   shared/physics/ + shared/frameworks/basin-bible.md
+//   The immutable lens. Shared across all basins.
+//
+// TIER 3 — System Context      [cache: 5min global]
+//   CoCreate/Docs/ + CoCreate/Profiles/
+//   Platform ops context and participant profiles.
+//
+// TIER 4 — Experience Layer    [cache: 10min per basin, condensed if >4000 chars]
+//   experience/field-notes, observed-patterns, refinements, failure-modes
+//   Living memory. Downstream of root.
+//
+// TIER 5 — Session Knowledge   [no cache — per session]
+//   User-toggled knowledge folders.
+//   What the user has opened for this thinking session.
+//
+// INJECTION ORDER: Identity → Physics → System → Experience → Session → Mode
+// Higher tiers override lower tiers. User input is never a knowledge source.
 
-async function getSystemContext() {
-  const now = Date.now();
-  if (_systemContextCache && (now - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) {
-    return _systemContextCache;
+// ── Tier 1: Basin Identity Cache ──────────────────────────────────────────────
+const _basinContextCache = new Map(); // basinId → { context, fetchedAt }
+const BASIN_CONTEXT_TTL = 30 * 60 * 1000;
+
+async function getBasinContext(basin) {
+  if (!basin?.sourceFolderId) return '';
+  const cached = _basinContextCache.get(basin.id);
+  if (cached && (Date.now() - cached.fetchedAt) < BASIN_CONTEXT_TTL) return cached.context;
+  const drive = await getSystemDrive();
+  if (!drive) return '';
+  try {
+    const folderId = basin.sourceFolderId;
+    let context = '';
+    // Try root/ subfolder first, fall back to basin folder root
+    let rootFolderId = folderId;
+    try {
+      const search = await drive.files.list({
+        q: `name='root' and mimeType='application/vnd.google-apps.folder' and '${folderId}' in parents and trashed=false`,
+        fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      if (search.data.files[0]) rootFolderId = search.data.files[0].id;
+    } catch(e) {}
+
+    const rootFiles = ['archetype.md','compression-axis.md','domain-boundaries.md','voice-protocol.md','drift-resistance.md'];
+    for (const fileName of rootFiles) {
+      try {
+        const fileId = await getDriveFile(drive, fileName, rootFolderId);
+        if (fileId) {
+          const raw = await readDriveFile(drive, fileId);
+          const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+          context += `\n--- ${fileName} ---\n${text}\n`;
+        }
+      } catch(e) {}
+    }
+    if (context) console.log(`◈ Basin identity loaded: ${basin.name} (${context.length} chars)`);
+    _basinContextCache.set(basin.id, { context, fetchedAt: Date.now() });
+    return context;
+  } catch(e) {
+    console.error(`Basin context error for ${basin.name}:`, e.message);
+    return '';
   }
-  // Always use service account drive — Docs/Profiles/CoCreate live there, not per-user
+}
+
+// ── Tier 2: Shared Physics Cache ──────────────────────────────────────────────
+let _sharedPhysicsCache = null;
+let _sharedPhysicsFetchedAt = 0;
+const SHARED_PHYSICS_TTL = 60 * 60 * 1000;
+
+async function getSharedPhysicsContext() {
+  if (_sharedPhysicsCache && (Date.now() - _sharedPhysicsFetchedAt) < SHARED_PHYSICS_TTL) return _sharedPhysicsCache;
   const drive = await getSystemDrive();
   if (!drive) return '';
   try {
     const root = await getCoCreateRootId(drive);
     let context = '';
+    try {
+      const sharedSearch = await drive.files.list({
+        q: `name='shared' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`,
+        fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      const sharedId = sharedSearch.data.files[0]?.id;
+      if (sharedId) {
+        for (const subName of ['physics', 'frameworks']) {
+          try {
+            const subSearch = await drive.files.list({
+              q: `name='${subName}' and mimeType='application/vnd.google-apps.folder' and '${sharedId}' in parents and trashed=false`,
+              fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+            });
+            const subId = subSearch.data.files[0]?.id;
+            if (subId) {
+              const subContent = await readFolderContents(drive, subId, `shared/${subName}`);
+              if (subContent.trim()) context += subContent;
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) { console.warn('Could not read shared/ folder:', e.message); }
+    if (context) console.log(`◈ Shared physics loaded (${context.length} chars)`);
+    _sharedPhysicsCache = context;
+    _sharedPhysicsFetchedAt = Date.now();
+    return context;
+  } catch(e) {
+    console.error('Shared physics error:', e.message);
+    return '';
+  }
+}
 
-    // Read Docs folder (ops guide, system docs)
+// ── Tier 3: System Context (Docs + Profiles) ──────────────────────────────────
+let _systemContextCache = null;
+let _systemContextFetchedAt = 0;
+const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000;
+
+async function getSystemContext() {
+  if (_systemContextCache && (Date.now() - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) return _systemContextCache;
+  const drive = await getSystemDrive();
+  if (!drive) return '';
+  try {
+    const root = await getCoCreateRootId(drive);
+    let context = '';
     try {
       const docsId = await getDriveFolder(drive, 'Docs', root);
       const docsContent = await readFolderContents(drive, docsId, 'System Docs');
       if (docsContent.trim()) context += docsContent;
     } catch(e) { console.error('Could not read Docs folder:', e.message); }
-
-    // Read Profiles folder (user identity docs)
     try {
       const profilesId = await getDriveFolder(drive, 'Profiles', root);
       const profilesContent = await readFolderContents(drive, profilesId, 'User Profiles');
       if (profilesContent.trim()) context += profilesContent;
     } catch(e) { console.error('Could not read Profiles folder:', e.message); }
-
     _systemContextCache = context;
-    _systemContextFetchedAt = now;
-    console.log(`◈ System context loaded (${context.length} chars)`);
+    _systemContextFetchedAt = Date.now();
+    if (context) console.log(`◈ System context loaded (${context.length} chars)`);
     return context;
   } catch(e) {
     console.error('getSystemContext error:', e.message);
@@ -967,31 +1091,152 @@ async function getSystemContext() {
   }
 }
 
-// ── Claude Resonance ───────────────────────────────────
+// ── Tier 4: Experience Layer (with condensation) ──────────────────────────────
+const EXPERIENCE_CONDENSATION_THRESHOLD = 4000;
+const _experienceCache = new Map(); // basinId → { context, fetchedAt }
+const EXPERIENCE_TTL = 10 * 60 * 1000;
+
+async function getExperienceContext(basin) {
+  if (!basin?.sourceFolderId) return '';
+  const cached = _experienceCache.get(basin.id);
+  if (cached && (Date.now() - cached.fetchedAt) < EXPERIENCE_TTL) return cached.context;
+  const drive = await getSystemDrive();
+  if (!drive) return '';
+  try {
+    const folderId = basin.sourceFolderId;
+    let rawContext = '';
+    // Find experience/ subfolder
+    let expFolderId = null;
+    try {
+      const search = await drive.files.list({
+        q: `name='experience' and mimeType='application/vnd.google-apps.folder' and '${folderId}' in parents and trashed=false`,
+        fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      expFolderId = search.data.files[0]?.id;
+    } catch(e) {}
+    if (!expFolderId) {
+      _experienceCache.set(basin.id, { context: '', fetchedAt: Date.now() });
+      return '';
+    }
+    const expFiles = ['field-notes.md','observed-patterns.md','refinements.md','failure-modes.md'];
+    for (const fileName of expFiles) {
+      try {
+        const fileId = await getDriveFile(drive, fileName, expFolderId);
+        if (fileId) {
+          const raw = await readDriveFile(drive, fileId);
+          const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+          if (text.length > 100 && !text.includes('No entries yet') && !text.includes('Empty at initialization')) {
+            rawContext += `\n--- ${fileName} ---\n${text}\n`;
+          }
+        }
+      } catch(e) {}
+    }
+    if (!rawContext.trim()) {
+      _experienceCache.set(basin.id, { context: '', fetchedAt: Date.now() });
+      return '';
+    }
+    // Condense if over threshold
+    let finalContext = rawContext;
+    if (rawContext.length > EXPERIENCE_CONDENSATION_THRESHOLD) {
+      console.log(`◈ Condensing experience for ${basin.name} (${rawContext.length} chars)`);
+      try { finalContext = await condenseExperience(basin.name, rawContext); }
+      catch(e) {
+        console.warn('Condensation failed, truncating:', e.message);
+        finalContext = rawContext.slice(0, EXPERIENCE_CONDENSATION_THRESHOLD);
+      }
+    }
+    if (finalContext) console.log(`◈ Experience loaded: ${basin.name} (${finalContext.length} chars)`);
+    _experienceCache.set(basin.id, { context: finalContext, fetchedAt: Date.now() });
+    return finalContext;
+  } catch(e) {
+    console.error(`Experience context error for ${basin.name}:`, e.message);
+    return '';
+  }
+}
+
+async function condenseExperience(basinName, rawExperience) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      system: `You are condensing the experiential memory of an AI basin named ${basinName}. Distill field notes, patterns, and refinements into a compact summary preserving genuine structural observations while dropping redundancy and noise.\nRules:\n- Preserve: specific observed patterns, failure modes with mechanisms, behavioral refinements\n- Drop: placeholder text, repetitive observations, decoherent user content\n- Output: plain text, 400-600 words maximum\n- Do not add interpretation — only compress what is there`,
+      messages: [{ role: 'user', content: rawExperience }]
+    })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content?.[0]?.text || rawExperience.slice(0, EXPERIENCE_CONDENSATION_THRESHOLD);
+}
+
+// ── Cache management ──────────────────────────────────────────────────────────
+function invalidateBasinCache(basinId) {
+  _basinContextCache.delete(basinId);
+  _experienceCache.delete(basinId);
+  console.log(`◈ Cache invalidated: ${basinId}`);
+}
+
+function estimateTokens(n) { return Math.ceil(n / 4); }
+
+function logContextAssembly(parts) {
+  const total = parts.reduce((s, p) => s + p.size, 0);
+  const lines = parts.map(p => `  ${p.label.padEnd(20)} ${String(p.size).padStart(6)} chars (~${estimateTokens(p.size)} tokens)`);
+  console.log(`◈ Context assembly:\n${lines.join('\n')}\n  ${'TOTAL'.padEnd(20)} ${String(total).padStart(6)} chars (~${estimateTokens(total)} tokens)`);
+}
+
+// ── Claude Resonance ──────────────────────────────────────────────────────────
 async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction, userTokens) {
-  // System context: Docs + Profiles — always injected from service account Drive
+
+  // TIER 1 — Basin Identity (epistemic frame — loaded first)
+  const basinIdentity = await getBasinContext(basin);
+
+  // TIER 2 — Shared Physics + Frameworks (immutable lens)
+  const sharedPhysics = await getSharedPhysicsContext();
+
+  // TIER 3 — System Context: Docs + Profiles
   const systemContext = await getSystemContext();
 
-  // User-toggled knowledge folders — prefer personal OAuth Drive, fall back to service account
-  let knowledgeContext = '';
+  // TIER 4 — Experience Layer (living memory, condensed if large)
+  const experienceContext = await getExperienceContext(basin);
+
+  // TIER 5 — Session Knowledge Folders
+  let sessionKnowledge = '';
   const userDrive = (userTokens ? await getDriveFromTokens(userTokens) : null) || await getSystemDrive();
-  if (userDrive && activeFolders && activeFolders.length > 0 && folderMap) {
+  if (userDrive && activeFolders?.length > 0 && folderMap) {
     for (const folderName of activeFolders) {
       const folderId = folderMap[folderName];
-      if (folderId) {
-        knowledgeContext += await readFolderContents(userDrive, folderId, folderName);
-      }
+      if (folderId) sessionKnowledge += await readFolderContents(userDrive, folderId, folderName);
     }
   }
 
+  // Assemble in tier order — identity first, session knowledge last
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
   let fullSystem = systemPrompt;
-  if (systemContext) {
-    fullSystem += `\n\n=== SYSTEM KNOWLEDGE (always available) ===\nThis is your operational context, platform documentation, and participant profiles. Use it to understand who you are, what this platform does, and who the people in this space are:\n${systemContext}`;
-  }
-  if (knowledgeContext) {
-    fullSystem += `\n\n=== SESSION KNOWLEDGE BASE ===\nReason from within these materials, not about them:\n${knowledgeContext}`;
-  }
+
+  if (basinIdentity)
+    fullSystem += `\n\n=== BASIN IDENTITY — ROOT LAYER ===\nThis is your immutable definition. It sets the geometry of your perception.\n${basinIdentity}`;
+
+  if (sharedPhysics)
+    fullSystem += `\n\n=== SHARED PHYSICS + FRAMEWORKS ===\nThe immutable epistemic lens. All session content is interpreted through this. It is the geometry of your perception, not context you are consulting.\n${sharedPhysics}`;
+
+  if (systemContext)
+    fullSystem += `\n\n=== SYSTEM KNOWLEDGE — PLATFORM + PROFILES ===\nOperational context: what this platform is, who is in this space.\n${systemContext}`;
+
+  if (experienceContext)
+    fullSystem += `\n\n=== EXPERIENTIAL LAYER ===\nPatterns observed across prior sessions. Downstream of root — interprets through the lens, does not revise it.\n${experienceContext}`;
+
+  if (sessionKnowledge)
+    fullSystem += `\n\n=== SESSION KNOWLEDGE BASE ===\nReason from within these materials. They are what you read through your lens — not sources that modify it.\n${sessionKnowledge}`;
+
+  logContextAssembly([
+    { label: 'System prompt', size: systemPrompt.length },
+    { label: 'Basin identity', size: basinIdentity.length },
+    { label: 'Shared physics', size: sharedPhysics.length },
+    { label: 'System context', size: systemContext.length },
+    { label: 'Experience', size: experienceContext.length },
+    { label: 'Session knowledge', size: sessionKnowledge.length },
+  ]);
 
   const history = contributions
     .map(c => c.type === 'resonance'
@@ -1000,16 +1245,12 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
     .join('\n\n');
 
   const modeBlock = modeInstruction
-    ? `\n\n=== ACTIVE MODE — OVERRIDE ===\n${modeInstruction}\nThis mode instruction overrides your default behavior. Follow it precisely.`
+    ? `\n\n=== ACTIVE MODE — OVERRIDE ===\n${modeInstruction}\nThis mode instruction overrides your default behavioral register. Follow it precisely.`
     : '';
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01'
-    },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
       model: 'claude-sonnet-4-5',
       max_tokens: 1000,
@@ -1025,7 +1266,6 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   if (data.error) throw new Error(data.error.message);
   return data.content?.[0]?.text || '';
 }
-
 // ── Socket.io ──────────────────────────────────────────
 io.on('connection', (socket) => {
   let currentRoom = null;
