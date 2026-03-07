@@ -1967,32 +1967,31 @@ app.post('/api/basin-dialog', async (req, res) => {
 });
 
 // ── Dialog: Save conversation to Drive ────────────────
+// ── Dialog helpers ────────────────────────────────────
+async function getDialogFolderId(drive) {
+  if (process.env.DIALOG_FOLDER_ID) return process.env.DIALOG_FOLDER_ID;
+  const search = await drive.files.list({
+    q: "name='Dialog' and mimeType='application/vnd.google-apps.folder' and trashed=false",
+    fields: 'files(id)', spaces: 'drive'
+  });
+  if (search.data.files[0]) return search.data.files[0].id;
+  const created = await drive.files.create({
+    requestBody: { name: 'Dialog', mimeType: 'application/vnd.google-apps.folder' },
+    fields: 'id'
+  });
+  return created.data.id;
+}
+
+async function getDialogDrive(req) {
+  return (await getDrive(req)) || (await getDriveFromTokens(_persistedTokens));
+}
+
 app.post('/api/dialog/save', async (req, res) => {
-  // Dialog saves go to the OAuth user's Drive (reyortsedlana@gmail.com),
-  // NOT the service account — service accounts have no storage quota.
-  const drive = (await getDrive(req)) || (await getDriveFromTokens(_persistedTokens));
+  const drive = await getDialogDrive(req);
   if (!drive) return res.status(401).json({ error: 'Not authenticated — visit /auth/google to connect your Google account' });
   try {
     const { messages, title, basins } = req.body;
-    // Use DIALOG_FOLDER_ID env var if set, otherwise find/create a "Dialog"
-    // folder in the OAuth user's personal Drive (not the service account)
-    let dialogFolderId = process.env.DIALOG_FOLDER_ID;
-    if (!dialogFolderId) {
-      const search = await drive.files.list({
-        q: `name='Dialog' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: 'files(id)',
-        spaces: 'drive'
-      });
-      if (search.data.files[0]) {
-        dialogFolderId = search.data.files[0].id;
-      } else {
-        const created = await drive.files.create({
-          requestBody: { name: 'Dialog', mimeType: 'application/vnd.google-apps.folder' },
-          fields: 'id'
-        });
-        dialogFolderId = created.data.id;
-      }
-    }
+    const dialogFolderId = await getDialogFolderId(drive);
     const now = new Date();
     const stamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const fileName = `dialog-${stamp}.json`;
@@ -2004,9 +2003,45 @@ app.post('/api/dialog/save', async (req, res) => {
     };
     await writeDriveFile(drive, fileName, dialogFolderId, payload);
     console.log(`◈ Dialog saved: ${fileName}`);
-    res.json({ success: true, fileName });
+    res.json({ success: true, fileName, fileId: dialogFolderId });
   } catch (e) {
     console.error('Dialog save error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dialog: List saved chats ───────────────────────────
+app.get('/api/dialog/list', async (req, res) => {
+  const drive = await getDialogDrive(req);
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const folderId = await getDialogFolderId(drive);
+    const result = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/json' and trashed=false`,
+      fields: 'files(id,name,createdTime)',
+      orderBy: 'createdTime desc',
+      pageSize: 50,
+      spaces: 'drive'
+    });
+    const files = (result.data.files || []).map(f => ({
+      id: f.id,
+      name: f.name,
+      createdTime: f.createdTime
+    }));
+    res.json({ files });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Dialog: Load a saved chat ──────────────────────────
+app.get('/api/dialog/load/:fileId', async (req, res) => {
+  const drive = await getDialogDrive(req);
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const content = await readDriveFile(drive, req.params.fileId);
+    res.json(content);
+  } catch(e) {
     res.status(500).json({ error: e.message });
   }
 });
