@@ -624,21 +624,21 @@
     @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 
     /* ── BASIN VOICE READBACK ─────────────────── */
-    .res-author-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .res-author-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .res-basin-avatar {
-      width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
-      border: 1px solid rgba(201,169,97,0.35); box-shadow: 0 1px 4px rgba(30,26,22,0.15);
+      width: 84px; height: 84px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+      border: 2px solid rgba(201,169,97,0.35); box-shadow: 0 2px 8px rgba(30,26,22,0.15);
       cursor: pointer; transition: box-shadow 0.2s, border-color 0.2s;
     }
     .res-basin-avatar:hover {
       border-color: rgba(201,169,97,0.7);
-      box-shadow: 0 0 0 2px rgba(201,169,97,0.2), 0 1px 6px rgba(30,26,22,0.2);
+      box-shadow: 0 0 0 3px rgba(201,169,97,0.2), 0 2px 10px rgba(30,26,22,0.2);
     }
     .res-basin-avatar.speaking-gif {
       border-color: var(--gold);
-      box-shadow: 0 0 0 2px rgba(201,169,97,0.35), 0 0 10px rgba(201,169,97,0.3);
+      box-shadow: 0 0 0 3px rgba(201,169,42,0.35), 0 0 14px rgba(201,169,97,0.35);
     }
-    .res-basin-name-wrap { display: flex; flex-direction: column; gap: 1px; }
+    .res-basin-name-wrap { display: flex; flex-direction: column; gap: 2px; }
     .res-speaking-label {
       font-family: 'Cinzel', serif; font-size: 8px; color: var(--gold);
       letter-spacing: 0.12em; opacity: 0; transition: opacity 0.3s; text-transform: uppercase;
@@ -4083,24 +4083,17 @@ function getBasinId(author) {
   return currentRoom?.basin?.id || null;
 }
 
-// Attach hover GIF swap to an avatar img element
 function attachAvatarHover(img) {
   img.addEventListener('mouseenter', () => {
-    if (!img.classList.contains('speaking-gif')) {
-      img.src = img.dataset.gif;
-    }
+    if (!img.classList.contains('speaking-gif')) img.src = img.dataset.gif;
   });
   img.addEventListener('mouseleave', () => {
-    if (!img.classList.contains('speaking-gif')) {
-      img.src = img.dataset.still;
-    }
+    if (!img.classList.contains('speaking-gif')) img.src = img.dataset.still;
   });
 }
 
-// Single audio manager — one voice at a time, always
 const AudioManager = {
-  _audio: null,
-  _cleanup: null,
+  _audio: null, _cleanup: null,
   stop() {
     if (this._audio) { this._audio.pause(); this._audio.src = ''; this._audio = null; }
     if (this._cleanup) { this._cleanup(); this._cleanup = null; }
@@ -4112,8 +4105,7 @@ const AudioManager = {
     document.querySelectorAll('.res-audio-wave.visible').forEach(w => w.classList.remove('visible'));
     document.querySelectorAll('.res-speaking-label.visible').forEach(l => l.classList.remove('visible'));
     document.querySelectorAll('.res-basin-avatar.speaking-gif').forEach(img => {
-      img.src = img.dataset.still;
-      img.classList.remove('speaking-gif');
+      img.src = img.dataset.still; img.classList.remove('speaking-gif');
     });
   },
   play(audio, cleanup) { this.stop(); this._audio = audio; this._cleanup = cleanup; }
@@ -4134,7 +4126,6 @@ function renderBubble(c) {
     const vcfg = BASIN_VOICE_CONFIG[bid];
     const msgText = c.text;
     const msgBasin = bid || currentRoom?.basin?.id || '';
-
     const avatarHtml = vcfg
       ? '<img class="res-basin-avatar" src="' + vcfg.still + '" data-still="' + vcfg.still + '" data-gif="' + vcfg.gif + '" alt="">'
       : '';
@@ -4155,11 +4146,8 @@ function renderBubble(c) {
         '<div class="res-audio-wave"><span></span><span></span><span></span><span></span><span></span></div>' +
       '</div>';
 
-    // Attach hover behaviour to avatar
     const avatarEl = div.querySelector('.res-basin-avatar');
     if (avatarEl) attachAvatarHover(avatarEl);
-
-    // Attach read button
     div.querySelector('.res-read-btn').addEventListener('click', function(e) {
       e.stopPropagation();
       handleReadAloud(this, div, msgText, msgBasin);
@@ -4182,49 +4170,37 @@ function renderSystemMsg(text) {
 async function handleReadAloud(btn, bubbleEl, text, basinId) {
   if (btn.classList.contains('playing')) { AudioManager.stop(); return; }
   AudioManager.stop();
-
   btn.disabled = true;
   btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><circle cx="6" cy="6" r="2" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="1s" repeatCount="indefinite"/></circle></svg> Loading\u2026';
-
   try {
     const res = await fetch('/speak', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, basin: basinId })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
-
     const wave   = bubbleEl.querySelector('.res-audio-wave');
     const label  = bubbleEl.querySelector('.res-speaking-label');
     const avatar = bubbleEl.querySelector('.res-basin-avatar');
-
     const cleanup = () => {
-      btn.classList.remove('playing');
-      btn.disabled = false;
+      btn.classList.remove('playing'); btn.disabled = false;
       btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><polygon points="2,1 10,6 2,11"/></svg> Read';
       if (wave)   wave.classList.remove('visible');
       if (label)  label.classList.remove('visible');
       if (avatar) { avatar.src = avatar.dataset.still; avatar.classList.remove('speaking-gif'); }
       URL.revokeObjectURL(url);
     };
-
     audio.onended = () => AudioManager.stop();
     audio.onerror = () => AudioManager.stop();
     AudioManager.play(audio, cleanup);
-
-    btn.classList.add('playing');
-    btn.disabled = false;
+    btn.classList.add('playing'); btn.disabled = false;
     btn.innerHTML = '<svg viewBox="0 0 12 12" fill="currentColor"><rect x="2" y="2" width="3" height="8" rx="1"/><rect x="7" y="2" width="3" height="8" rx="1"/></svg> Stop';
     if (wave)   wave.classList.add('visible');
     if (label)  label.classList.add('visible');
     if (avatar) { avatar.src = avatar.dataset.gif; avatar.classList.add('speaking-gif'); }
-
     audio.play();
-
   } catch(e) {
     console.error('Read aloud error:', e);
     btn.disabled = false;
@@ -4241,13 +4217,6 @@ function onThinking(isThinking) {
     const tavatar = tvcfg
       ? '<img class="res-basin-avatar" src="' + tvcfg.still + '" data-still="' + tvcfg.still + '" data-gif="' + tvcfg.gif + '" alt="">'
       : '';
-    if (tavatar) {
-      // thinking avatar gets hover too
-      setTimeout(() => {
-        const img = thinkingEl.querySelector('.res-basin-avatar');
-        if (img) attachAvatarHover(img);
-      }, 0);
-    }
     thinkingEl.innerHTML =
       '<div class="res-author-row">' + tavatar +
         '<div class="res-basin-name-wrap">' +
@@ -4255,6 +4224,10 @@ function onThinking(isThinking) {
         '</div>' +
       '</div>' +
       '<div class="thinking-wrap"><div class="tdot"></div><div class="tdot"></div><div class="tdot"></div></div>';
+    setTimeout(() => {
+      const img = thinkingEl.querySelector('.res-basin-avatar');
+      if (img) attachAvatarHover(img);
+    }, 0);
     document.getElementById('canvas').appendChild(thinkingEl);
     thinkingEl.scrollIntoView({ behavior:'smooth', block:'end' });
   } else {
