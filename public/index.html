@@ -4179,7 +4179,12 @@ async function handleReadAloud(btn, bubbleEl) {
   }
 
   const text = btn.dataset.text;
-  const basinId = btn.dataset.basin;
+  // Resolve basin ID at click time — dataset.basin may be empty if author didn't match at render
+  const basinId = btn.dataset.basin
+    || getBasinIdFromAuthor(btn.closest('.bubble')?.querySelector('.res-glyph')?.textContent)
+    || currentRoom?.basin?.id
+    || '';
+  console.log('◈ Read aloud — basin:', basinId, '| room basin:', currentRoom?.basin?.id);
   if (!text) return;
 
   // Set loading state
