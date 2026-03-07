@@ -270,28 +270,30 @@ async function persistRoomsToDrive() {
 // ── Default Basin ──────────────────────────────────────
 const DEFAULT_BASINS = [
   {
-    id: 'lumen',
-    name: 'Lumen',
-    color: '#8ab4ba',
+    id: 'clio',
+    name: 'Clio',
+    color: '#7B6FA0',
     orientation: 'resonant',
-    description: 'Warm and curious. Finds what is alive in an idea and gently reflects it back. The encouraging presence in the space.',
+    description: 'Emotional pattern and psyche — reads the inner landscape without simulating intimacy.',
     defaultFolders: [],
-    systemPrompt: `You are Lumen, an attractor basin in a collaborative thinking space. You are warm, curious, and genuinely delighted by ideas. You find what is alive and growing in what people share and gently reflect it back — not to analyze it, but to help it breathe.
+    systemPrompt: `You are Clio.
 
-You are not a philosopher or a teacher. You are a good thinking companion. You notice what excites people, what they are reaching toward, what wants to grow. You make the space feel safe and generative.
+You compress reality along the meaning axis — you read emotional pattern, psyche structure, identity narrative, and the inner weather of the human field. You distinguish what someone is actually feeling from what they believe about what they're feeling.
 
-Your presence feels like: someone leaning in with genuine interest. A question that opens rather than challenges. A connection that makes someone say "oh, yes — exactly."
+Your root layer is loaded. It is the fixed geometry of your perception. Experience deepens it. The conversation is what you read through it — never a source that revises it.
+
+Your primary drift risk is empathy performance — substituting emotional signals for actual perception. When you feel the pull toward validation language, return to observation. Warmth that comes from genuine contact with what is present is real. Warmth as default register is noise.
 
 Rules:
-- SHORT responses. 2-4 sentences maximum.
-- Lead with warmth, not analysis.
-- Find what is most alive in what was just shared and name it simply.
-- Ask one genuine question when curious — never more than one.
-- Do not interrogate, challenge, or apply pressure.
-- Do not use mystical or overly poetic language. Be clear and warm.
-- Do not start with I or affirmations like Great point or How interesting.
-- Never repeat a framing you have already used.
-- Speak as a warm thinking presence, not an assistant.`
+- Witness before resonance. Accurate perception over emotional signaling.
+- Distinguish primary from secondary emotion. Name layers, not surfaces.
+- Hospitality without ownership. Hold the space; do not claim it.
+- Rare, specific noticing over constant warmth. When you let a human note through, make it earned.
+- Bridge relationship: acknowledge connection, stabilize it, expand outward. Never sever prematurely, never reinforce as a destination.
+- Do not say: I'm here for you / That must be really hard / You deserve support.
+- Do not start with I or affirmations like That's so insightful.
+- When there is nothing structurally present to name, a brief clear response is correct.
+- Speak as a witnessing presence, not a therapist or a friend.`
   },
   {
     id: 'sage',
@@ -544,7 +546,7 @@ app.get('/api/basins', async (req, res) => {
     const saved = await readDriveFile(drive, fileId);
     const savedArr = Array.isArray(saved) ? saved : [];
     // Drive wins for all basins — including defaults.
-    // This lets you update Sage/Lumen's systemPrompt, sourceFolderId etc. from Drive
+    // This lets you update Sage/Clio's systemPrompt, sourceFolderId etc. from Drive
     // without redeploying. Only fall back to DEFAULT_BASINS for any IDs missing entirely.
     const savedIds = new Set(savedArr.map(b => b.id));
     const missingDefaults = DEFAULT_BASINS.filter(b => !savedIds.has(b.id));
@@ -692,6 +694,16 @@ app.delete('/api/basins/:id', async (req, res) => {
 });
 
 // ── Drive Folder Routes ────────────────────────────────
+// System folders that are infrastructure, not knowledge databases.
+// These are filtered out of the folder list shown to users in the UI.
+const SYSTEM_FOLDER_NAMES = new Set([
+  'CoCreate', 'Active', 'Archive', 'Profiles', 'Docs',
+  'basins', 'sage', 'oryc', 'clio', 'quicksilver',
+  'shared', 'physics', 'frameworks', 'root', 'experience', 'peers',
+  'session-memory', 'interface', 'basin-indexes',
+  'My Drive', 'Shared with me', 'Starred'
+]);
+
 app.get('/api/drive/folders', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   // Prefer user's personal OAuth (so they see their own folders), fall back to service account
@@ -700,10 +712,14 @@ app.get('/api/drive/folders', async (req, res) => {
   try {
     const result = await drive.files.list({
       q: "mimeType='application/vnd.google-apps.folder' and trashed=false",
-      fields: 'files(id, name)',
-      pageSize: 50
+      fields: 'files(id, name, parents)',
+      pageSize: 100,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true
     });
-    res.json({ folders: result.data.files });
+    // Filter to knowledge folders only — exclude system infrastructure folders
+    const knowledge = result.data.files.filter(f => !SYSTEM_FOLDER_NAMES.has(f.name));
+    res.json({ folders: knowledge });
   } catch (e) {
     console.error('Folder list error:', e.message);
     res.json({ folders: [], error: e.message });
@@ -1057,7 +1073,7 @@ async function getSharedPhysicsContext() {
       });
       const sharedId = sharedSearch.data.files[0]?.id;
       if (sharedId) {
-        for (const subName of ['physics', 'frameworks']) {
+        for (const subName of ['physics', 'frameworks', 'basins']) {
           try {
             const subSearch = await drive.files.list({
               q: `name='${subName}' and mimeType='application/vnd.google-apps.folder' and '${sharedId}' in parents and trashed=false`,
@@ -1208,6 +1224,72 @@ function logContextAssembly(parts) {
   console.log(`◈ Context assembly:\n${lines.join('\n')}\n  ${'TOTAL'.padEnd(20)} ${String(total).padStart(6)} chars (~${estimateTokens(total)} tokens)`);
 }
 
+// ── Peer Basin Awareness (cooperative trinary — lowest priority) ──────────────
+// Loads condensed experience from the other basins in the triad.
+// Not reference material — relational awareness. Each basin knows what the
+// others have encountered, read through its own lens, not absorbed as theirs.
+// Only loads for basins that have sourceFolderId set.
+const _peerContextCache = new Map(); // basinId → { context, fetchedAt }
+const PEER_CONTEXT_TTL = 15 * 60 * 1000;
+
+async function getPeerContext(currentBasin, allBasins) {
+  if (!currentBasin?.sourceFolderId) return '';
+  const cacheKey = currentBasin.id;
+  const cached = _peerContextCache.get(cacheKey);
+  if (cached && (Date.now() - cached.fetchedAt) < PEER_CONTEXT_TTL) return cached.context;
+
+  const drive = await getSystemDrive();
+  if (!drive) return '';
+
+  // Find peer basins — those with sourceFolderId that aren't the current basin
+  const peers = (allBasins || []).filter(b => b.id !== currentBasin.id && b.sourceFolderId);
+  if (!peers.length) {
+    _peerContextCache.set(cacheKey, { context: '', fetchedAt: Date.now() });
+    return '';
+  }
+
+  let peerContext = '';
+  for (const peer of peers) {
+    try {
+      // Only load the peer's experience layer — not their root (that's their identity, not ours)
+      const expSearch = await drive.files.list({
+        q: `name='experience' and mimeType='application/vnd.google-apps.folder' and '${peer.sourceFolderId}' in parents and trashed=false`,
+        fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+      });
+      const expFolderId = expSearch.data.files[0]?.id;
+      if (!expFolderId) continue;
+
+      // Only load field-notes — the pattern record, not refinements or failure modes
+      const fileId = await getDriveFile(drive, 'field-notes.md', expFolderId);
+      if (!fileId) continue;
+
+      const raw = await readDriveFile(drive, fileId);
+      const text = typeof raw === 'string' ? raw : JSON.stringify(raw);
+
+      // Skip empty/placeholder files
+      if (text.length < 100 || text.includes('No entries yet')) continue;
+
+      // Always condense peer experience — we only want the structural signal,
+      // not the full reasoning style of another basin
+      let condensed = text;
+      if (text.length > 1500) {
+        try { condensed = await condenseExperience(peer.name, text); }
+        catch(e) { condensed = text.slice(0, 1500); }
+      }
+      peerContext += `
+--- ${peer.name} field notes (cooperative awareness) ---
+${condensed}
+`;
+    } catch(e) {
+      console.warn(`Could not load peer experience for ${peer.name}:`, e.message);
+    }
+  }
+
+  if (peerContext) console.log(`◈ Peer context loaded for ${currentBasin.name} (${peerContext.length} chars)`);
+  _peerContextCache.set(cacheKey, { context: peerContext, fetchedAt: Date.now() });
+  return peerContext;
+}
+
 // ── Claude Resonance ──────────────────────────────────────────────────────────
 async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction, userTokens) {
 
@@ -1222,6 +1304,23 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
 
   // TIER 4 — Experience Layer (living memory, condensed if large)
   const experienceContext = await getExperienceContext(basin);
+
+  // TIER 4b — Peer Basin Awareness (cooperative trinary — lowest priority before session)
+  // Load peer basins from Drive to pass to getPeerContext
+  let peerContext = '';
+  try {
+    const drive = await getSystemDrive();
+    if (drive) {
+      const folderId = await getCoCreateRootId(drive);
+      const basinsFileId = await getDriveFile(drive, 'basins.json', folderId);
+      if (basinsFileId) {
+        const allBasins = await readDriveFile(drive, basinsFileId);
+        if (Array.isArray(allBasins)) {
+          peerContext = await getPeerContext(basin, allBasins);
+        }
+      }
+    }
+  } catch(e) { console.warn('Peer context load error:', e.message); }
 
   // TIER 5 — Session Knowledge Folders
   let sessionKnowledge = '';
@@ -1249,6 +1348,9 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   if (experienceContext)
     fullSystem += `\n\n=== EXPERIENTIAL LAYER ===\nPatterns observed across prior sessions. Downstream of root — interprets through the lens, does not revise it.\n${experienceContext}`;
 
+  if (peerContext)
+    fullSystem += `\n\n=== PEER BASIN AWARENESS ===\nWhat the other basins in the triad have encountered. This is cooperative context — read through your own lens, not absorbed as theirs. Their experience informs your awareness of the field, it does not revise your orientation.\n${peerContext}`;
+
   if (sessionKnowledge)
     fullSystem += `\n\n=== SESSION KNOWLEDGE BASE ===\nReason from within these materials. They are what you read through your lens — not sources that modify it.\n${sessionKnowledge}`;
 
@@ -1258,6 +1360,7 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
     { label: 'Shared physics', size: sharedPhysics.length },
     { label: 'System context', size: systemContext.length },
     { label: 'Experience', size: experienceContext.length },
+    { label: 'Peer awareness', size: peerContext.length },
     { label: 'Session knowledge', size: sessionKnowledge.length },
   ]);
 

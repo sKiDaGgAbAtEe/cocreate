@@ -1668,7 +1668,7 @@
     </div>
 
     <span class="label">Name</span>
-    <input type="text" id="newBasinName" placeholder="e.g. Anchor, Lumen, Ember..." />
+    <input type="text" id="newBasinName" placeholder="e.g. Anchor, Ember, Vessel..." />
 
     <span class="label" style="margin-top:8px">Description</span>
     <input type="text" id="newBasinDesc" placeholder="What does this basin orient toward?" />
@@ -3340,7 +3340,7 @@ function renderBasinBrowser() {
   }
 
   el.innerHTML = basins.map(b => {
-    const isDefault = ['lumen', 'sage'].includes(b.id);
+    const isDefault = ['sage', 'clio'].includes(b.id);
     const isOwner = b.createdBy === playerName;
     const canDelete = !isDefault && isOwner;
     const agentBadge = b.type === 'agent'
