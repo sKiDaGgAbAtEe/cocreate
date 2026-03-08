@@ -65,8 +65,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.use(express.static('public'));
-
 // ── Watchtower access control ──────────────────────────
 const WATCHTOWER_ALLOWED_EMAILS = [
   'skidaggabatee@gmail.com',
@@ -97,6 +95,9 @@ app.get('/watchtower', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'watchtower.html'));
 });
 
+// Static files AFTER named routes so /watchtower query params aren't intercepted
+app.use(express.static('public'));
+
 // ── Google OAuth ───────────────────────────────────────
 const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
@@ -124,6 +125,59 @@ app.get('/auth/google', (req, res) => {
     state: Buffer.from(JSON.stringify({ next })).toString('base64')
   });
   res.redirect(url);
+});
+
+// Dedicated watchtower login — separate callback URL so state param issues don't affect it
+app.get('/auth/google/watchtower', (req, res) => {
+  const wtClient = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${BASE_URL}/auth/google/watchtower/callback`
+  );
+  const url = wtClient.generateAuthUrl({
+    access_type: 'offline',
+    scope: DRIVE_SCOPES,
+    prompt: 'consent'
+  });
+  res.redirect(url);
+});
+
+app.get('/auth/google/watchtower/callback', async (req, res) => {
+  try {
+    const wtClient = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${BASE_URL}/auth/google/watchtower/callback`
+    );
+    const { tokens } = await wtClient.getToken(req.query.code);
+    req.session.userTokens = tokens;
+    saveTokensToDisk(tokens);
+    _persistedTokens = tokens;
+
+    wtClient.setCredentials(tokens);
+    const oauth2Api = google.oauth2({ version: 'v2', auth: wtClient });
+    const { data } = await oauth2Api.userinfo.get();
+    req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
+    console.log('[wt/callback] email:', data.email, '| allowed:', WATCHTOWER_ALLOWED_EMAILS.includes(data.email?.toLowerCase()));
+
+    // Generate signed token for the client
+    const email = data.email || '';
+    const ts = Date.now();
+    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+    const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
+    const token = Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64url');
+
+    req.session.save((err) => {
+      if (err) console.error('[wt/callback] session save error:', err);
+      if (!WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase())) {
+        return res.redirect('/watchtower?auth=denied');
+      }
+      res.redirect('/watchtower?auth=success&wt=' + token);
+    });
+  } catch(e) {
+    console.error('[wt/callback] error:', e.message);
+    res.redirect('/watchtower?auth=error');
+  }
 });
 
 app.get('/auth/google/callback', async (req, res) => {
