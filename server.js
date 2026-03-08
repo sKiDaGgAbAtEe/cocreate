@@ -7,7 +7,6 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
-const crypto = require('crypto');
 
 const app = express();
 const httpServer = createServer(app);
@@ -17,18 +16,17 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const session = require('express-session');
-app.set('trust proxy', 1); // must be before session middleware — Railway terminates HTTPS
-
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'entriference-secret-change-me',
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   cookie: {
-    secure: true,        // Railway always serves HTTPS; cookie must be secure or it gets dropped
+    secure: false,       // Railway proxy handles HTTPS, app receives HTTP
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   }
 });
+app.set('trust proxy', 1); // trust Railway's reverse proxy
 app.use(sessionMiddleware);
 
 
@@ -65,37 +63,6 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ── Watchtower access control ──────────────────────────
-const WATCHTOWER_ALLOWED_EMAILS = [
-  'skidaggabatee@gmail.com',
-  'reyortsedlana@gmail.com'
-  // add more here as needed
-];
-
-function isWatchtowerAllowed(req) {
-  const email = req.session?.userInfo?.email;
-  return email && WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase());
-}
-
-function requireWatchtower(req, res, next) {
-  if (!req.session?.userTokens || !req.session?.userInfo) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-  if (!isWatchtowerAllowed(req)) {
-    return res.status(403).json({ error: 'Access restricted' });
-  }
-  next();
-}
-
-// ── Watchtower dashboard — page served freely; APIs protected ─────────────
-app.get('/watchtower', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.sendFile(path.join(__dirname, 'public', 'watchtower.html'));
-});
-
-// Static files AFTER named routes so /watchtower query params aren't intercepted
 app.use(express.static('public'));
 
 // ── Google OAuth ───────────────────────────────────────
@@ -116,85 +83,31 @@ const DRIVE_SCOPES = [
 // Each browser session stores its own tokens + userInfo in req.session.
 // No global userTokens — that was the bug causing one login to bleed into all browsers.
 
+const WATCHTOWER_EMAILS = [
+  'skidaggabatee@gmail.com',
+  'reyortsedlana@gmail.com'
+];
+const crypto = require('crypto');
+
 app.get('/auth/google', (req, res) => {
   const next = req.query.next || '/';
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: DRIVE_SCOPES,
     prompt: 'consent',
-    state: Buffer.from(JSON.stringify({ next })).toString('base64')
+    state: Buffer.from(next).toString('base64')
   });
   res.redirect(url);
-});
-
-// Dedicated watchtower login — separate callback URL so state param issues don't affect it
-app.get('/auth/google/watchtower', (req, res) => {
-  const wtClient = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${BASE_URL}/auth/google/watchtower/callback`
-  );
-  const url = wtClient.generateAuthUrl({
-    access_type: 'offline',
-    scope: DRIVE_SCOPES,
-    prompt: 'consent'
-  });
-  res.redirect(url);
-});
-
-app.get('/auth/google/watchtower/callback', async (req, res) => {
-  try {
-    const wtClient = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${BASE_URL}/auth/google/watchtower/callback`
-    );
-    const { tokens } = await wtClient.getToken(req.query.code);
-    req.session.userTokens = tokens;
-    saveTokensToDisk(tokens);
-    _persistedTokens = tokens;
-
-    wtClient.setCredentials(tokens);
-    const oauth2Api = google.oauth2({ version: 'v2', auth: wtClient });
-    const { data } = await oauth2Api.userinfo.get();
-    req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
-    console.log('[wt/callback] email:', data.email, '| allowed:', WATCHTOWER_ALLOWED_EMAILS.includes(data.email?.toLowerCase()));
-
-    // Generate signed token for the client
-    const email = data.email || '';
-    const ts = Date.now();
-    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
-    const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
-    const token = Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64url');
-
-    req.session.save((err) => {
-      if (err) console.error('[wt/callback] session save error:', err);
-      if (!WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase())) {
-        return res.redirect('/watchtower?auth=denied');
-      }
-      res.redirect('/watchtower?auth=success&wt=' + token);
-    });
-  } catch(e) {
-    console.error('[wt/callback] error:', e.message);
-    res.redirect('/watchtower?auth=error');
-  }
 });
 
 app.get('/auth/google/callback', async (req, res) => {
   try {
-    let nextPath = '/';
-    try {
-      const state = JSON.parse(Buffer.from(req.query.state || '', 'base64').toString());
-      if (state.next && state.next.startsWith('/')) nextPath = state.next;
-    } catch(e) {}
-
-    console.log('[auth/callback] nextPath:', nextPath, '| sessionID:', req.sessionID);
-
     const { tokens } = await oauth2Client.getToken(req.query.code);
     req.session.userTokens = tokens;
     saveTokensToDisk(tokens);
     _persistedTokens = tokens;
 
+    let email = '', name = '', picture = '';
     try {
       const client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -204,30 +117,47 @@ app.get('/auth/google/callback', async (req, res) => {
       client.setCredentials(tokens);
       const oauth2Api = google.oauth2({ version: 'v2', auth: client });
       const { data } = await oauth2Api.userinfo.get();
-      req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
-      console.log('[auth/callback] email:', data.email, '| allowed:', WATCHTOWER_ALLOWED_EMAILS.includes(data.email?.toLowerCase()));
-    } catch(e) { console.error('[auth/callback] userinfo error:', e.message); }
+      email = data.email || ''; name = data.name || ''; picture = data.picture || '';
+      req.session.userInfo = { name, email, picture };
+    } catch(e) { console.error('Could not fetch user info:', e.message); }
+
+    // Decode destination from state param
+    let nextPath = '/';
+    try { nextPath = Buffer.from(req.query.state || '', 'base64').toString() || '/'; } catch(e) {}
+
+    // Generate a signed token so the client can verify without needing session continuity
+    const ts = Date.now();
+    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+    const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
+    const wt = Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64url');
 
     req.session.save((err) => {
-      if (err) console.error('[auth/callback] session save error:', err);
-      console.log('[auth/callback] saved, email in session:', req.session.userInfo?.email);
-      if (nextPath.startsWith('/watchtower') && !isWatchtowerAllowed(req)) {
-        return res.redirect('/watchtower?auth=denied');
+      if (err) console.error('Session save error:', err);
+      console.log('[auth/callback] email:', email, '| nextPath:', nextPath);
+      if (nextPath.startsWith('/watchtower')) {
+        if (!WATCHTOWER_EMAILS.includes(email.toLowerCase())) {
+          return res.redirect('/watchtower?auth=denied');
+        }
+        return res.redirect('/watchtower?auth=success&wt=' + wt);
       }
-      // Encode a signed token into the redirect so the client can verify auth
-      // without relying on cross-instance session continuity
-      const email = req.session.userInfo?.email || '';
-      const ts = Date.now();
-      const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
-      const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
-      const token = Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64url');
-      const sep = nextPath.includes('?') ? '&' : '?';
-      res.redirect(nextPath + sep + 'auth=success&wt=' + token);
+      res.redirect(nextPath + '?auth=success');
     });
   } catch (e) {
-    console.error('[auth/callback] error:', e.message);
+    console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
   }
+});
+
+app.get('/auth/wt-verify', (req, res) => {
+  try {
+    const { email, ts, sig } = JSON.parse(Buffer.from(req.query.t || '', 'base64url').toString());
+    if (Date.now() - ts > 3 * 60 * 1000) return res.json({ valid: false, reason: 'expired' });
+    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+    const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
+    if (sig !== expected) return res.json({ valid: false, reason: 'bad sig' });
+    const allowed = WATCHTOWER_EMAILS.includes(email.toLowerCase());
+    res.json({ valid: true, allowed, email });
+  } catch(e) { res.json({ valid: false }); }
 });
 
 app.get('/auth/logout', (req, res) => {
@@ -241,37 +171,14 @@ app.get('/auth/logout', (req, res) => {
   res.redirect('/?auth=logout');
 });
 
-// Verify a watchtower signed token (doesn't need session)
-app.get('/auth/wt-verify', (req, res) => {
-  try {
-    const token = req.query.t;
-    if (!token) return res.json({ valid: false });
-    const { email, ts, sig } = JSON.parse(Buffer.from(token, 'base64url').toString());
-    // Token expires after 2 minutes
-    if (Date.now() - ts > 2 * 60 * 1000) return res.json({ valid: false, reason: 'expired' });
-    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
-    const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
-    if (sig !== expected) return res.json({ valid: false, reason: 'invalid sig' });
-    const allowed = WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase());
-    console.log('[wt-verify] email:', email, '| allowed:', allowed);
-    res.json({ valid: true, allowed, email });
-  } catch(e) {
-    res.json({ valid: false, reason: e.message });
-  }
-});
-
 app.get('/auth/status', (req, res) => {
   const hasUserOAuth = !!req.session.userTokens;
   const hasServiceAccount = !!getServiceAccountDrive();
-  const userInfo = req.session.userInfo || null;
-  const watchtowerAllowed = !!(userInfo?.email && WATCHTOWER_ALLOWED_EMAILS.includes(userInfo.email.toLowerCase()));
-  console.log('[auth/status] sessionID:', req.sessionID, '| userInfo:', userInfo?.email, '| allowed:', watchtowerAllowed);
   res.json({
-    connected: hasUserOAuth || hasServiceAccount,
+    connected: hasUserOAuth || hasServiceAccount,  // Drive is available via either path
     serviceAccount: hasServiceAccount,
-    userOAuth: hasUserOAuth,
-    userInfo,
-    watchtowerAllowed
+    userOAuth: hasUserOAuth,                        // true only when user has personally signed in
+    userInfo: req.session.userInfo || null
   });
 });
 
@@ -2188,45 +2095,6 @@ app.get('/api/dialog/physics', async (req, res) => {
   } catch (e) {
     console.error('Dialog physics error:', e.message);
     res.json({ context: '' });
-  }
-});
-
-// ── Field State: Save unified ΔHV state snapshot to Drive ─────────────────
-app.post('/api/field-state/save', requireWatchtower, async (req, res) => {
-  const drive = await getDialogDrive(req);
-  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
-  try {
-    const { metrics, sessionId } = req.body;
-    if (!metrics) return res.status(400).json({ error: 'metrics required' });
-    const rootId = process.env.COCREATE_FOLDER_ID;
-    const folderId = await getOrCreateFolder(drive, 'shared', rootId);
-    const existingId = await getDriveFile(drive, 'field-state.json', folderId);
-    let state = existingId ? await readDriveFile(drive, existingId) : { snapshots: [], lastUpdated: null };
-    state.snapshots = (state.snapshots || []).slice(-100);
-    state.snapshots.push({ ts: new Date().toISOString(), sessionId: sessionId || null, ...metrics });
-    state.lastUpdated = new Date().toISOString();
-    await writeDriveFile(drive, 'field-state.json', folderId, state);
-    console.log('◈ Field state saved');
-    res.json({ success: true });
-  } catch(e) {
-    console.error('Field state save error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── Field State: Read current state (for Orycl.io) ────────────────────────
-app.get('/api/field-state', async (req, res) => {
-  try {
-    const drive = await getServiceAccountDrive() || await getDialogDrive(req);
-    if (!drive) return res.json({ snapshots: [] });
-    const rootId = process.env.COCREATE_FOLDER_ID;
-    const folderId = await getOrCreateFolder(drive, 'shared', rootId);
-    const fileId = await getDriveFile(drive, 'field-state.json', folderId);
-    if (!fileId) return res.json({ snapshots: [] });
-    const state = await readDriveFile(drive, fileId);
-    res.json(state);
-  } catch(e) {
-    res.json({ snapshots: [] });
   }
 });
 
