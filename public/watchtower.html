@@ -767,7 +767,7 @@
     </div>
     <div class="sidebar-auth" id="authPanel">
       <div class="auth-status" id="authStatus">Checking…</div>
-      <a class="auth-btn" id="authBtn" href="/auth/google">Sign in</a>
+      <a class="auth-btn" id="authBtn" href="/auth/google?next=/watchtower">Sign in</a>
     </div>
     <div class="chat-list" id="chatList">
       <div class="chat-list-empty" id="chatEmpty">No saved dialogs.</div>
@@ -1212,7 +1212,7 @@ function renderAuth() {
   } else {
     status.textContent = 'Not signed in';
     btn.textContent = 'Sign in';
-    btn.href = '/auth/google';
+    btn.href = '/auth/google?next=/watchtower';
     btn.className = 'auth-btn';
   }
 }
