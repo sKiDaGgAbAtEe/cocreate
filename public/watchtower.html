@@ -13,8 +13,8 @@
       --bg: #0d0f0e;
       --bg2: #111410;
       --bg3: #161a15;
-      --ink: #e2ead8;
-      --ink-dim: #a0b894;
+      --ink: #c8d4c0;
+      --ink-dim: #8fa882;
       --ink-faint: #4a5c44;
       --ink-ghost: #2a3228;
       --gold: #94b87a;
@@ -376,7 +376,7 @@
     .bubble.sage .bubble-author { color: var(--sage); }
     .bubble.system { background: none; border: none; align-self: center; }
     .bubble.system .bubble-text { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); letter-spacing: 0.08em; }
-    .bubble.prior { opacity: 0.45; }
+    .bubble.prior { opacity: 1; border-left-width: 1px; }
 
     .thinking { display: flex; gap: 5px; align-items: center; padding: 4px 0; }
     .tdot {
@@ -1239,7 +1239,6 @@ async function loadChat(fileId, itemEl) {
       const label = who === 'you' ? 'You' : cap(who);
       const row = document.createElement('div');
       row.className = 'bubble-row ' + (who === 'you' ? 'you' : '') + ' prior';
-      row.style.opacity = '0.45';
       row.innerHTML = `${makePfp(who)}<div class="bubble ${who}"><div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div></div>`;
       document.getElementById('messages').appendChild(row);
     });
