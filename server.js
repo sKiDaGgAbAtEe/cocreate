@@ -16,17 +16,18 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 const session = require('express-session');
+app.set('trust proxy', 1); // must be before session middleware — Railway terminates HTTPS
+
 const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET || 'entriference-secret-change-me',
-  resave: true,
-  saveUninitialized: true,
+  resave: false,
+  saveUninitialized: false,
   cookie: {
-    secure: false,       // Railway proxy handles HTTPS, app receives HTTP
+    secure: true,        // Railway always serves HTTPS; cookie must be secure or it gets dropped
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
   }
 });
-app.set('trust proxy', 1); // trust Railway's reverse proxy
 app.use(sessionMiddleware);
 
 
