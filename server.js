@@ -123,17 +123,24 @@ const DRIVE_SCOPES = [
 
 app.get('/auth/google', (req, res) => {
   const next = req.query.next || '/';
-  req.session.oauthNext = next;
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: DRIVE_SCOPES,
-    prompt: 'consent'
+    prompt: 'consent',
+    state: Buffer.from(JSON.stringify({ next })).toString('base64')
   });
   res.redirect(url);
 });
 
 app.get('/auth/google/callback', async (req, res) => {
   try {
+    // Recover the next destination from the state param (survives session reset)
+    let nextPath = '/';
+    try {
+      const state = JSON.parse(Buffer.from(req.query.state || '', 'base64').toString());
+      if (state.next && state.next.startsWith('/')) nextPath = state.next;
+    } catch(e) {}
+
     const { tokens } = await oauth2Client.getToken(req.query.code);
     req.session.userTokens = tokens;
     saveTokensToDisk(tokens); // persist across restarts
@@ -149,12 +156,10 @@ app.get('/auth/google/callback', async (req, res) => {
       const oauth2Api = google.oauth2({ version: 'v2', auth: client });
       const { data } = await oauth2Api.userinfo.get();
       req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
-      console.log('User logged in:', data.email);
+      console.log('User logged in:', data.email, '→ redirecting to', nextPath);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
-    // Explicitly save session before redirect so cookie is set
-    const oauthNext = req.session.oauthNext || '/';
-    delete req.session.oauthNext;
-    req.session.save(() => res.redirect(oauthNext + (oauthNext.includes('?') ? '&' : '?') + 'auth=success'));
+    // Save session then redirect to the intended destination
+    req.session.save(() => res.redirect(nextPath + (nextPath.includes('?') ? '&' : '?') + 'auth=success'));
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
