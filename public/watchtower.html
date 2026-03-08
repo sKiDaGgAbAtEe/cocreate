@@ -1,110 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Watchtower · Orycl</title>
-  <script src="/socket.io/socket.io.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Watchtower</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-      --bg:       #0d1117;
-      --bg2:      #141b22;
-      --bg3:      #1c252e;
-      --border:   rgba(168,200,232,0.1);
-      --border2:  rgba(168,200,232,0.18);
-      --ink:      #cdd9e5;
-      --ink-dim:  #8b949e;
-      --ink-faint:#4d5966;
-      --gold:     #a8c8e8;
-      --accent:   #79b8ff;
-      --green:    #4ec84e;
-      --red:      #e06c6c;
-      --mono:     'Share Tech Mono', monospace;
-      --radius:   12px;
-      --radius-sm: 8px;
-    }
-
-    html, body { height: 100%; background: var(--bg); color: var(--ink);
-                 font-family: 'Crimson Pro', serif; font-size: 16px; }
-
-    /* ── PAGES ── */
-    .page { display: none; }
-    .page.active { display: flex; }
-
-
-/* ══════════════════════════════════════════════
-       LANDING
-    ══════════════════════════════════════════════ */
-    #landing {
-      flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; padding: 40px 20px;
-      background:
-        radial-gradient(ellipse at 50% 0%,   rgba(168,200,232,0.06) 0%, transparent 55%),
-        radial-gradient(ellipse at 20% 70%,  rgba(176,160,224,0.04) 0%, transparent 45%),
-        var(--bg);
-    }
-    .l-glyph {
-      font-size: 32px; color: var(--gold); margin-bottom: 24px;
-      opacity: 0; animation: fadeUp .7s ease-out .1s forwards;
-      text-shadow: 0 0 40px rgba(168,200,232,0.3);
-    }
-    .l-label {
-      font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: .55em;
-      color: var(--ink-faint); text-transform: uppercase; margin-bottom: 10px;
-      opacity: 0; animation: fadeUp .7s ease-out .25s forwards;
-    }
-    .l-title {
-      font-family: 'Cinzel', serif; font-size: clamp(42px,7vw,68px); font-weight: 600;
-      color: var(--ink); letter-spacing: .07em; line-height: 1; margin-bottom: 12px;
-      opacity: 0; animation: fadeUp .8s ease-out .35s forwards;
-      text-shadow: 0 0 80px rgba(168,200,232,0.1);
-    }
-    .l-sub {
-      font-family: 'Crimson Pro', serif; font-style: italic; font-size: 15px;
-      color: var(--ink-dim); margin-bottom: 52px;
-      opacity: 0; animation: fadeUp .7s ease-out .5s forwards;
-    }
-    .l-card {
-      width: 100%; max-width: 320px;
-      background: rgba(20,27,34,0.8); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 20px 60px rgba(0,0,0,.5);
-      opacity: 0; animation: fadeUp .8s ease-out .65s forwards;
-    }
-    .l-btn {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      width: 100%; padding: 13px 20px;
-      background: rgba(168,200,232,0.06); border: 1px solid var(--border2);
-      border-radius: var(--radius-sm); color: var(--ink);
-      font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: .16em;
-      text-decoration: none; cursor: pointer;
-      transition: background .2s, border-color .2s, transform .15s;
-    }
-    .l-btn:hover {
-      background: rgba(168,200,232,0.12); border-color: rgba(168,200,232,0.3);
-      transform: translateY(-1px);
-    }
-    .l-btn svg { opacity: .65; flex-shrink: 0; }
-    .l-error {
-      margin-top: 14px; font-family: var(--mono); font-size: 9px;
-      color: var(--red); letter-spacing: .08em; text-align: center; display: none;
-    }
-    .l-error.show { display: block; }
-    .l-footer {
-      margin-top: 36px; font-family: var(--mono); font-size: 8px;
-      color: var(--ink-faint); letter-spacing: .14em;
-      opacity: 0; animation: fadeUp .7s ease-out .9s forwards;
-    }
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(12px); }
-
-    /* ── DASHBOARD ── */
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     /* ── THEMES ── */
@@ -692,11 +593,36 @@
     }
     .field-state-indicator span { color: var(--gold); }
 
-  
+    /* ── PAGE SWITCHING ── */
+    .page { display: none !important; }
+    .page.active { display: flex !important; }
 
-    /* Override: #app as page */
-    #app { display: flex !important; flex-direction: row !important; height: 100vh; overflow: hidden; align-items: stretch; }
-    .main { flex: 1; display: flex; flex-direction: column !important; min-width: 0; }
+    /* ── LANDING ── */
+    #landing {
+      --bg:         #0d1117;
+      --bg2:        #141b22;
+      --ink:        #cdd9e5;
+      --ink-dim:    #8b949e;
+      --ink-faint:  #4d5966;
+      --gold:       #a8c8e8;
+      --gold-dim:   rgba(168,200,232,0.08);
+      --gold-border:rgba(168,200,232,0.2);
+      --border2:    rgba(168,200,232,0.18);
+      flex-direction: column; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 40px 20px;
+      background: radial-gradient(ellipse at 50% 0%, rgba(168,200,232,0.07) 0%, transparent 55%), var(--bg);
+    }
+    .l-glyph { font-size: 28px; color: var(--gold); margin-bottom: 20px; opacity: 0; animation: lFadeUp .6s ease-out .1s forwards; }
+    .l-label { font-family: var(--mono); font-size: 9px; letter-spacing: .22em; color: var(--ink-dim); text-transform: uppercase; margin-bottom: 14px; opacity: 0; animation: lFadeUp .6s ease-out .2s forwards; }
+    .l-title { font-family: 'Cinzel', serif; font-size: 56px; font-weight: 600; color: var(--ink); letter-spacing: .08em; margin-bottom: 8px; opacity: 0; animation: lFadeUp .7s ease-out .3s forwards; }
+    .l-sub { font-family: 'Crimson Pro', serif; font-style: italic; font-size: 15px; color: var(--ink-dim); margin-bottom: 44px; opacity: 0; animation: lFadeUp .6s ease-out .45s forwards; }
+    .l-card { width: 100%; max-width: 300px; background: var(--bg2); border: 1px solid var(--border2); border-radius: 4px; padding: 20px; opacity: 0; animation: lFadeUp .7s ease-out .6s forwards; }
+    .l-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 12px 20px; background: var(--gold-dim); border: 1px solid var(--gold-border); border-radius: 3px; color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-decoration: none; cursor: pointer; transition: background .2s; }
+    .l-btn:hover { background: rgba(148,184,122,0.2); }
+    .l-error { margin-top: 12px; font-family: var(--mono); font-size: 9px; color: #e06040; text-align: center; display: none; }
+    .l-error.show { display: block; }
+    .l-footer { margin-top: 32px; font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing: .14em; opacity: 0; animation: lFadeUp .6s ease-out .85s forwards; }
+    @keyframes lFadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: none; } }
 
   </style>
 </head>
@@ -709,10 +635,10 @@
   <p class="l-sub">Field monitoring · Basin coherence · Session archive</p>
   <div class="l-card">
     <a class="l-btn" href="/auth/google?next=/watchtower">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" opacity=".7">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-        <path d="M5.84 14.09c-.22-.66-.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
       </svg>
       Access with Google
@@ -721,8 +647,6 @@
   </div>
   <div class="l-footer">ORYCL · RESEARCH OPERATIONS · RESTRICTED</div>
 </div>
-
-<!-- ── APP ── -->
 
 <div id="app" class="page">
 
@@ -1004,7 +928,6 @@
 </div><!-- end app -->
 
 <script>
-
 // ── Environment context ───────────────────────────────────────────────────────
 const ENVIRONMENT_CONTEXT = `
 ## Your Operating Environment
@@ -1090,8 +1013,71 @@ let smooth = { clio_S:0, clio_V:0, clio_delta:0, oryc_phi:0, oryc_V:0, oryc_delt
 // System log
 let systemLog = [];
 
-// ── Init ──────────────────────────────────────────────────────────────────────
+// ── Page switching ────────────────────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
 
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const params = new URLSearchParams(window.location.search);
+
+  // auth=denied → show error on landing
+  if (params.get('auth') === 'denied') {
+    document.getElementById('lErr').classList.add('show');
+    return;
+  }
+
+  // auth=success&wt=TOKEN → verify token, enter app
+  if (params.get('auth') === 'success' && params.get('wt')) {
+    try {
+      const r = await fetch('/auth/wt-verify?t=' + encodeURIComponent(params.get('wt')));
+      const d = await r.json();
+      if (d.valid && d.allowed) {
+        window.history.replaceState({}, '', '/watchtower');
+        await enterDashboard();
+        return;
+      } else {
+        document.getElementById('lErr').textContent = d.email
+          ? `${d.email} is not authorized.`
+          : 'Access restricted to authorized operators.';
+        document.getElementById('lErr').classList.add('show');
+        return;
+      }
+    } catch(e) {
+      document.getElementById('lErr').classList.add('show');
+      return;
+    }
+  }
+
+  // No params → check existing session
+  try {
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+    if (d.userInfo && d.watchtowerAllowed) {
+      await enterDashboard();
+      return;
+    }
+  } catch(e) {}
+
+  // Default: show landing
+  showPage('landing');
+});
+
+async function enterDashboard() {
+  showPage('app');
+  applyTheme(currentTheme, false);
+  initDepthDial();
+  await loadChatList();
+  startFreshChat();
+  try {
+    const r = await fetch('/api/dialog/physics');
+    const d = await r.json();
+    if (d.context) physicsContext = d.context;
+  } catch(e) {}
+  addLog('system', 'init', 'Watchtower initialized');
+}
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
 function setTheme(t) { applyTheme(t, true); localStorage.setItem('wt-theme', t); }
@@ -1651,116 +1637,6 @@ function autoResize(el) {
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
-
-// ── initDashboard (called after auth) ──────────────────────────────────────
-async function initDashboard() {
-  applyTheme(currentTheme, false);
-  initDepthDial();
-  await loadChatList();
-  startFreshChat();
-  try {
-    const r = await fetch('/api/dialog/physics');
-    const d = await r.json();
-    if (d.context) physicsContext = d.context;
-  } catch(e) {}
-  addLog('system', 'init', 'Watchtower initialized');
-}
-
-// ── Auth + landing logic ───────────────────────────────────────────────────
-function showPage(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-async function enterApp(email) {
-  showPage('app');
-  await initDashboard();
-}
-
-window.addEventListener('DOMContentLoaded', async () => {
-  const params = new URLSearchParams(window.location.search);
-  const authParam = params.get('auth');
-  const wtToken  = params.get('wt');
-
-  if (authParam === 'denied') {
-    window.history.replaceState({}, '', '/watchtower');
-    document.getElementById('lErr').classList.add('show');
-    return;
-  }
-
-  if (authParam === 'success' && wtToken) {
-    window.history.replaceState({}, '', '/watchtower');
-    try {
-      const r = await fetch('/auth/wt-verify?t=' + encodeURIComponent(wtToken));
-      const d = await r.json();
-      console.log('[wt] verify:', d);
-      if (d.valid && d.allowed) {
-        enterApp(d.email);
-        return;
-      }
-      const err = document.getElementById('lErr');
-      err.textContent = d.email ? `Signed in as ${d.email} — not authorized` : 'Access restricted to authorized operators.';
-      err.classList.add('show');
-    } catch(e) {
-      console.error('[wt] verify error:', e);
-      document.getElementById('lErr').classList.add('show');
-    }
-    return;
-  }
-
-  // Already logged in? Check session
-  try {
-    const r = await fetch('/auth/status');
-    const d = await r.json();
-    if (d.watchtowerAllowed) {
-      enterApp(d.userInfo?.email || '');
-    }
-  } catch(e) {}
-});
-
-
-
-window.addEventListener('DOMContentLoaded', async () => {
-  const params = new URLSearchParams(window.location.search);
-  const authParam = params.get('auth');
-  const wtToken  = params.get('wt');
-
-  if (authParam === 'denied') {
-    window.history.replaceState({}, '', '/watchtower');
-    document.getElementById('lErr').classList.add('show');
-    return;
-  }
-
-  if (authParam === 'success' && wtToken) {
-    window.history.replaceState({}, '', '/watchtower');
-    try {
-      const r = await fetch('/auth/wt-verify?t=' + encodeURIComponent(wtToken));
-      const d = await r.json();
-      console.log('[wt] verify:', d);
-      if (d.valid && d.allowed) {
-        enterApp(d.email);
-        return;
-      }
-      const err = document.getElementById('lErr');
-      err.textContent = d.email ? `Signed in as ${d.email} — not authorized` : 'Access restricted to authorized operators.';
-      err.classList.add('show');
-    } catch(e) {
-      console.error('[wt] verify error:', e);
-      document.getElementById('lErr').classList.add('show');
-    }
-    return;
-  }
-
-  // Already logged in? Check session
-  try {
-    const r = await fetch('/auth/status');
-    const d = await r.json();
-    if (d.watchtowerAllowed) {
-      enterApp(d.userInfo?.email || '');
-    }
-  } catch(e) {}
-});
 </script>
 </body>
 </html>
