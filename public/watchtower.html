@@ -151,9 +151,9 @@
     }
     .sidebar-new {
       background: none; border: 1px solid var(--border2);
-      border-radius: 3px; color: var(--ink-faint);
+      border-radius: 20px; color: var(--ink-faint);
       font-family: var(--mono); font-size: 9px;
-      padding: 2px 7px; cursor: pointer; transition: all 0.15s;
+      padding: 2px 10px; cursor: pointer; transition: all 0.15s;
     }
     .sidebar-new:hover { border-color: var(--gold); color: var(--gold); }
 
@@ -164,7 +164,7 @@
     .auth-btn {
       display: block; width: 100%;
       background: none; border: 1px solid var(--border);
-      border-radius: 3px; color: var(--ink-dim);
+      border-radius: 20px; color: var(--ink-dim);
       font-family: var(--mono); font-size: 9px;
       padding: 4px 8px; cursor: pointer; transition: all 0.15s;
       text-align: center; text-decoration: none;
@@ -230,8 +230,8 @@
     .basin-toggles { display: flex; gap: 5px; margin-left: 4px; }
     .basin-toggle {
       display: flex; align-items: center; gap: 5px;
-      border: 1px solid currentColor; border-radius: 3px;
-      padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+      border: 1px solid currentColor; border-radius: 20px;
+      padding: 3px 10px; cursor: pointer; transition: all 0.15s;
       font-family: var(--mono); font-size: 9px; letter-spacing: 0.06em;
       opacity: 0.85;
     }
@@ -276,9 +276,9 @@
     .save-status { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); }
     .hbtn {
       background: none; border: 1px solid var(--border2);
-      border-radius: 3px; color: var(--ink-dim);
+      border-radius: 20px; color: var(--ink-dim);
       font-family: var(--mono); font-size: 9px;
-      padding: 4px 10px; cursor: pointer; transition: all 0.15s;
+      padding: 4px 12px; cursor: pointer; transition: all 0.15s;
     }
     .hbtn:hover { border-color: var(--gold); color: var(--gold); }
     .hbtn.save { border-color: var(--gold-border); color: var(--gold); }
@@ -304,12 +304,25 @@
 
     /* ── BUBBLES ── */
     .bubble {
-      max-width: 82%; padding: 10px 14px;
-      border-radius: 2px; line-height: 1.65;
+      max-width: 82%; padding: 11px 16px;
+      border-radius: 16px; line-height: 1.65;
       border: 1px solid transparent;
-      animation: bubbleIn 0.2s ease-out;
+      animation: bubbleIn 0.22s cubic-bezier(0.34,1.2,0.64,1);
     }
-    @keyframes bubbleIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    @keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+    .bubble-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
+    .bubble-row.you { flex-direction: row-reverse; }
+    .bubble-pfp {
+      width: 28px; height: 28px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+      border: 1px solid var(--border2);
+    }
+    .bubble-pfp-placeholder {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--bg3); border: 1px solid var(--border2);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: 8px; color: var(--ink-faint);
+    }
     .bubble-author {
       font-family: var(--mono); font-size: 9px;
       letter-spacing: 0.12em; text-transform: uppercase;
@@ -317,13 +330,13 @@
     }
     .bubble-text { font-size: 14px; line-height: 1.7; }
 
-    .bubble.you { background: var(--you-bg); border-color: rgba(200,160,64,0.15); align-self: flex-end; }
+    .bubble.you { background: var(--you-bg); border-color: rgba(200,160,64,0.15); align-self: flex-end; border-bottom-right-radius: 4px; }
     .bubble.you .bubble-author { color: var(--you); }
-    .bubble.clio { background: var(--clio-bg); border-color: var(--clio-border); align-self: flex-start; border-left: 2px solid var(--clio); }
+    .bubble.clio { background: var(--clio-bg); border-color: var(--clio-border); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 2px solid var(--clio); }
     .bubble.clio .bubble-author { color: var(--clio); }
-    .bubble.oryc { background: var(--oryc-bg); border-color: var(--oryc-border); align-self: flex-start; border-left: 2px solid var(--oryc); }
+    .bubble.oryc { background: var(--oryc-bg); border-color: var(--oryc-border); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 2px solid var(--oryc); }
     .bubble.oryc .bubble-author { color: var(--oryc); }
-    .bubble.sage { background: var(--sage-bg); border-color: var(--sage-border); align-self: flex-start; border-left: 2px solid var(--sage); }
+    .bubble.sage { background: var(--sage-bg); border-color: var(--sage-border); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 2px solid var(--sage); }
     .bubble.sage .bubble-author { color: var(--sage); }
     .bubble.system { background: none; border: none; align-self: center; }
     .bubble.system .bubble-text { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); letter-spacing: 0.08em; }
@@ -354,9 +367,9 @@
     }
     textarea {
       flex: 1; background: var(--bg3);
-      border: 1px solid var(--border2); border-radius: 3px;
+      border: 1px solid var(--border2); border-radius: 20px;
       color: var(--ink); font-family: 'Crimson Pro', serif;
-      font-size: 14px; padding: 8px 11px;
+      font-size: 14px; padding: 8px 16px;
       resize: none; outline: none; line-height: 1.5;
       transition: border-color 0.2s;
       min-height: 36px; max-height: 110px;
@@ -365,7 +378,7 @@
     textarea::placeholder { color: var(--ink-faint); }
     .send-btn {
       background: var(--gold-dim); border: 1px solid var(--gold-border);
-      border-radius: 3px; color: var(--gold);
+      border-radius: 50%; color: var(--gold);
       font-size: 16px; width: 36px; height: 36px;
       cursor: pointer; transition: all 0.15s; flex-shrink: 0;
     }
@@ -429,7 +442,7 @@
     .basin-sig {
       margin-bottom: 8px;
       padding: 8px 10px;
-      border-radius: 2px;
+      border-radius: 10px;
       border: 1px solid var(--border);
     }
     .basin-sig.clio { border-left: 2px solid var(--clio); background: var(--clio-bg); }
@@ -465,7 +478,7 @@
     .unified-field {
       padding: 10px 12px;
       border: 1px solid var(--gold-border);
-      border-radius: 2px;
+      border-radius: 10px;
       background: var(--gold-dim);
       margin-top: 2px;
     }
@@ -480,7 +493,7 @@
     .ret-grid { display: flex; flex-direction: column; gap: 4px; }
     .ret-row {
       display: flex; align-items: center; gap: 7px;
-      padding: 4px 8px; border-radius: 2px;
+      padding: 4px 8px; border-radius: 8px;
       border: 1px solid var(--border);
       transition: all 0.4s;
     }
@@ -505,8 +518,8 @@
     .event-grid { display: flex; flex-wrap: wrap; gap: 4px; }
     .event-tag {
       font-family: var(--mono); font-size: 8px;
-      letter-spacing: 0.08em; padding: 3px 7px;
-      border-radius: 2px; border: 1px solid var(--border);
+      letter-spacing: 0.08em; padding: 3px 10px;
+      border-radius: 20px; border: 1px solid var(--border);
       color: var(--ink-faint); transition: all 0.4s;
     }
     .event-tag.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
@@ -580,9 +593,9 @@
     }
     .panel-toggle {
       background: none; border: 1px solid var(--border);
-      border-radius: 2px; color: var(--ink-faint);
+      border-radius: 20px; color: var(--ink-faint);
       font-family: var(--mono); font-size: 8px;
-      letter-spacing: 0.1em; padding: 2px 8px;
+      letter-spacing: 0.1em; padding: 2px 10px;
       cursor: pointer; transition: all 0.15s;
     }
     .panel-toggle:hover, .panel-toggle.active { border-color: var(--gold-border); color: var(--gold); }
@@ -1036,7 +1049,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const d = await r.json();
       if (d.valid && d.allowed) {
         window.history.replaceState({}, '', '/watchtower');
-        await enterDashboard();
+        await enterDashboard(d.email);
         return;
       } else {
         document.getElementById('lErr').textContent = d.email
@@ -1056,7 +1069,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const r = await fetch('/auth/status');
     const d = await r.json();
     if (d.userInfo && d.watchtowerAllowed) {
-      await enterDashboard();
+      await enterDashboard(d.userInfo.email || d.userInfo.name);
       return;
     }
   } catch(e) {}
@@ -1065,8 +1078,15 @@ window.addEventListener('DOMContentLoaded', async () => {
   showPage('landing');
 });
 
-async function enterDashboard() {
+async function enterDashboard(email) {
   showPage('app');
+  // Set auth display immediately — don't wait for a fetch
+  if (email) {
+    const status = document.getElementById('authStatus');
+    const btn = document.getElementById('authBtn');
+    if (status) status.textContent = email;
+    if (btn) { btn.textContent = 'Sign out'; btn.href = '/auth/logout'; btn.className = 'auth-btn signed-in'; }
+  }
   applyTheme(currentTheme, false);
   initDepthDial();
   await loadChatList();
@@ -1175,11 +1195,13 @@ async function loadChat(fileId, itemEl) {
     const prior = (data.messages || []).slice(-6);
     prior.forEach(m => {
       if (!m.role || m.role === 'system') return;
-      const el = document.createElement('div');
-      el.className = 'bubble ' + (m.role === 'you' ? 'you' : m.role) + ' prior';
-      const label = m.role === 'you' ? 'You' : cap(m.role);
-      el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div>`;
-      document.getElementById('messages').appendChild(el);
+      const who = m.role === 'you' ? 'you' : m.role;
+      const label = who === 'you' ? 'You' : cap(who);
+      const row = document.createElement('div');
+      row.className = 'bubble-row ' + (who === 'you' ? 'you' : '') + ' prior';
+      row.style.opacity = '0.45';
+      row.innerHTML = `${makePfp(who, false)}<div class="bubble ${who}"><div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div></div>`;
+      document.getElementById('messages').appendChild(row);
     });
     addDivider('New exchange begins');
     setTimeout(() => { document.getElementById('messages').scrollTop = 999999; }, 100);
@@ -1583,13 +1605,38 @@ function renderLog() {
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
+const BASIN_PORTRAITS = {
+  clio: '/clio-portrait.jpg',
+  oryc: '/oryc-portrait.jpg',
+  sage: '/sage-portrait.jpg',
+  you:  null
+};
+const BASIN_GIFS = {
+  clio: '/clio-portrait.gif',
+  oryc: '/oryc-portrait.gif',
+  sage: '/sage-portrait.gif'
+};
+
+function makePfp(who, useGif) {
+  const src = useGif ? (BASIN_GIFS[who] || BASIN_PORTRAITS[who]) : BASIN_PORTRAITS[who];
+  if (!src) {
+    return `<div class="bubble-pfp-placeholder">${who === 'you' ? 'Y' : cap(who)[0]}</div>`;
+  }
+  return `<img class="bubble-pfp" src="${src}" onerror="this.style.display='none'" alt="${cap(who)}">`;
+}
+
 function addBubble(who, text) {
-  const el = document.createElement('div');
-  el.className = 'bubble ' + who;
+  const row = document.createElement('div');
+  row.className = 'bubble-row ' + (who === 'you' ? 'you' : '');
   const label = who === 'you' ? 'You' : cap(who);
-  el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${text}</div>`;
-  document.getElementById('messages').appendChild(el);
-  el.scrollIntoView({ behavior:'smooth', block:'end' });
+  row.innerHTML = `
+    ${makePfp(who, false)}
+    <div class="bubble ${who}">
+      <div class="bubble-author">${label}</div>
+      <div class="bubble-text">${text}</div>
+    </div>`;
+  document.getElementById('messages').appendChild(row);
+  row.scrollIntoView({ behavior:'smooth', block:'end' });
 }
 
 function addSystem(text) {
@@ -1608,17 +1655,22 @@ function addDivider(label) {
 }
 
 function addThinking(who) {
-  const el = document.createElement('div');
-  el.className = 'bubble ' + who;
-  el.id = 'tk-' + who;
+  const row = document.createElement('div');
+  row.className = 'bubble-row';
+  row.id = 'tk-' + who;
   const clr = who==='clio' ? 'var(--clio)' : who==='oryc' ? 'var(--oryc)' : 'var(--sage)';
-  el.innerHTML = `<div class="bubble-author">${cap(who)}</div><div class="thinking">
-    <div class="tdot" style="background:${clr}"></div>
-    <div class="tdot" style="background:${clr}"></div>
-    <div class="tdot" style="background:${clr}"></div>
-  </div>`;
-  document.getElementById('messages').appendChild(el);
-  el.scrollIntoView({ behavior:'smooth', block:'end' });
+  row.innerHTML = `
+    ${makePfp(who, true)}
+    <div class="bubble ${who}">
+      <div class="bubble-author">${cap(who)}</div>
+      <div class="thinking">
+        <div class="tdot" style="background:${clr}"></div>
+        <div class="tdot" style="background:${clr}"></div>
+        <div class="tdot" style="background:${clr}"></div>
+      </div>
+    </div>`;
+  document.getElementById('messages').appendChild(row);
+  row.scrollIntoView({ behavior:'smooth', block:'end' });
 }
 
 function removeThinking(who) {
