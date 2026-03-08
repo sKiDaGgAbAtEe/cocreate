@@ -13,8 +13,8 @@
       --bg: #0d0f0e;
       --bg2: #111410;
       --bg3: #161a15;
-      --ink: #c8d4c0;
-      --ink-dim: #8fa882;
+      --ink: #e2ead8;
+      --ink-dim: #a0b894;
       --ink-faint: #4a5c44;
       --ink-ghost: #2a3228;
       --gold: #94b87a;
@@ -106,20 +106,20 @@
       transition: background 0.3s, color 0.3s;
     }
 
-    /* Scanline texture */
-    body::after {
+    /* Scanline texture — landing only */
+    #landing::after {
       content: '';
-      position: fixed;
+      position: absolute;
       inset: 0;
       background: repeating-linear-gradient(
         0deg,
         transparent,
         transparent 2px,
-        rgba(0,0,0,0.03) 2px,
-        rgba(0,0,0,0.03) 4px
+        rgba(0,0,0,0.025) 2px,
+        rgba(0,0,0,0.025) 4px
       );
       pointer-events: none;
-      z-index: 9999;
+      z-index: 1;
     }
 
     /* ── LAYOUT ── */
@@ -362,7 +362,7 @@
     .bubble-author {
       font-family: var(--mono); font-size: 9px;
       letter-spacing: 0.12em; text-transform: uppercase;
-      margin-bottom: 5px; opacity: 0.7;
+      margin-bottom: 5px; opacity: 0.85;
     }
     .bubble-text { font-size: 14px; line-height: 1.7; color: var(--ink); opacity: 1; }
 
@@ -658,7 +658,7 @@
       --gold-border:rgba(168,200,232,0.2);
       --border2:    rgba(168,200,232,0.18);
       flex-direction: column; align-items: center; justify-content: center;
-      min-height: 100vh; padding: 40px 20px;
+      min-height: 100vh; padding: 40px 20px; position: relative;
       background: radial-gradient(ellipse at 50% 0%, rgba(168,200,232,0.07) 0%, transparent 55%), var(--bg);
     }
     .l-glyph { font-size: 28px; color: var(--gold); margin-bottom: 20px; opacity: 0; animation: lFadeUp .6s ease-out .1s forwards; }
