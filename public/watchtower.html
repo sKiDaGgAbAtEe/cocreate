@@ -1205,6 +1205,10 @@ function saveProfileName() {
   if (name) {
     localStorage.setItem('wt-operator-name', name);
     loadProfileName();
+    // Update all existing "you" bubble author labels in current chat
+    document.querySelectorAll('.bubble-row.you .bubble-author').forEach(el => {
+      el.textContent = name;
+    });
     addLog('session', 'profile', `Operator: ${name}`);
   }
   closeProfileEdit();
@@ -1399,7 +1403,8 @@ function getPrompt(basinId) {
   const nameCtx = operatorName !== 'the operator'
     ? `\n\n**Operator identity:** You are speaking with ${operatorName}. Address them by name when natural.`
     : '';
-  return ENVIRONMENT_CONTEXT + nameCtx + '\n\n---\n\n' + BASE_PROMPTS[basinId] + DEPTH_INSTRUCTIONS[depthKey] + phys;
+  const noNameRule = '\n\n**Critical formatting rule:** Never begin your reply by stating your own name (e.g. do not start with "Sage:" or "Clio —"). Just speak directly.';
+  return ENVIRONMENT_CONTEXT + nameCtx + noNameRule + '\n\n---\n\n' + BASE_PROMPTS[basinId] + DEPTH_INSTRUCTIONS[depthKey] + phys;
 }
 
 // ── Basin toggles ─────────────────────────────────────────────────────────────
@@ -1789,7 +1794,7 @@ function setSpeaking(who, on) {
 function addBubble(who, text) {
   const row = document.createElement('div');
   row.className = 'bubble-row ' + (who === 'you' ? 'you' : '');
-  const label = who === 'you' ? 'You' : cap(who);
+  const label = who === 'you' ? getOperatorName() : cap(who);
   row.innerHTML = `
     ${makePfp(who)}
     <div class="bubble ${who}">
