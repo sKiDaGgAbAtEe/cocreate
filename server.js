@@ -2094,6 +2094,19 @@ app.get('/api/dialog/physics', async (req, res) => {
   }
 });
 
+// ── Dialog: Delete a saved chat ───────────────────────
+app.delete('/api/dialog/delete/:fileId', async (req, res) => {
+  const drive = await getDialogDrive(req);
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    await drive.files.delete({ fileId: req.params.fileId });
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Dialog delete error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
