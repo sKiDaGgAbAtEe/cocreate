@@ -6,6 +6,7 @@ const { google } = require('googleapis');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs');
 
 const app = express();
@@ -65,8 +66,6 @@ app.get('/', (req, res) => {
 
 app.get('/watchtower', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, 'public', 'watchtower.html'));
 });
 
@@ -87,14 +86,7 @@ const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email'
 ];
 
-// Each browser session stores its own tokens + userInfo in req.session.
-// No global userTokens — that was the bug causing one login to bleed into all browsers.
-
-const WATCHTOWER_EMAILS = [
-  'skidaggabatee@gmail.com',
-  'reyortsedlana@gmail.com'
-];
-const crypto = require('crypto');
+const WATCHTOWER_EMAILS = ['skidaggabatee@gmail.com', 'reyortsedlana@gmail.com'];
 
 app.get('/auth/google', (req, res) => {
   const next = req.query.next || '/';
@@ -126,13 +118,13 @@ app.get('/auth/google/callback', async (req, res) => {
       const { data } = await oauth2Api.userinfo.get();
       email = data.email || ''; name = data.name || ''; picture = data.picture || '';
       req.session.userInfo = { name, email, picture };
+      console.log('User logged in:', email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
 
-    // Decode destination from state param
     let nextPath = '/';
     try { nextPath = Buffer.from(req.query.state || '', 'base64').toString() || '/'; } catch(e) {}
 
-    // Generate a signed token so the client can verify without needing session continuity
+    // Make a signed token so client can verify without session
     const ts = Date.now();
     const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
     const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
@@ -140,11 +132,9 @@ app.get('/auth/google/callback', async (req, res) => {
 
     req.session.save((err) => {
       if (err) console.error('Session save error:', err);
-      console.log('[auth/callback] email:', email, '| nextPath:', nextPath);
       if (nextPath.startsWith('/watchtower')) {
-        if (!WATCHTOWER_EMAILS.includes(email.toLowerCase())) {
+        if (!WATCHTOWER_EMAILS.includes(email.toLowerCase()))
           return res.redirect('/watchtower?auth=denied');
-        }
         return res.redirect('/watchtower?auth=success&wt=' + wt);
       }
       res.redirect(nextPath + '?auth=success');
@@ -162,8 +152,7 @@ app.get('/auth/wt-verify', (req, res) => {
     const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
     const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
     if (sig !== expected) return res.json({ valid: false, reason: 'bad sig' });
-    const allowed = WATCHTOWER_EMAILS.includes(email.toLowerCase());
-    res.json({ valid: true, allowed, email });
+    res.json({ valid: true, allowed: WATCHTOWER_EMAILS.includes(email.toLowerCase()), email });
   } catch(e) { res.json({ valid: false }); }
 });
 
