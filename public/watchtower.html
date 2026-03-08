@@ -106,36 +106,6 @@
       transition: background 0.3s, color 0.3s;
     }
 
-    /* Scanline texture — whole page */
-    body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.018) 2px,
-        rgba(0,0,0,0.018) 4px
-      );
-      pointer-events: none;
-      z-index: 9999;
-    }
-    #landing::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.025) 2px,
-        rgba(0,0,0,0.025) 4px
-      );
-      pointer-events: none;
-      z-index: 1;
-    }
-
     /* ── LAYOUT ── */
     #app { display: flex; height: 100vh; overflow: hidden; }
 
