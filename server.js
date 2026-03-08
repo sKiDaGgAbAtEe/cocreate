@@ -65,6 +65,44 @@ app.get('/', (req, res) => {
 
 app.use(express.static('public'));
 
+// ── Watchtower access control ──────────────────────────
+const WATCHTOWER_ALLOWED_EMAILS = [
+  'skidaggabatee@gmail.com',
+  'reyortsedlana@gmail.com'
+  // add more here as needed
+];
+
+function isWatchtowerAllowed(req) {
+  const email = req.session?.userInfo?.email;
+  return email && WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase());
+}
+
+function requireWatchtower(req, res, next) {
+  if (!req.session?.userTokens) {
+    return res.redirect('/auth/google?next=/watchtower');
+  }
+  if (!isWatchtowerAllowed(req)) {
+    return res.status(403).send(`<!DOCTYPE html><html><head><title>Access Denied</title>
+      <style>
+        body{background:#13161a;color:#90a8bc;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+        .msg{text-align:center}
+        .glyph{font-size:32px;color:#a8c8e8;margin-bottom:16px}
+        .title{font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#a8c8e8;margin-bottom:8px}
+        .sub{font-size:10px;color:#4e6478}
+      </style></head>
+      <body><div class="msg"><div class="glyph">◈</div><div class="title">Watchtower</div><div class="sub">Access restricted.</div></div></body></html>`);
+  }
+  next();
+}
+
+// ── Watchtower route ───────────────────────────────────
+app.get('/watchtower', requireWatchtower, (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.sendFile(path.join(__dirname, 'public', 'watchtower.html'));
+});
+
 // ── Google OAuth ───────────────────────────────────────
 const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
 
@@ -84,6 +122,8 @@ const DRIVE_SCOPES = [
 // No global userTokens — that was the bug causing one login to bleed into all browsers.
 
 app.get('/auth/google', (req, res) => {
+  const next = req.query.next || '/';
+  req.session.oauthNext = next;
   const url = oauth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: DRIVE_SCOPES,
@@ -112,7 +152,9 @@ app.get('/auth/google/callback', async (req, res) => {
       console.log('User logged in:', data.email);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
     // Explicitly save session before redirect so cookie is set
-    req.session.save(() => res.redirect('/?auth=success'));
+    const oauthNext = req.session.oauthNext || '/';
+    delete req.session.oauthNext;
+    req.session.save(() => res.redirect(oauthNext + (oauthNext.includes('?') ? '&' : '?') + 'auth=success'));
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
@@ -2054,6 +2096,45 @@ app.get('/api/dialog/physics', async (req, res) => {
   } catch (e) {
     console.error('Dialog physics error:', e.message);
     res.json({ context: '' });
+  }
+});
+
+// ── Field State: Save unified ΔHV state snapshot to Drive ─────────────────
+app.post('/api/field-state/save', requireWatchtower, async (req, res) => {
+  const drive = await getDialogDrive(req);
+  if (!drive) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const { metrics, sessionId } = req.body;
+    if (!metrics) return res.status(400).json({ error: 'metrics required' });
+    const rootId = process.env.COCREATE_FOLDER_ID;
+    const folderId = await getOrCreateFolder(drive, 'shared', rootId);
+    const existingId = await getDriveFile(drive, 'field-state.json', folderId);
+    let state = existingId ? await readDriveFile(drive, existingId) : { snapshots: [], lastUpdated: null };
+    state.snapshots = (state.snapshots || []).slice(-100);
+    state.snapshots.push({ ts: new Date().toISOString(), sessionId: sessionId || null, ...metrics });
+    state.lastUpdated = new Date().toISOString();
+    await writeDriveFile(drive, 'field-state.json', folderId, state);
+    console.log('◈ Field state saved');
+    res.json({ success: true });
+  } catch(e) {
+    console.error('Field state save error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Field State: Read current state (for Orycl.io) ────────────────────────
+app.get('/api/field-state', async (req, res) => {
+  try {
+    const drive = await getServiceAccountDrive() || await getDialogDrive(req);
+    if (!drive) return res.json({ snapshots: [] });
+    const rootId = process.env.COCREATE_FOLDER_ID;
+    const folderId = await getOrCreateFolder(drive, 'shared', rootId);
+    const fileId = await getDriveFile(drive, 'field-state.json', folderId);
+    if (!fileId) return res.json({ snapshots: [] });
+    const state = await readDriveFile(drive, fileId);
+    res.json(state);
+  } catch(e) {
+    res.json({ snapshots: [] });
   }
 });
 
