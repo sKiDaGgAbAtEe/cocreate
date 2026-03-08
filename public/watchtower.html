@@ -1260,7 +1260,40 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // If came back from Google OAuth, poll for session then enter dashboard
   if (authParam === 'success') {
+    const wtToken = params.get('wt');
     history.replaceState({}, '', '/watchtower');
+
+    if (wtToken) {
+      // Verify the signed token server-side (no session needed)
+      try {
+        const r = await fetch('/auth/wt-verify?t=' + encodeURIComponent(wtToken));
+        const d = await r.json();
+        console.log('[watchtower] wt-verify:', d);
+        if (d.valid && d.allowed) {
+          // Also update authInfo so sidebar shows signed-in state
+          await checkAuth();
+          showPage('app');
+          await loadChatList();
+          if (chatFiles.length > 0) {
+            await loadChat(chatFiles[0].id, document.querySelector('.chat-item'));
+          } else {
+            startFreshChat();
+          }
+          try { const r2 = await fetch('/api/dialog/physics'); const d2 = await r2.json(); if (d2.context) physicsContext = d2.context; } catch(e) {}
+          addLog('system', 'init', 'Watchtower initialized');
+          return;
+        } else {
+          const errEl = document.getElementById('landingError');
+          errEl.textContent = d.email ? `Signed in as ${d.email} — not authorized` : 'Access restricted to authorized operators.';
+          errEl.classList.add('visible');
+          return;
+        }
+      } catch(e) {
+        console.error('[watchtower] wt-verify failed:', e);
+      }
+    }
+
+    // Fallback: poll /auth/status (works if single instance)
     let authed = false;
     for (let i = 0; i < 10; i++) {
       await new Promise(r => setTimeout(r, 400 + i * 200));
@@ -1280,7 +1313,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       addLog('system', 'init', 'Watchtower initialized');
     } else {
       console.warn('[watchtower] session never resolved — authInfo:', JSON.stringify(authInfo));
-      // Show what we got so we can diagnose
       const errEl = document.getElementById('landingError');
       errEl.textContent = authInfo?.userInfo
         ? `Signed in as ${authInfo.userInfo.email} — not authorized`

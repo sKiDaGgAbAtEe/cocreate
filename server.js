@@ -7,6 +7,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const httpServer = createServer(app);
@@ -159,7 +160,15 @@ app.get('/auth/google/callback', async (req, res) => {
       if (nextPath.startsWith('/watchtower') && !isWatchtowerAllowed(req)) {
         return res.redirect('/watchtower?auth=denied');
       }
-      res.redirect(nextPath + (nextPath.includes('?') ? '&' : '?') + 'auth=success');
+      // Encode a signed token into the redirect so the client can verify auth
+      // without relying on cross-instance session continuity
+      const email = req.session.userInfo?.email || '';
+      const ts = Date.now();
+      const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+      const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
+      const token = Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64url');
+      const sep = nextPath.includes('?') ? '&' : '?';
+      res.redirect(nextPath + sep + 'auth=success&wt=' + token);
     });
   } catch (e) {
     console.error('[auth/callback] error:', e.message);
@@ -176,6 +185,25 @@ app.get('/auth/logout', (req, res) => {
     client.revokeCredentials().catch(() => {});
   }
   res.redirect('/?auth=logout');
+});
+
+// Verify a watchtower signed token (doesn't need session)
+app.get('/auth/wt-verify', (req, res) => {
+  try {
+    const token = req.query.t;
+    if (!token) return res.json({ valid: false });
+    const { email, ts, sig } = JSON.parse(Buffer.from(token, 'base64url').toString());
+    // Token expires after 2 minutes
+    if (Date.now() - ts > 2 * 60 * 1000) return res.json({ valid: false, reason: 'expired' });
+    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+    const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
+    if (sig !== expected) return res.json({ valid: false, reason: 'invalid sig' });
+    const allowed = WATCHTOWER_ALLOWED_EMAILS.includes(email.toLowerCase());
+    console.log('[wt-verify] email:', email, '| allowed:', allowed);
+    res.json({ valid: true, allowed, email });
+  } catch(e) {
+    res.json({ valid: false, reason: e.message });
+  }
 });
 
 app.get('/auth/status', (req, res) => {
