@@ -1895,12 +1895,6 @@ function addBubble(who, text) {
   document.getElementById('messages').appendChild(row);
   row.scrollIntoView({ behavior:'smooth', block:'end' });
 }
-  el.className = 'bubble ' + who;
-  const label = who === 'you' ? 'You' : cap(who);
-  el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${text}</div>`;
-  document.getElementById('messages').appendChild(el);
-  el.scrollIntoView({ behavior:'smooth', block:'end' });
-}
 
 function addSystem(text) {
   const el = document.createElement('div');
