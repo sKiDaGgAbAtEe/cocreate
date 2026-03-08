@@ -1145,7 +1145,24 @@ let systemLog = [];
 window.addEventListener('DOMContentLoaded', async () => {
   applyTheme(currentTheme, false);
   initDepthDial();
-  await checkAuth();
+
+  // If we just came back from Google OAuth, poll until session is ready
+  const justAuthed = new URLSearchParams(window.location.search).get('auth') === 'success';
+  if (justAuthed) {
+    // Clean the URL without reloading
+    history.replaceState({}, '', '/watchtower');
+    // Retry checkAuth up to 8 times with increasing delay
+    let authed = false;
+    for (let i = 0; i < 8; i++) {
+      await new Promise(r => setTimeout(r, 300 + i * 200));
+      await checkAuth();
+      if (authInfo?.userInfo) { authed = true; break; }
+    }
+    if (!authed) addSystem('Session could not be confirmed — try refreshing.');
+  } else {
+    await checkAuth();
+  }
+
   await loadChatList();
   // Load most recent conversation if available, otherwise start fresh
   if (chatFiles.length > 0) {
