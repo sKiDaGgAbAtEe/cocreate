@@ -87,7 +87,7 @@ function requireWatchtower(req, res, next) {
   next();
 }
 
-// ── Watchtower route — page is served freely; API calls are protected ──────
+// ── Watchtower dashboard — page served freely; APIs protected ─────────────
 app.get('/watchtower', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
@@ -151,7 +151,14 @@ app.get('/auth/google/callback', async (req, res) => {
       console.log('User logged in:', data.email, '→ redirecting to', nextPath);
     } catch(e) { console.error('Could not fetch user info:', e.message); }
     // Save session then redirect to the intended destination
-    req.session.save(() => res.redirect(nextPath + (nextPath.includes('?') ? '&' : '?') + 'auth=success'));
+    req.session.save(() => {
+      // If heading to watchtower and email not allowed, bounce to landing with error
+      if (nextPath.startsWith('/watchtower') && !isWatchtowerAllowed(req)) {
+        console.log('Watchtower access denied for:', req.session.userInfo?.email);
+        return res.redirect('/watchtower?auth=denied');
+      }
+      res.redirect(nextPath + (nextPath.includes('?') ? '&' : '?') + 'auth=success');
+    });
   } catch (e) {
     console.error('OAuth callback error:', e.message);
     res.redirect('/?auth=error');
