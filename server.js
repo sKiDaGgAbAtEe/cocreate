@@ -127,18 +127,19 @@ app.get('/auth/google', (req, res) => {
 
 app.get('/auth/google/callback', async (req, res) => {
   try {
-    // Recover the next destination from the state param (survives session reset)
     let nextPath = '/';
     try {
       const state = JSON.parse(Buffer.from(req.query.state || '', 'base64').toString());
       if (state.next && state.next.startsWith('/')) nextPath = state.next;
     } catch(e) {}
 
+    console.log('[auth/callback] nextPath:', nextPath, '| sessionID:', req.sessionID);
+
     const { tokens } = await oauth2Client.getToken(req.query.code);
     req.session.userTokens = tokens;
-    saveTokensToDisk(tokens); // persist across restarts
+    saveTokensToDisk(tokens);
     _persistedTokens = tokens;
-    // Fetch Google profile info
+
     try {
       const client = new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -149,19 +150,19 @@ app.get('/auth/google/callback', async (req, res) => {
       const oauth2Api = google.oauth2({ version: 'v2', auth: client });
       const { data } = await oauth2Api.userinfo.get();
       req.session.userInfo = { name: data.name, email: data.email, picture: data.picture };
-      console.log('User logged in:', data.email, '→ redirecting to', nextPath);
-    } catch(e) { console.error('Could not fetch user info:', e.message); }
-    // Save session then redirect to the intended destination
-    req.session.save(() => {
-      // If heading to watchtower and email not allowed, bounce to landing with error
+      console.log('[auth/callback] email:', data.email, '| allowed:', WATCHTOWER_ALLOWED_EMAILS.includes(data.email?.toLowerCase()));
+    } catch(e) { console.error('[auth/callback] userinfo error:', e.message); }
+
+    req.session.save((err) => {
+      if (err) console.error('[auth/callback] session save error:', err);
+      console.log('[auth/callback] saved, email in session:', req.session.userInfo?.email);
       if (nextPath.startsWith('/watchtower') && !isWatchtowerAllowed(req)) {
-        console.log('Watchtower access denied for:', req.session.userInfo?.email);
         return res.redirect('/watchtower?auth=denied');
       }
       res.redirect(nextPath + (nextPath.includes('?') ? '&' : '?') + 'auth=success');
     });
   } catch (e) {
-    console.error('OAuth callback error:', e.message);
+    console.error('[auth/callback] error:', e.message);
     res.redirect('/?auth=error');
   }
 });
@@ -182,6 +183,7 @@ app.get('/auth/status', (req, res) => {
   const hasServiceAccount = !!getServiceAccountDrive();
   const userInfo = req.session.userInfo || null;
   const watchtowerAllowed = !!(userInfo?.email && WATCHTOWER_ALLOWED_EMAILS.includes(userInfo.email.toLowerCase()));
+  console.log('[auth/status] sessionID:', req.sessionID, '| userInfo:', userInfo?.email, '| allowed:', watchtowerAllowed);
   res.json({
     connected: hasUserOAuth || hasServiceAccount,
     serviceAccount: hasServiceAccount,

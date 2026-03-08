@@ -1262,9 +1262,10 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (authParam === 'success') {
     history.replaceState({}, '', '/watchtower');
     let authed = false;
-    for (let i = 0; i < 8; i++) {
-      await new Promise(r => setTimeout(r, 300 + i * 150));
+    for (let i = 0; i < 10; i++) {
+      await new Promise(r => setTimeout(r, 400 + i * 200));
       await checkAuth();
+      console.log('[watchtower] poll', i, '| authInfo:', JSON.stringify(authInfo));
       if (authInfo?.watchtowerAllowed) { authed = true; break; }
     }
     if (authed) {
@@ -1278,7 +1279,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       try { const r = await fetch('/api/dialog/physics'); const d = await r.json(); if (d.context) physicsContext = d.context; } catch(e) {}
       addLog('system', 'init', 'Watchtower initialized');
     } else {
-      document.getElementById('landingError').classList.add('visible');
+      console.warn('[watchtower] session never resolved — authInfo:', JSON.stringify(authInfo));
+      // Show what we got so we can diagnose
+      const errEl = document.getElementById('landingError');
+      errEl.textContent = authInfo?.userInfo
+        ? `Signed in as ${authInfo.userInfo.email} — not authorized`
+        : 'Session could not be confirmed. Please try again.';
+      errEl.classList.add('visible');
     }
     return;
   }
