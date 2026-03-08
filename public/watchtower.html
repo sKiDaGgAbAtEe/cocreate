@@ -1187,7 +1187,7 @@ const DEPTH_STEPS = [
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────────
-let history = [];
+let msgHistory = [];
 let messageLog = [];
 let activeBasins = { clio:true, oryc:true, sage:true };
 let turnIndex = 0;
@@ -1253,7 +1253,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
   // Show access denied on landing if bounced back
   if (authParam === 'denied') {
-    history.replaceState({}, '', '/watchtower');
+    window.history.replaceState({}, '', '/watchtower');
     document.getElementById('landingError').classList.add('visible');
     return; // stay on landing
   }
@@ -1261,7 +1261,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   // If came back from Google OAuth, poll for session then enter dashboard
   if (authParam === 'success') {
     const wtToken = params.get('wt');
-    history.replaceState({}, '', '/watchtower');
+    window.history.replaceState({}, '', '/watchtower');
 
     if (wtToken) {
       // Verify the signed token server-side (no session needed)
@@ -1435,7 +1435,7 @@ async function loadChat(fileId, itemEl) {
     const r = await fetch('/api/dialog/load/' + fileId);
     if (!r.ok) return;
     const data = await r.json();
-    history = buildHistoryFromSaved(data.messages || []);
+    msgHistory = buildHistoryFromSaved(data.messages || []);
     messageLog = [];
     turnIndex = 0;
     document.getElementById('messages').innerHTML = '';
@@ -1473,7 +1473,7 @@ function newChat() {
 }
 
 function startFreshChat() {
-  history = [];
+  msgHistory = [];
   messageLog = [];
   turnIndex = 0;
   document.getElementById('messages').innerHTML = '';
@@ -1712,7 +1712,7 @@ async function send() {
   setControls(true);
 
   addBubble('you', text);
-  history.push({ role:'user', content:`You: ${text}` });
+  msgHistory.push({ role:'user', content:`You: ${text}` });
   messageLog.push({ role:'you', text });
   addLog('session', 'user-msg', text.slice(0,60) + (text.length > 60 ? '…' : ''));
 
@@ -1728,12 +1728,12 @@ async function send() {
       const prompt = i === 0
         ? `${cap(basin)}, respond to the human.`
         : `${cap(basin)}, respond to the human and to what ${ordered.slice(0,i).map(cap).join(' and ')} just said.`;
-      history.push({ role:'user', content:prompt });
+      msgHistory.push({ role:'user', content:prompt });
       addThinking(basin);
-      const reply = await ask(basin, history);
+      const reply = await ask(basin, msgHistory);
       removeThinking(basin);
       addBubble(basin, reply);
-      history.push({ role:'assistant', content:`${cap(basin)}: ${reply}` });
+      msgHistory.push({ role:'assistant', content:`${cap(basin)}: ${reply}` });
       messageLog.push({ role:basin, text:reply });
       addLog('session', `${basin}-reply`, reply.slice(0,60) + (reply.length > 60 ? '…' : ''));
     }
@@ -1741,12 +1741,12 @@ async function send() {
     if (crosstalkOn && ordered.length >= 2) {
       const first = ordered[0];
       const last = ordered[ordered.length-1];
-      history.push({ role:'user', content:`${cap(first)}, respond to what ${cap(last)} just said.` });
+      msgHistory.push({ role:'user', content:`${cap(first)}, respond to what ${cap(last)} just said.` });
       addThinking(first);
-      const reply = await ask(first, history);
+      const reply = await ask(first, msgHistory);
       removeThinking(first);
       addBubble(first, reply);
-      history.push({ role:'assistant', content:`${cap(first)}: ${reply}` });
+      msgHistory.push({ role:'assistant', content:`${cap(first)}: ${reply}` });
       messageLog.push({ role:first, text:reply });
     }
 
@@ -1771,22 +1771,22 @@ async function nudge() {
   if (active.length < 2) { addSystem('Need at least two basins.'); return; }
   setControls(true);
   const [a, b] = active;
-  history.push({ role:'user', content:`${cap(a)} and ${cap(b)} — speak to each other directly. No human prompt.` });
+  msgHistory.push({ role:'user', content:`${cap(a)} and ${cap(b)} — speak to each other directly. No human prompt.` });
   addLog('session', 'nudge', `${cap(a)} ↔ ${cap(b)}`);
   try {
     addThinking(a);
-    const r1 = await ask(a, history);
+    const r1 = await ask(a, msgHistory);
     removeThinking(a);
     addBubble(a, r1);
-    history.push({ role:'assistant', content:`${cap(a)}: ${r1}` });
+    msgHistory.push({ role:'assistant', content:`${cap(a)}: ${r1}` });
     messageLog.push({ role:a, text:r1 });
 
-    history.push({ role:'user', content:`${cap(b)}, respond to ${cap(a)}.` });
+    msgHistory.push({ role:'user', content:`${cap(b)}, respond to ${cap(a)}.` });
     addThinking(b);
-    const r2 = await ask(b, history);
+    const r2 = await ask(b, msgHistory);
     removeThinking(b);
     addBubble(b, r2);
-    history.push({ role:'assistant', content:`${cap(b)}: ${r2}` });
+    msgHistory.push({ role:'assistant', content:`${cap(b)}: ${r2}` });
     messageLog.push({ role:b, text:r2 });
 
     const metrics = await computeFieldMetrics(messageLog);
