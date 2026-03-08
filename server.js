@@ -78,25 +78,17 @@ function isWatchtowerAllowed(req) {
 }
 
 function requireWatchtower(req, res, next) {
-  if (!req.session?.userTokens) {
-    return res.redirect('/auth/google?next=/watchtower');
+  if (!req.session?.userTokens || !req.session?.userInfo) {
+    return res.status(401).json({ error: 'Not authenticated' });
   }
   if (!isWatchtowerAllowed(req)) {
-    return res.status(403).send(`<!DOCTYPE html><html><head><title>Access Denied</title>
-      <style>
-        body{background:#13161a;color:#90a8bc;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
-        .msg{text-align:center}
-        .glyph{font-size:32px;color:#a8c8e8;margin-bottom:16px}
-        .title{font-size:11px;letter-spacing:0.25em;text-transform:uppercase;color:#a8c8e8;margin-bottom:8px}
-        .sub{font-size:10px;color:#4e6478}
-      </style></head>
-      <body><div class="msg"><div class="glyph">◈</div><div class="title">Watchtower</div><div class="sub">Access restricted.</div></div></body></html>`);
+    return res.status(403).json({ error: 'Access restricted' });
   }
   next();
 }
 
-// ── Watchtower route ───────────────────────────────────
-app.get('/watchtower', requireWatchtower, (req, res) => {
+// ── Watchtower route — page is served freely; API calls are protected ──────
+app.get('/watchtower', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -180,11 +172,14 @@ app.get('/auth/logout', (req, res) => {
 app.get('/auth/status', (req, res) => {
   const hasUserOAuth = !!req.session.userTokens;
   const hasServiceAccount = !!getServiceAccountDrive();
+  const userInfo = req.session.userInfo || null;
+  const watchtowerAllowed = !!(userInfo?.email && WATCHTOWER_ALLOWED_EMAILS.includes(userInfo.email.toLowerCase()));
   res.json({
-    connected: hasUserOAuth || hasServiceAccount,  // Drive is available via either path
+    connected: hasUserOAuth || hasServiceAccount,
     serviceAccount: hasServiceAccount,
-    userOAuth: hasUserOAuth,                        // true only when user has personally signed in
-    userInfo: req.session.userInfo || null
+    userOAuth: hasUserOAuth,
+    userInfo,
+    watchtowerAllowed
   });
 });
 

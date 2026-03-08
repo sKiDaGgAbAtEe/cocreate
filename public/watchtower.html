@@ -1221,11 +1221,20 @@ function renderAuth() {
   const btn = document.getElementById('authBtn');
   if (authInfo?.userInfo) {
     const name = authInfo.userInfo.name || authInfo.userInfo.email || 'Connected';
-    status.textContent = name;
-    btn.textContent = 'Sign out';
-    btn.href = '/auth/logout';
-    btn.className = 'auth-btn signed-in';
-    addLog('auth', 'login', `Authenticated: ${name}`);
+    if (authInfo.watchtowerAllowed) {
+      status.textContent = name;
+      btn.textContent = 'Sign out';
+      btn.href = '/auth/logout';
+      btn.className = 'auth-btn signed-in';
+      addLog('auth', 'login', `Authenticated: ${name}`);
+    } else {
+      // Signed in but not on the allowed list
+      status.textContent = authInfo.userInfo.email + ' — not authorized';
+      btn.textContent = 'Sign out';
+      btn.href = '/auth/logout';
+      btn.className = 'auth-btn';
+      addLog('auth', 'denied', `Access denied: ${authInfo.userInfo.email}`);
+    }
   } else {
     status.textContent = 'Not signed in';
     btn.textContent = 'Sign in';
