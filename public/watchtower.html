@@ -371,6 +371,109 @@
       color: var(--ink-faint); letter-spacing: 0.1em;
     }
     .bubble.prior { opacity: 0.38; }
+    .bubble-row.prior { opacity: 0.38; }
+
+    /* ── BUBBLE AVATARS ── */
+    .bubble-row {
+      display: flex; align-items: flex-end; gap: 9px;
+      max-width: 82%;
+    }
+    .bubble-row.you { align-self: flex-end; flex-direction: row-reverse; }
+    .bubble-row.clio,
+    .bubble-row.oryc,
+    .bubble-row.sage { align-self: flex-start; }
+    .bubble-row .bubble {
+      max-width: 100%; align-self: unset;
+    }
+    .bubble-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      object-fit: cover; flex-shrink: 0;
+      border: 1.5px solid var(--border2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+      transition: box-shadow 0.3s, border-color 0.3s;
+    }
+    .bubble-avatar.speaking {
+      animation: avatarPulse 1.8s ease-in-out infinite;
+    }
+    .bubble-row.clio .bubble-avatar { border-color: var(--clio-border); }
+    .bubble-row.oryc .bubble-avatar { border-color: var(--oryc-border); }
+    .bubble-row.sage .bubble-avatar  { border-color: var(--sage-border); }
+    .bubble-row.you  .bubble-avatar  { border-color: rgba(224,200,128,0.25); }
+    @keyframes avatarPulse {
+      0%,100% { box-shadow: 0 0 0 0px currentColor; }
+      50%      { box-shadow: 0 0 0 3px rgba(168,200,232,0.2); }
+    }
+    .bubble-avatar-placeholder {
+      width: 32px; height: 32px; border-radius: 50%;
+      flex-shrink: 0; background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 11px;
+      color: var(--ink-faint);
+    }
+
+    /* ── LIVE FEED WIDGET ── */
+    #liveFeed {
+      position: fixed; bottom: 18px; right: 18px;
+      z-index: 100;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+    }
+    #liveFeedToggle {
+      background: var(--bg-glass);
+      border: 1px solid var(--gold-border);
+      border-radius: 20px;
+      color: var(--gold); font-family: var(--mono); font-size: 8px;
+      letter-spacing: 0.1em; padding: 4px 10px;
+      cursor: pointer; transition: all 0.2s;
+      backdrop-filter: blur(8px);
+      display: flex; align-items: center; gap: 6px;
+    }
+    #liveFeedToggle:hover { background: var(--gold-dim); }
+    .feed-rec-dot {
+      width: 5px; height: 5px; border-radius: 50%;
+      background: #e84040;
+      animation: recBlink 1.4s ease-in-out infinite;
+    }
+    @keyframes recBlink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    #liveFeedWindow {
+      width: 200px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--gold-border);
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+    }
+    #liveFeedWindow.open { display: flex; }
+    .feed-header {
+      background: rgba(0,0,0,0.7);
+      padding: 5px 10px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .feed-header-left {
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 8px; color: var(--gold);
+      letter-spacing: 0.12em;
+    }
+    .feed-close {
+      background: none; border: none;
+      color: var(--ink-faint); font-size: 11px;
+      cursor: pointer; transition: color 0.2s; padding: 0;
+      line-height: 1;
+    }
+    .feed-close:hover { color: var(--ink); }
+    #liveFeedVideo {
+      width: 100%; display: block;
+      background: #000;
+    }
+    .feed-footer {
+      background: rgba(0,0,0,0.8);
+      padding: 4px 10px;
+      font-family: var(--mono); font-size: 7px;
+      color: var(--ink-faint); letter-spacing: 0.08em;
+      display: flex; justify-content: space-between;
+    }
+    .feed-footer .feed-live { color: #e84040; }
 
     .thinking {
       display: flex; gap: 6px; align-items: center; padding: 3px 0;
@@ -1007,6 +1110,25 @@ let physicsContext = '';
 let depthKey = 'mid';
 let sidebarOpen = true;
 let fieldPanelOpen = false;
+let liveFeedOpen = false;
+
+// Basin avatar paths — still image shown at rest, gif when thinking/speaking
+const BASIN_AVATARS = {
+  clio: { still: '/clio-portrait.jpg',  gif: '/clio-speaking.gif'  },
+  oryc: { still: '/oryc-portrait.jpg',  gif: '/oryc-speaking.gif'  },
+  sage: { still: '/sage-portrait.jpg',  gif: '/sage-speaking.gif'  },
+  you:  { still: '', gif: '' }
+};
+
+function toggleFeed() {
+  liveFeedOpen = !liveFeedOpen;
+  const win = document.getElementById('liveFeedWindow');
+  win.classList.toggle('open', liveFeedOpen);
+  if (liveFeedOpen) {
+    const vid = document.getElementById('liveFeedVideo');
+    vid.play().catch(()=>{});
+  }
+}
 let logPanelOpen = false;
 let authInfo = null;
 let chatFiles = [];
@@ -1137,11 +1259,14 @@ async function loadChat(fileId, itemEl) {
     const prior = (data.messages || []).slice(-6);
     prior.forEach(m => {
       if (!m.role || m.role === 'system') return;
+      const who = m.role === 'you' ? 'you' : m.role;
+      const label = who === 'you' ? 'You' : cap(who);
       const el = document.createElement('div');
-      el.className = 'bubble ' + (m.role === 'you' ? 'you' : m.role) + ' prior';
-      const label = m.role === 'you' ? 'You' : cap(m.role);
+      el.className = 'bubble ' + who + ' prior';
       el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div>`;
-      document.getElementById('messages').appendChild(el);
+      const row = wrapBubbleRow(who, el, false);
+      row.classList.add('prior');
+      document.getElementById('messages').appendChild(row);
     });
     addDivider('New exchange begins');
     setTimeout(() => { document.getElementById('messages').scrollTop = 999999; }, 100);
@@ -1545,8 +1670,47 @@ function renderLog() {
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
+function avatarEl(who, speaking) {
+  const cfg = BASIN_AVATARS[who];
+  if (!cfg || !cfg.still) {
+    // "You" — placeholder initial
+    const pl = document.createElement('div');
+    pl.className = 'bubble-avatar-placeholder';
+    pl.textContent = 'Y';
+    return pl;
+  }
+  const img = document.createElement('img');
+  img.className = 'bubble-avatar' + (speaking ? ' speaking' : '');
+  img.src = speaking ? (cfg.gif || cfg.still) : cfg.still;
+  img.dataset.still = cfg.still;
+  img.dataset.gif   = cfg.gif || cfg.still;
+  img.alt = who;
+  return img;
+}
+
+function wrapBubbleRow(who, bubbleEl, speaking) {
+  const row = document.createElement('div');
+  row.className = 'bubble-row ' + who;
+  const av = avatarEl(who, speaking);
+  if (who === 'you') {
+    row.appendChild(bubbleEl);
+    row.appendChild(av);
+  } else {
+    row.appendChild(av);
+    row.appendChild(bubbleEl);
+  }
+  return row;
+}
+
 function addBubble(who, text) {
   const el = document.createElement('div');
+  el.className = 'bubble ' + who;
+  const label = who === 'you' ? 'You' : cap(who);
+  el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${text}</div>`;
+  const row = wrapBubbleRow(who, el, false);
+  document.getElementById('messages').appendChild(row);
+  row.scrollIntoView({ behavior:'smooth', block:'end' });
+}
   el.className = 'bubble ' + who;
   const label = who === 'you' ? 'You' : cap(who);
   el.innerHTML = `<div class="bubble-author">${label}</div><div class="bubble-text">${text}</div>`;
@@ -1579,12 +1743,16 @@ function addThinking(who) {
     <div class="tdot" style="background:${clr}"></div>
     <div class="tdot" style="background:${clr}"></div>
   </div>`;
-  document.getElementById('messages').appendChild(el);
-  el.scrollIntoView({ behavior:'smooth', block:'end' });
+  const row = wrapBubbleRow(who, el, true); // true = use gif
+  row.id = 'row-tk-' + who;
+  document.getElementById('messages').appendChild(row);
+  row.scrollIntoView({ behavior:'smooth', block:'end' });
 }
 
 function removeThinking(who) {
-  document.getElementById('tk-'+who)?.remove();
+  document.getElementById('row-tk-'+who)?.remove();
+  document.getElementById('tk-'+who)?.remove(); // fallback
+}
 }
 
 function setControls(disabled) {
@@ -1600,5 +1768,29 @@ function autoResize(el) {
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 </script>
+<!-- ── LIVE FEED ─────────────────────────────────────── -->
+<div id="liveFeed">
+  <div id="liveFeedWindow">
+    <div class="feed-header">
+      <div class="feed-header-left">
+        <div class="feed-rec-dot"></div>
+        CREW · CAM-1
+      </div>
+      <button class="feed-close" onclick="toggleFeed()">✕</button>
+    </div>
+    <video id="liveFeedVideo" autoplay loop muted playsinline>
+      <source src="/crew-feed.mp4" type="video/mp4">
+    </video>
+    <div class="feed-footer">
+      <span>ORYCL RESEARCH OPS</span>
+      <span class="feed-live">● LIVE</span>
+    </div>
+  </div>
+  <button id="liveFeedToggle" onclick="toggleFeed()">
+    <span class="feed-rec-dot"></span>
+    LIVE FEED
+  </button>
+</div>
+
 </body>
 </html>
