@@ -107,7 +107,7 @@
     /* ══════════════════════════════════════════════
        APP (dashboard stub — expand later)
     ══════════════════════════════════════════════ */
-    #app { flex-direction: row; height: 100vh; overflow: hidden; }
+    #app { display: flex; flex-direction: row; height: 100vh; overflow: hidden; align-items: stretch; justify-content: flex-start; }
     .app-wordmark {
       font-family: 'Cinzel', serif; font-size: 11px; letter-spacing: .5em;
       color: var(--ink-faint); text-transform: uppercase;
@@ -261,7 +261,7 @@
     .theme-dot[data-t="moss"]      { background: #181c18; }
 
     /* ── MAIN AREA ── */
-    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .main { flex: 1; display: flex; flex-direction: column !important; min-width: 0; }
 
     /* ── HEADER ── */
     .header {
