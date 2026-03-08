@@ -106,7 +106,21 @@
       transition: background 0.3s, color 0.3s;
     }
 
-    /* Scanline texture — landing only */
+    /* Scanline texture — whole page */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.018) 2px,
+        rgba(0,0,0,0.018) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
     #landing::after {
       content: '';
       position: absolute;
@@ -158,8 +172,45 @@
     .sidebar-new:hover { border-color: var(--gold); color: var(--gold); }
 
     .sidebar-auth {
-      padding: 8px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+      padding: 10px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
+    .profile-row {
+      display: flex; align-items: center; gap: 9px; margin-bottom: 8px;
+    }
+    .profile-avatar {
+      width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+      background: var(--gold-dim); border: 1px solid var(--gold-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif; font-size: 12px; color: var(--gold);
+      font-weight: 600;
+    }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      font-family: 'Cinzel', serif; font-size: 10px; color: var(--ink);
+      letter-spacing: 0.08em; white-space: nowrap; overflow: hidden;
+      text-overflow: ellipsis; cursor: pointer;
+    }
+    .profile-name:hover { color: var(--gold); }
+    .profile-name.placeholder { color: var(--ink-faint); font-style: italic; font-family: 'Crimson Pro', serif; font-size: 11px; }
+    .profile-email { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .profile-edit-row {
+      display: none; gap: 5px; align-items: center; margin-bottom: 6px;
+    }
+    .profile-edit-row.open { display: flex; }
+    .profile-input {
+      flex: 1; background: var(--bg3); border: 1px solid var(--border2);
+      border-radius: 20px; color: var(--ink); font-family: 'Cinzel', serif;
+      font-size: 10px; padding: 4px 10px; outline: none;
+      transition: border-color 0.15s;
+    }
+    .profile-input:focus { border-color: var(--gold); }
+    .profile-save-btn {
+      background: var(--gold-dim); border: 1px solid var(--gold-border);
+      border-radius: 20px; color: var(--gold); font-family: var(--mono);
+      font-size: 8px; padding: 4px 10px; cursor: pointer; flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .profile-save-btn:hover { background: rgba(148,184,122,0.25); }
     .auth-status { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); margin-bottom: 5px; }
     .auth-btn {
       display: block; width: 100%;
@@ -706,7 +757,18 @@
       <button class="sidebar-new" onclick="newChat()">+ New</button>
     </div>
     <div class="sidebar-auth" id="authPanel">
-      <div class="auth-status" id="authStatus">Checking…</div>
+      <div class="profile-row">
+        <div class="profile-avatar" id="profileAvatar">?</div>
+        <div class="profile-info">
+          <div class="profile-name placeholder" id="profileName" onclick="openProfileEdit()" title="Click to set your name">Set your name…</div>
+          <div class="profile-email" id="profileEmail"></div>
+        </div>
+      </div>
+      <div class="profile-edit-row" id="profileEditRow">
+        <input class="profile-input" id="profileInput" type="text" placeholder="Your name" maxlength="32"
+          onkeydown="if(event.key==='Enter')saveProfileName(); if(event.key==='Escape')closeProfileEdit();">
+        <button class="profile-save-btn" onclick="saveProfileName()">Save</button>
+      </div>
       <a class="auth-btn" id="authBtn" href="/auth/google">Sign in</a>
     </div>
     <div class="chat-list" id="chatList">
@@ -1116,13 +1178,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function enterDashboard(email) {
   showPage('app');
-  // Set auth display immediately — don't wait for a fetch
-  if (email) {
-    const status = document.getElementById('authStatus');
-    const btn = document.getElementById('authBtn');
-    if (status) status.textContent = email;
-    if (btn) { btn.textContent = 'Sign out'; btn.href = '/auth/logout'; btn.className = 'auth-btn signed-in'; }
-  }
+  // Set auth button
+  const btn = document.getElementById('authBtn');
+  if (btn) { btn.textContent = 'Sign out'; btn.href = '/auth/logout'; btn.className = 'auth-btn signed-in'; }
+  // Set email display
+  const emailEl = document.getElementById('profileEmail');
+  if (emailEl && email) emailEl.textContent = email;
+  // Load saved name
+  loadProfileName();
   applyTheme(currentTheme, false);
   initDepthDial();
   await loadChatList();
@@ -1133,6 +1196,51 @@ async function enterDashboard(email) {
     if (d.context) physicsContext = d.context;
   } catch(e) {}
   addLog('system', 'init', 'Watchtower initialized');
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+function loadProfileName() {
+  const saved = localStorage.getItem('wt-operator-name');
+  const nameEl = document.getElementById('profileName');
+  const avatarEl = document.getElementById('profileAvatar');
+  if (saved && saved.trim()) {
+    nameEl.textContent = saved.trim();
+    nameEl.classList.remove('placeholder');
+    avatarEl.textContent = saved.trim()[0].toUpperCase();
+  } else {
+    nameEl.textContent = 'Set your name…';
+    nameEl.classList.add('placeholder');
+    avatarEl.textContent = '?';
+  }
+}
+
+function openProfileEdit() {
+  const row = document.getElementById('profileEditRow');
+  const input = document.getElementById('profileInput');
+  const saved = localStorage.getItem('wt-operator-name') || '';
+  input.value = saved;
+  row.classList.add('open');
+  input.focus();
+  input.select();
+}
+
+function closeProfileEdit() {
+  document.getElementById('profileEditRow').classList.remove('open');
+}
+
+function saveProfileName() {
+  const input = document.getElementById('profileInput');
+  const name = input.value.trim();
+  if (name) {
+    localStorage.setItem('wt-operator-name', name);
+    loadProfileName();
+    addLog('session', 'profile', `Operator: ${name}`);
+  }
+  closeProfileEdit();
+}
+
+function getOperatorName() {
+  return localStorage.getItem('wt-operator-name') || 'the operator';
 }
 
 // ── Theme ─────────────────────────────────────────────────────────────────────
@@ -1316,7 +1424,11 @@ function initDepthDial() {
 
 function getPrompt(basinId) {
   const phys = (basinId === 'sage' && physicsContext) ? '\n\n' + physicsContext : '';
-  return ENVIRONMENT_CONTEXT + '\n\n---\n\n' + BASE_PROMPTS[basinId] + DEPTH_INSTRUCTIONS[depthKey] + phys;
+  const operatorName = getOperatorName();
+  const nameCtx = operatorName !== 'the operator'
+    ? `\n\n**Operator identity:** You are speaking with ${operatorName}. Address them by name when natural.`
+    : '';
+  return ENVIRONMENT_CONTEXT + nameCtx + '\n\n---\n\n' + BASE_PROMPTS[basinId] + DEPTH_INSTRUCTIONS[depthKey] + phys;
 }
 
 // ── Basin toggles ─────────────────────────────────────────────────────────────
