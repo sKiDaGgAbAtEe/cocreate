@@ -1766,10 +1766,18 @@ const BASIN_GLOW = {
 };
 
 function makePfp(who) {
+  if (who === 'you') {
+    const name = getOperatorName();
+    const initial = (name && name !== 'the operator') ? name[0].toUpperCase() : 'S';
+    return `<div class="bubble-pfp-wrap" data-who="you">
+      <img class="bubble-pfp-static" src="/skida.png" alt="You"
+        onerror="this.parentElement.innerHTML='<div class=bubble-pfp-placeholder>${initial}</div>'">
+    </div>`;
+  }
   const png = BASIN_PORTRAITS[who];
   const gif = BASIN_GIFS[who];
   if (!png) {
-    return `<div class="bubble-pfp-placeholder">${who === 'you' ? 'Y' : cap(who)[0]}</div>`;
+    return `<div class="bubble-pfp-placeholder">${cap(who)[0]}</div>`;
   }
   const g = BASIN_GLOW[who] || {};
   const style = g.color
