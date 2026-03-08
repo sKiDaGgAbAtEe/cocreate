@@ -176,9 +176,19 @@
     .chat-item {
       padding: 7px 14px; cursor: pointer; transition: background 0.12s;
       border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 6px;
     }
     .chat-item:hover { background: var(--gold-dim); }
     .chat-item.active { background: var(--gold-dim); border-left: 2px solid var(--gold); }
+    .chat-item-body { flex: 1; min-width: 0; }
+    .chat-item-delete {
+      background: none; border: none; color: var(--ink-faint);
+      font-size: 12px; cursor: pointer; padding: 2px 4px;
+      border-radius: 4px; opacity: 0; transition: opacity 0.15s, color 0.15s;
+      flex-shrink: 0; line-height: 1;
+    }
+    .chat-item:hover .chat-item-delete { opacity: 1; }
+    .chat-item-delete:hover { color: #e06040; }
     .chat-item-title {
       font-family: var(--mono); font-size: 9px;
       color: var(--ink-dim); margin-bottom: 2px;
@@ -310,25 +320,51 @@
       animation: bubbleIn 0.22s cubic-bezier(0.34,1.2,0.64,1);
     }
     @keyframes bubbleIn { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
-    .bubble-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 2px; }
+    .bubble-row { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 2px; }
     .bubble-row.you { flex-direction: row-reverse; }
-    .bubble-pfp {
-      width: 28px; height: 28px; border-radius: 50%;
-      object-fit: cover; flex-shrink: 0;
-      border: 1px solid var(--border2);
+    /* pfp wrap: stacks static + animated images, gif on top hidden by default */
+    .bubble-pfp-wrap {
+      position: relative; flex-shrink: 0;
+      width: 56px; height: 56px; border-radius: 50%;
+    }
+    .bubble-pfp-static,
+    .bubble-pfp-anim {
+      position: absolute; inset: 0;
+      width: 56px; height: 56px; border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid var(--border2);
+      transition: border-color 0.3s, box-shadow 0.3s, opacity 0.15s;
+      display: block;
+    }
+    /* animated gif sits on top, hidden unless hover or speaking */
+    .bubble-pfp-anim { opacity: 0; }
+    .bubble-pfp-wrap:hover .bubble-pfp-anim,
+    .bubble-pfp-wrap.speaking .bubble-pfp-anim { opacity: 1; }
+    .bubble-pfp-wrap:hover .bubble-pfp-static,
+    .bubble-pfp-wrap.speaking .bubble-pfp-static { opacity: 0; }
+    /* speaking: pulse glow using per-basin CSS vars set inline */
+    .bubble-pfp-wrap.speaking .bubble-pfp-anim {
+      border-color: var(--basin-color, var(--gold));
+      animation: pfpPulse 1.4s ease-in-out infinite;
+    }
+    @keyframes pfpPulse {
+      0%,100% { box-shadow: 0 0 0 2px var(--basin-glow, rgba(148,184,122,0.25)),
+                            0 0 10px var(--basin-glow, rgba(148,184,122,0.12)); }
+      50%      { box-shadow: 0 0 0 6px var(--basin-glow, rgba(148,184,122,0.45)),
+                            0 0 26px var(--basin-glow, rgba(148,184,122,0.28)); }
     }
     .bubble-pfp-placeholder {
-      width: 28px; height: 28px; border-radius: 50%;
-      background: var(--bg3); border: 1px solid var(--border2);
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--bg3); border: 1.5px solid var(--border2);
       flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-      font-family: var(--mono); font-size: 8px; color: var(--ink-faint);
+      font-family: var(--mono); font-size: 11px; color: var(--ink-faint);
     }
     .bubble-author {
       font-family: var(--mono); font-size: 9px;
       letter-spacing: 0.12em; text-transform: uppercase;
       margin-bottom: 5px; opacity: 0.7;
     }
-    .bubble-text { font-size: 14px; line-height: 1.7; }
+    .bubble-text { font-size: 14px; line-height: 1.7; color: var(--ink); opacity: 1; }
 
     .bubble.you { background: var(--you-bg); border-color: rgba(200,160,64,0.15); align-self: flex-end; border-bottom-right-radius: 4px; }
     .bubble.you .bubble-author { color: var(--you); }
@@ -1176,8 +1212,12 @@ function renderChatList() {
     el.dataset.id = f.id;
     const d = new Date(f.createdTime);
     const label = f.name.replace('dialog-','').replace('.json','').replace(/T.*/,'').replace(/-/g,'/');
-    el.innerHTML = `<div class="chat-item-title">${label}</div><div class="chat-item-date">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>`;
-    el.onclick = () => loadChat(f.id, el);
+    el.innerHTML = `
+      <div class="chat-item-body" onclick="loadChat('${f.id}', this.closest('.chat-item'))">
+        <div class="chat-item-title">${label}</div>
+        <div class="chat-item-date">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</div>
+      </div>
+      <button class="chat-item-delete" title="Delete" onclick="deleteChat(event,'${f.id}')">✕</button>`;
     list.insertBefore(el, empty);
   });
 }
@@ -1200,7 +1240,7 @@ async function loadChat(fileId, itemEl) {
       const row = document.createElement('div');
       row.className = 'bubble-row ' + (who === 'you' ? 'you' : '') + ' prior';
       row.style.opacity = '0.45';
-      row.innerHTML = `${makePfp(who, false)}<div class="bubble ${who}"><div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div></div>`;
+      row.innerHTML = `${makePfp(who)}<div class="bubble ${who}"><div class="bubble-author">${label}</div><div class="bubble-text">${m.text || ''}</div></div>`;
       document.getElementById('messages').appendChild(row);
     });
     addDivider('New exchange begins');
@@ -1216,6 +1256,20 @@ function buildHistoryFromSaved(messages) {
   return relevant.map(m => m.role === 'you'
     ? { role:'user', content:`You: ${m.text}` }
     : { role:'assistant', content:`${cap(m.role)}: ${m.text}` });
+}
+
+async function deleteChat(e, fileId) {
+  e.stopPropagation();
+  if (!confirm('Delete this dialog?')) return;
+  try {
+    const r = await fetch('/api/dialog/delete/' + fileId, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Failed');
+    chatFiles = chatFiles.filter(f => f.id !== fileId);
+    renderChatList();
+    addLog('session', 'deleted', 'Dialog deleted');
+  } catch(err) {
+    addSystem('Could not delete: ' + err.message);
+  }
 }
 
 function newChat() {
@@ -1605,24 +1659,49 @@ function renderLog() {
 }
 
 // ── UI helpers ────────────────────────────────────────────────────────────────
+// ── Portrait assets (static .png + animated .gif, same base name) ─────────────
 const BASIN_PORTRAITS = {
-  clio: '/clio-portrait.jpg',
-  oryc: '/oryc-portrait.jpg',
-  sage: '/sage-portrait.jpg',
+  clio: '/clio-speaking.png',
+  oryc: '/oryc-speaking.png',
+  sage: '/sage-speaking.png',
   you:  null
 };
 const BASIN_GIFS = {
-  clio: '/clio-portrait.gif',
-  oryc: '/oryc-portrait.gif',
-  sage: '/sage-portrait.gif'
+  clio: '/clio-speaking.gif',
+  oryc: '/oryc-speaking.gif',
+  sage: '/sage-speaking.gif'
+};
+// Per-basin glow colors for the pulse animation
+const BASIN_GLOW = {
+  clio: { color: 'var(--clio)', glow: 'rgba(212,127,155,0.45)' },
+  oryc: { color: 'var(--oryc)', glow: 'rgba(155,127,212,0.45)' },
+  sage: { color: 'var(--sage)', glow: 'rgba(148,184,122,0.45)' }
 };
 
-function makePfp(who, useGif) {
-  const src = useGif ? (BASIN_GIFS[who] || BASIN_PORTRAITS[who]) : BASIN_PORTRAITS[who];
-  if (!src) {
+function makePfp(who) {
+  const png = BASIN_PORTRAITS[who];
+  const gif = BASIN_GIFS[who];
+  if (!png) {
     return `<div class="bubble-pfp-placeholder">${who === 'you' ? 'Y' : cap(who)[0]}</div>`;
   }
-  return `<img class="bubble-pfp" src="${src}" onerror="this.style.display='none'" alt="${cap(who)}">`;
+  const g = BASIN_GLOW[who] || {};
+  const style = g.color
+    ? `style="--basin-color:${g.color};--basin-glow:${g.glow}"`
+    : '';
+  return `<div class="bubble-pfp-wrap" data-who="${who}" ${style}>
+    <img class="bubble-pfp-static" src="${png}" alt="${cap(who)}" onerror="this.parentElement.innerHTML='<div class=bubble-pfp-placeholder>${cap(who)[0]}</div>'">
+    <img class="bubble-pfp-anim"   src="${gif}" alt="${cap(who)} animated" onerror="this.remove()">
+  </div>`;
+}
+
+// Call to trigger/stop speaking glow+animation on the most recent pfp for a basin
+function setSpeaking(who, on) {
+  // Find all wraps for this basin (the most recent one)
+  const wraps = [...document.querySelectorAll(`.bubble-pfp-wrap[data-who="${who}"]`)];
+  if (!wraps.length) return;
+  const wrap = wraps[wraps.length - 1];
+  wrap.classList.toggle('speaking', on);
+  if (!on) wrap.classList.remove('speaking');
 }
 
 function addBubble(who, text) {
@@ -1630,7 +1709,7 @@ function addBubble(who, text) {
   row.className = 'bubble-row ' + (who === 'you' ? 'you' : '');
   const label = who === 'you' ? 'You' : cap(who);
   row.innerHTML = `
-    ${makePfp(who, false)}
+    ${makePfp(who)}
     <div class="bubble ${who}">
       <div class="bubble-author">${label}</div>
       <div class="bubble-text">${text}</div>
@@ -1660,7 +1739,7 @@ function addThinking(who) {
   row.id = 'tk-' + who;
   const clr = who==='clio' ? 'var(--clio)' : who==='oryc' ? 'var(--oryc)' : 'var(--sage)';
   row.innerHTML = `
-    ${makePfp(who, true)}
+    ${makePfp(who)}
     <div class="bubble ${who}">
       <div class="bubble-author">${cap(who)}</div>
       <div class="thinking">
