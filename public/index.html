@@ -190,27 +190,19 @@
     .lobby-title .logo-sm { font-size: 22px; color: var(--gold); }
     .lobby-title h2 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 0.12em; color: var(--ink); }
     .player-pill { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; background: rgba(139,111,71,0.1); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; }
-    .lobby-layout { display: flex; flex: 1; overflow: hidden; }
-    .lobby-main { flex: 1; padding: 32px 28px; overflow: hidden; display: flex; flex-direction: column; }
+    .lobby-layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+    .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
     .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 6px;
+      gap: 10px;
       width: 68%;
       margin-left: auto;
-      overflow-y: auto;
-      flex: 1;
-      min-height: 0;
-      padding-bottom: 8px;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border2) transparent;
+      padding-bottom: 24px;
     }
-    .rooms-grid::-webkit-scrollbar { width: 4px; }
-    .rooms-grid::-webkit-scrollbar-track { background: transparent; }
-    .rooms-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
     @keyframes card-drop {
       0%   { opacity: 0; transform: translateY(-22px) scale(0.96); }
       55%  { opacity: 1; transform: translateY(6px) scale(1.02); }
@@ -310,10 +302,6 @@
       font-style: italic;
       line-height: 1.55;
       padding-left: 15px;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
     }
     .room-card-summary.empty { opacity: 0.35; }
     .color-swatch {
@@ -499,7 +487,7 @@
 
     /* ── LOBBY CHAT ──────────────── */
     .lobby-layout { display: flex; flex: 1; overflow: hidden; gap: 0; }
-    .lobby-main { flex: 1; padding: 24px 24px; overflow: hidden; max-width: none; display: flex; flex-direction: column; }
+    .lobby-main { flex: 1; padding: 24px 24px; overflow-y: auto; max-width: none; }
     .lobby-chat-panel { width: 320px; flex-shrink: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: rgba(255,255,255,0.3); align-self: stretch; }
     .chat-panel-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .chat-panel-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
