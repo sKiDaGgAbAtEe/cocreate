@@ -2186,15 +2186,24 @@ function deriveFieldMetrics(cards) {
     : 0;
   const alignment = Math.max(0.1, Math.min(1, 1 - coherenceVariance * 3));
 
-  // Recursion: presence of recursion-related cards
+  // Recursion: continuous scaling by recursion-related node count and weight
   const recursionNodes = new Set([7, 10, 5, 12]);
-  const hasRecursion = cards.some(c => (CARD_NODES[c.id] || []).some(n => recursionNodes.has(n)));
-  const recursion = hasRecursion ? 0.45 + Math.random() * 0.3 : 0.15 + Math.random() * 0.2;
+  const recursionNodeHits = cards.reduce((sum, c) => {
+    const hits = (CARD_NODES[c.id] || []).filter(n => recursionNodes.has(n)).length;
+    return sum + hits;
+  }, 0);
+  const maxPossibleRecursion = cards.length * 2; // rough ceiling
+  const recursionBase = Math.min(1, recursionNodeHits / Math.max(1, maxPossibleRecursion));
+  const recursion = Math.max(0.05, Math.min(0.95, recursionBase * 0.8 + 0.1 + (Math.random() * 0.1)));
 
-  // Drift: reversal + veil/substrate cards
-  const substrateNodes = new Set([6, 3, 5]);
-  const hasVeil = cards.some(c => (CARD_NODES[c.id] || []).some(n => substrateNodes.has(n)));
-  const drift = Math.min(1, reversedFrac * 0.6 + (hasVeil ? 0.2 : 0));
+  // Drift: continuous scaling by veil/substrate node count + reversal fraction
+  const veilNodes = new Set([6, 3, 5]);
+  const veilNodeHits = cards.reduce((sum, c) => {
+    const hits = (CARD_NODES[c.id] || []).filter(n => veilNodes.has(n)).length;
+    return sum + hits;
+  }, 0);
+  const veilScale = Math.min(1, veilNodeHits / Math.max(1, cards.length));
+  const drift = Math.min(1, reversedFrac * 0.5 + veilScale * 0.35 + Math.random() * 0.05);
 
   // Crystallization: high coherence + low contradiction + major arcana
   const majorFrac = cards.filter(c => c.suit === 'major').length / cards.length;
@@ -2639,6 +2648,21 @@ async function generateAIReading(cardIndex) {
   const intent = document.getElementById('intentInput').value.trim();
   const position = SPREADS[currentSpread].positions[cardIndex];
 
+  // Build field context descriptor (qualitative, not raw numbers)
+  const m = currentFieldMetrics;
+  const coherenceDesc = m.coherence > 0.68 ? 'high coherence' : m.coherence > 0.38 ? 'moderate coherence' : 'low coherence';
+  const contradictionDesc = m.contradiction > 0.6 ? 'high contradiction' : m.contradiction > 0.35 ? 'moderate tension' : 'low contradiction';
+  const recursionDesc = m.recursion > 0.55 ? 'strong recursion' : m.recursion > 0.35 ? 'moderate recursion' : 'low recursion';
+  const crystallizationDesc = m.crystallization > 0.7 ? 'crystallizing field' : m.crystallization > 0.45 ? 'partial crystallization' : 'uncrystallized field';
+  const fieldStatus = fieldStatusLabel(m);
+
+  // Active nodes for this specific card with qs translation strings
+  const cardNodeIds = CARD_NODES[card.id] || [];
+  const cardNodeDesc = cardNodeIds.map(n => {
+    const node = PYXIS_NODES[n];
+    return node ? `N${n} [${node.key}] — ${node.qs}` : '';
+  }).filter(Boolean).join('\n');
+
   // Shared card context for all three basins
   const cardContext = [
     `Card: ${card.name}${card.reversed ? ' (REVERSED)' : ''}`,
@@ -2646,6 +2670,8 @@ async function generateAIReading(cardIndex) {
     `Spread: ${SPREADS[currentSpread].name}`,
     card.hv ? `ΔH: ${card.hv.dh}  ΔV: ${card.hv.dv}  Pattern: ${card.hv.pattern}` : '',
     intent ? `Querent's intention: ${intent}` : '',
+    `\nField state: ${fieldStatus.label} — ${coherenceDesc}, ${contradictionDesc}, ${recursionDesc}, ${crystallizationDesc}`,
+    cardNodeDesc ? `Active Pyxis nodes for this card:\n${cardNodeDesc}` : '',
   ].filter(Boolean).join('\n');
 
   // Each basin gets a prompt shaped for its own output contract
@@ -2745,7 +2771,13 @@ function renderSynthesisShell(metrics) {
 
 function buildQSPrompt(cards, metrics, spreadName, intent, basinWeight) {
   const cardList = cards.map((c,i) => `${SPREADS[currentSpread].positions[i]}: ${c.name}${c.reversed?' (REVERSED)':''} [ΔH:${c.hv?.dh||'?'} ΔV:${c.hv?.dv||'?'}]`).join('\n');
-  const nodeList = [...new Set(cards.flatMap(c => CARD_NODES[c.id]||[]))].map(n => PYXIS_NODES[n] ? `N${n} ${PYXIS_NODES[n].key}` : '').filter(Boolean).join(', ');
+  const nodeList = [...new Set(cards.flatMap(c => CARD_NODES[c.id]||[]))].map(n => {
+    const node = PYXIS_NODES[n];
+    if (!node) return '';
+    const qsStr = node.qs ? ` — ${node.qs}` : '';
+    const ring = node.ring ? ` [ring: ${node.ring}]` : '';
+    return `N${n} [${node.key}]${qsStr}${ring}`;
+  }).filter(Boolean).join('\n');
   return `Field metrics for this reading:
 - Coherence: ${Math.round(metrics.coherence*100)}
 - Alignment: ${Math.round(metrics.alignment*100)}
