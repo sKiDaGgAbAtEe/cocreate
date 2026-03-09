@@ -194,16 +194,17 @@
     .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
     .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
-    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-    .room-card { background: rgba(255,252,244,0.92); border: 1px solid var(--border2); border-radius: 8px; padding: 20px; cursor: pointer; transition: all 0.3s ease; position: relative; overflow: hidden; box-shadow: 0 2px 8px var(--shadow); }
-    .room-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); opacity: 0; transition: opacity 0.3s; }
-    .room-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px var(--shadow); border-color: var(--gold); }
-    .room-card:hover::before { opacity: 1; }
-    .room-card-title { font-family: 'Cinzel', serif; font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink); margin-bottom: 8px; }
-    .room-card-meta { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-muted); margin-bottom: 12px; font-style: italic; }
+    .rooms-grid { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
+    .room-card { display: flex; align-items: center; gap: 0; padding: 0; cursor: pointer; transition: background 0.15s; position: relative; background: rgba(255,252,244,0.92); border-bottom: 1px solid var(--border); }
+    .room-card:last-child { border-bottom: none; }
+    .room-card::before { display: none; }
+    .room-card:hover { background: rgba(255,252,244,1); transform: none; box-shadow: none; border-color: var(--border); }
+    .room-card-inner { display: flex; align-items: center; gap: 10px; flex: 1; padding: 9px 14px; min-width: 0; }
+    .room-card-title { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
+    .room-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); flex-shrink: 0; margin-left: auto; padding-left: 10px; }
     .basin-badge { display: flex; align-items: center; gap: 5px; }
     .basin-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
-    .room-card-footer { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
+    .room-card-footer { display: none; }
     .empty-rooms { padding: 60px 0; text-align: center; color: var(--ink-faint); font-size: 15px; line-height: 2.2; font-style: italic; opacity: 0.6; }
 
     /* ── MODALS ───────────────────── */
@@ -352,7 +353,7 @@
     body.dark .lobby-header { background: rgba(13,13,20,0.8); border-color: #1e1c28; }
     body.dark .player-pill { background: rgba(196,168,130,0.1); border-color: #2a2830; }
     body.dark .room-card { background: #13131a; border-color: #1e1c28; }
-    body.dark .room-card:hover { border-color: var(--gold); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+    body.dark .room-card:hover { background: #17171f; box-shadow: none; transform: none; }
     body.dark .modal-overlay { background: rgba(0,0,0,0.7); }
     body.dark .modal-card { background: #13131a; border-color: #2a2830; }
     body.dark .modal-box { background: #13131a; border-color: #2a2830; }
@@ -577,9 +578,12 @@
     body.dark .about-panel { background: #13131a; border-color: #2a2830; }
 
     /* ── ROOM CARD EXPANDED ──────── */
-    .room-card-subject { font-size: 12px; color: var(--ink-muted); font-style: italic; margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .room-card-creator { font-size: 11px; color: var(--ink-faint); font-family: 'Cinzel', serif; letter-spacing: 0.06em; }
-    .room-card-notes { font-size: 11px; color: var(--ink-faint); font-style: italic; margin-top: 6px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .room-card-subject { font-size: 11px; color: var(--ink-faint); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 2; min-width: 0; }
+    .room-card-creator { display: none; }
+    .room-card-notes { display: none; }
+    .room-card-delete { opacity: 0; transition: opacity 0.15s; padding: 9px 12px; color: var(--ink-faint); font-size: 13px; flex-shrink: 0; border-left: 1px solid var(--border); }
+    .room-card:hover .room-card-delete { opacity: 1; }
+    .room-card-delete:hover { color: #c0392b; }
 
     /* ── BASIN SWITCHER (SESSION) ─── */
     .basin-switch-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-faint); font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.08em; padding: 3px 7px; cursor: pointer; margin-top: 6px; transition: all 0.2s; }
@@ -958,11 +962,12 @@
     }
     body.theme-chromium .room-card {
       background: linear-gradient(140deg, rgba(240,248,255,0.88) 0%, rgba(215,232,248,0.72) 100%);
-      border-color: rgba(120,170,210,0.40);
+      border-color: rgba(120,170,210,0.30);
     }
-    body.theme-chromium .room-card::before {
-      background: linear-gradient(90deg, transparent, rgba(91,184,212,0.90), transparent);
+    body.theme-chromium .room-card:hover {
+      background: linear-gradient(140deg, rgba(245,252,255,0.97) 0%, rgba(225,242,255,0.9) 100%);
     }
+    body.theme-chromium .room-card::before { display: none; }
     body.theme-chromium .pyramid-dropdown {
       background: rgba(228,238,250,0.95);
       border-color: rgba(120,170,210,0.45);
@@ -1654,35 +1659,7 @@
       box-shadow: 0 2px 8px rgba(74,184,232,0.25);
     }
 
-    /* pfp lives here in the widget header — starts hidden, fades in as widget opens */
-    #qs-widget-pfp {
-      position: relative;
-      width: 64px; height: 64px;
-      flex-shrink: 0;
-      border-radius: 50%;
-      opacity: 0;
-      transition: opacity 0.25s ease 0.15s; /* slight delay so it arrives mid-expand */
-    }
-    #tarot-widget.open #qs-widget-pfp { opacity: 1; }
-    #qs-widget-pfp img {
-      position: absolute; inset: 0;
-      width: 64px; height: 64px;
-      border-radius: 50%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 0.22s ease;
-      pointer-events: none;
-    }
-    #qs-widget-pfp img.qs-visible { opacity: 1; }
-    #qs-widget-pfp::after {
-      content: '';
-      position: absolute;
-      inset: -3px;
-      border-radius: 50%;
-      border: 1px solid rgba(74,184,232,0.4);
-      pointer-events: none;
-      animation: qs-corner-pulse 3s ease-in-out infinite;
-    }
+    /* #qs-widget-pfp removed — pfp lives in oracle iframe */
 
     /* corner pfp fades out when widget is open */
     #tarot-widget.open ~ #qs-corner #qs-corner-pfp,
@@ -1739,29 +1716,7 @@
       border-bottom: 1px solid rgba(74,184,232,0.3);
       flex-shrink: 0;
     }
-    #qs-full-pfp {
-      position: relative;
-      width: 44px; height: 44px;
-      flex-shrink: 0;
-    }
-    #qs-full-pfp img {
-      position: absolute; inset: 0;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 0.22s ease;
-      pointer-events: none;
-    }
-    #qs-full-pfp img.qs-visible { opacity: 1; }
-    #qs-full-pfp::after {
-      content: '';
-      position: absolute; inset: -3px;
-      border-radius: 50%;
-      border: 1px solid rgba(74,184,232,0.4);
-      pointer-events: none;
-      animation: qs-corner-pulse 3s ease-in-out infinite;
-    }
+    /* #qs-full-pfp removed — pfp lives in oracle iframe */
     .tarot-full-title {
       flex: 1;
       font-family: 'Orbitron', sans-serif;
@@ -3828,27 +3783,16 @@ function renderRooms(rooms) {
   }
   grid.innerHTML = rooms.map(r => `
     <div class="room-card" onclick="joinRoom('${r.id}')">
-      <div class="room-card-title">${esc(r.title)}</div>
-      ${r.subject ? `<div class="room-card-subject">${esc(r.subject)}</div>` : ''}
-      <div class="room-card-meta">
-        <div class="basin-badge">
-          <div class="basin-badge-dot" style="background:${r.basinColor}"></div>
-          <span>${esc(r.basin)}</span>
-        </div>
-        <span>·</span>
-        <span>${r.memberCount} ${r.memberCount === 1 ? 'person' : 'people'}</span>
-      </div>
-      ${r.notes ? `<div class="room-card-notes">${esc(r.notes)}</div>` : ''}
-      <div class="room-card-footer">
-        <div style="display:flex;flex-direction:column;gap:2px">
-          <span>${r.contributionCount} contributions</span>
-          ${r.creator ? `<span class="room-card-creator">by ${esc(r.creator)}</span>` : ''}
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="letter-spacing:0.12em;color:var(--gold);opacity:0.7">${r.id}</span>
-          <span onclick="event.stopPropagation();deleteRoom('${r.id}')" style="color:var(--text-faint);cursor:pointer;font-size:13px" title="Delete room">✕</span>
+      <div class="room-card-inner">
+        <div class="basin-badge-dot" style="background:${r.basinColor};width:8px;height:8px;border-radius:50%;flex-shrink:0"></div>
+        <div class="room-card-title">${esc(r.title)}</div>
+        ${r.subject ? `<span class="room-card-subject">— ${esc(r.subject)}</span>` : ''}
+        <div class="room-card-meta">
+          ${r.memberCount > 0 ? `<span style="color:var(--accent);font-weight:600">${r.memberCount} ◈</span>` : ''}
+          <span style="font-family:'Cinzel',serif;letter-spacing:0.1em;opacity:0.5">${r.id}</span>
         </div>
       </div>
+      <span class="room-card-delete" onclick="event.stopPropagation();deleteRoom('${r.id}')" title="Delete">✕</span>
     </div>`).join('');
 }
 
@@ -4540,113 +4484,115 @@ function openDefinition() { document.getElementById('defTooltip').classList.add(
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
 
 // ══════════════════════════════════════════════════════════════════
-// QUICKSILVER STATE MACHINE
+// QUICKSILVER STATE MACHINE  (single source of truth)
 // Sequence: sleep(loop) → wake(once) → stand(loop) → down(once) → sleep(loop)
-// Controls all three pfp groups: corner (qsp-), widget (qsw-), fullscreen (qsf-)
-// Rules:
-//   - sleep loops until woken
-//   - wake plays once, then stand takes over
-//   - stand loops until minimized
-//   - down plays once, then sleep takes over
-//   - transitions never interrupt mid-gif — each one-shot gif runs to completion
+//
+// Corner pfp (qsp-*) is the only real DOM element set.
+// The iframe oracle pfp is kept in sync via postMessage on every
+// transition AND on iframe load — so first-open is always correct.
 // ══════════════════════════════════════════════════════════════════
 (function() {
-  const WAKE_MS  = 2200;  // ← tune to your qs__wake.gif duration
-  const DOWN_MS  = 2200;  // ← tune to your qs__down.gif duration
+  const WAKE_MS = 2200;   // ← match qs__wake.gif duration exactly
+  const DOWN_MS = 2200;   // ← match qs__down.gif duration exactly
+  const FRAMES  = ['sleep', 'wake', 'stand', 'down'];
 
-  // States: 'sleep' | 'waking' | 'stand' | 'sleeping'
   var _state = 'sleep';
-  var _timer = null;
+  var _timer  = null;
 
-  // All suffix groups to control in sync
-  var GROUPS = ['qsp', 'qsw', 'qsf'];
-  var FRAMES = ['sleep', 'wake', 'stand', 'down'];
-
-  function _el(group, frame) {
-    return document.getElementById(group + '-' + frame);
-  }
+  // ── Corner pfp helpers (qsp- prefix only) ──
+  function _el(frame) { return document.getElementById('qsp-' + frame); }
 
   function _show(frame) {
-    GROUPS.forEach(function(g) {
-      var el = _el(g, frame);
-      if (el) el.classList.add('qs-visible');
-    });
+    var el = _el(frame);
+    if (el) el.classList.add('qs-visible');
   }
-
   function _hide(frame) {
-    GROUPS.forEach(function(g) {
-      var el = _el(g, frame);
-      if (el) el.classList.remove('qs-visible');
-    });
+    var el = _el(frame);
+    if (el) el.classList.remove('qs-visible');
   }
-
   function _showOnly(frame) {
-    FRAMES.forEach(function(f) {
-      if (f === frame) _show(f); else _hide(f);
-    });
+    FRAMES.forEach(function(f) { if (f === frame) _show(f); else _hide(f); });
   }
-
-  // Restart a gif from frame 0 across all groups
   function _reload(frame) {
-    GROUPS.forEach(function(g) {
-      var el = _el(g, frame);
-      if (!el) return;
-      var src = el.src; el.src = ''; el.src = src;
-    });
+    var el = _el(frame);
+    if (!el) return;
+    var s = el.src; el.src = ''; el.src = s;
   }
-
   function _clearTimer() {
     if (_timer) { clearTimeout(_timer); _timer = null; }
   }
 
+  // ── iframe sync — push current gif src to any loaded oracle frames ──
+  function _gifFor(state) {
+    return '/qs__' + (
+      state === 'waking'   ? 'wake'  :
+      state === 'stand'    ? 'stand' :
+      state === 'sleeping' ? 'down'  : 'sleep'
+    ) + '.gif';
+  }
+  function _pushToFrame(frameEl) {
+    if (!frameEl || !frameEl.contentWindow) return;
+    try { frameEl.contentWindow.postMessage({ type: 'qs-pfp', src: _gifFor(_state) }, '*'); }
+    catch(e) {}
+  }
+  function _syncFrames() {
+    _pushToFrame(document.getElementById('tarot-mini-frame'));
+    _pushToFrame(document.getElementById('tarot-full-frame'));
+  }
+
+  // Attach load listeners so iframes get correct state the moment they finish loading
+  function _attachFrameListener(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('load', function() {
+      // small delay to let the iframe's listener register
+      setTimeout(function() { _pushToFrame(el); }, 80);
+    });
+  }
+
   // ── PUBLIC API ──
 
-  // Wake: sleep → wake(once) → stand(loop)
-  // Safe to call from: corner pfp click, widget open, fullscreen open, hover
   window.qsWake = function() {
-    if (_state === 'stand') return;   // already awake, do nothing
-    if (_state === 'waking') return;  // already mid-wake, let it finish
+    if (_state === 'stand') return;
+    if (_state === 'waking') return;
 
     if (_state === 'sleeping') {
-      // down is playing — cancel and jump straight to stand
       _clearTimer();
       _state = 'stand';
       _showOnly('stand');
+      _syncFrames();
       return;
     }
 
-    // from sleep → play wake once, then stand
     _clearTimer();
     _state = 'waking';
     _reload('wake');
-    // stand is the persistent background; wake sits on top of it
-    _show('stand');  // preload stand underneath (invisible until wake hides)
+    _show('stand');   // looping silently under wake
     _show('wake');
     _hide('sleep');
     _hide('down');
+    _syncFrames();
 
     _timer = setTimeout(function() {
-      _hide('wake');   // stand is already running beneath
+      _hide('wake');
       _state = 'stand';
       _timer = null;
+      _syncFrames();
     }, WAKE_MS);
   };
 
-  // Down: stand → down(once) → sleep(loop)
-  // Called by minimize button and fullscreen close
   window.qsDown = function() {
-    if (_state === 'sleep') return;    // already asleep
-    if (_state === 'sleeping') return; // already mid-down, let it finish
+    if (_state === 'sleep') return;
+    if (_state === 'sleeping') return;
 
     if (_state === 'waking') {
-      // wake is playing — cancel and jump straight back to sleep
       _clearTimer();
       _state = 'sleep';
       _showOnly('sleep');
+      _syncFrames();
       return;
     }
 
-    // from stand → play down once, then sleep
     _clearTimer();
     _state = 'sleeping';
     _reload('down');
@@ -4654,45 +4600,31 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
     _hide('stand');
     _hide('wake');
     _hide('sleep');
+    _syncFrames();
 
     _timer = setTimeout(function() {
       _hide('down');
       _show('sleep');
       _state = 'sleep';
       _timer = null;
+      _syncFrames();
     }, DOWN_MS);
   };
 
-  // Hard reset to sleep (used by about modal close, etc.)
   window.qsReset = function() {
     _clearTimer();
     _state = 'sleep';
     _showOnly('sleep');
+    _syncFrames();
   };
 
-  // Expose state for debugging
   window.qsState = function() { return _state; };
 
-  // After each frame change, push current gif to iframes
-  function _syncIframes() {
-    var frame = _state === 'waking' ? 'wake' :
-                _state === 'stand'  ? 'stand' :
-                _state === 'sleeping' ? 'down' : 'sleep';
-    var src = '/qs__' + frame + '.gif';
-    ['tarot-mini-frame','tarot-full-frame'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el && el.contentWindow) {
-        try { el.contentWindow.postMessage({ type:'qs-pfp', src: src }, '*'); } catch(e) {}
-      }
-    });
-  }
-
-  // Patch _show to also sync after state updates
-  var _origShow = _show;
-  _show = function(frame) {
-    _origShow(frame);
-    setTimeout(_syncIframes, 10);
-  };
+  // Wire up load listeners once DOM is ready
+  document.addEventListener('DOMContentLoaded', function() {
+    _attachFrameListener('tarot-mini-frame');
+    _attachFrameListener('tarot-full-frame');
+  });
 
 })();
 
