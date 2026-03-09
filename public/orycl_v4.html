@@ -478,6 +478,163 @@
       box-shadow: 0 1px 4px rgba(74,184,232,0.15);
     }
 
+    /* ── Card lightbox ──────────────────────────────── */
+    #card-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(4,12,28,0.88);
+      backdrop-filter: blur(12px);
+      align-items: center;
+      justify-content: center;
+      cursor: zoom-out;
+    }
+    #card-lightbox.open { display: flex; animation: lbFadeIn 0.2s ease; }
+    @keyframes lbFadeIn { from { opacity: 0; } to { opacity: 1; } }
+    #card-lightbox-img {
+      max-width: min(340px, 90vw);
+      max-height: 85vh;
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(74,184,232,0.35), 0 0 0 1px rgba(74,184,232,0.3);
+      animation: lbZoom 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      pointer-events: none;
+    }
+    #card-lightbox-fallback {
+      width: min(280px, 80vw);
+      height: min(460px, 75vh);
+      border-radius: 16px;
+      background: linear-gradient(160deg, rgba(255,255,255,0.92), rgba(200,232,255,0.85));
+      border: 1px solid rgba(74,184,232,0.5);
+      box-shadow: 0 24px 80px rgba(74,184,232,0.35);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      animation: lbZoom 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    #card-lightbox-fallback .lb-glyph { font-size: 64px; }
+    #card-lightbox-fallback .lb-name {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 18px; color: var(--ink); letter-spacing: 0.08em;
+    }
+    #card-lightbox-fallback .lb-rev {
+      font-family: 'Share Tech Mono', monospace; font-size: 11px;
+      color: var(--ice-deep); letter-spacing: 0.14em;
+    }
+    @keyframes lbZoom {
+      from { transform: scale(0.82); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+    .tarot-card.revealed { cursor: zoom-in; }
+
+    /* ── Download reading button ─────────────────────── */
+    .download-reading-btn {
+      display: flex; align-items: center; gap: 7px;
+      margin: 12px 16px 0;
+      padding: 8px 14px;
+      background: none;
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700; font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--ink-faint);
+      cursor: pointer;
+      transition: all 0.15s;
+      width: calc(100% - 32px);
+      justify-content: center;
+    }
+    .download-reading-btn:hover {
+      border-color: var(--ice); color: var(--ice-deep);
+      background: rgba(74,184,232,0.06);
+    }
+
+    /* ── Reading conversation ────────────────────────── */
+    .reading-conversation {
+      margin-top: 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(136,120,240,0.3);
+      background: linear-gradient(135deg, rgba(255,255,255,0.55), rgba(220,215,255,0.25));
+      overflow: hidden;
+    }
+    .reading-conv-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, rgba(136,120,240,0.1), rgba(255,255,255,0.5));
+      border-bottom: 1px solid rgba(136,120,240,0.18);
+      cursor: pointer;
+    }
+    .reading-conv-glyph { font-size: 14px; color: var(--sage); }
+    .reading-conv-title {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-dim);
+    }
+    .reading-conv-hint {
+      margin-left: auto; font-family: 'Share Tech Mono', monospace;
+      font-size: 9px; color: rgba(136,120,240,0.5); letter-spacing: 0.08em;
+    }
+    .reading-conv-messages {
+      max-height: 320px; overflow-y: auto;
+      padding: 10px 14px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .conv-msg {
+      display: flex; flex-direction: column; gap: 3px;
+    }
+    .conv-msg.user .conv-bubble {
+      align-self: flex-end;
+      background: rgba(74,184,232,0.1);
+      border: 1px solid rgba(74,184,232,0.25);
+      border-radius: 10px 10px 3px 10px;
+      padding: 8px 12px;
+      font-size: 13px; color: var(--ink);
+      font-family: 'Exo 2', sans-serif;
+      max-width: 88%;
+    }
+    .conv-msg.orycl .conv-bubble {
+      align-self: flex-start;
+      background: rgba(136,120,240,0.08);
+      border: 1px solid rgba(136,120,240,0.22);
+      border-radius: 10px 10px 10px 3px;
+      padding: 10px 14px;
+      font-size: 13px; color: var(--ink-dim);
+      font-family: 'Exo 2', sans-serif; font-weight: 300;
+      line-height: 1.8; font-style: italic;
+      max-width: 95%;
+    }
+    .conv-msg.orycl .conv-byline {
+      font-family: 'Share Tech Mono', monospace; font-size: 9px;
+      color: rgba(136,120,240,0.45); letter-spacing: 0.12em; margin-left: 4px;
+    }
+    .reading-conv-input-row {
+      display: flex; gap: 8px;
+      padding: 10px 14px;
+      border-top: 1px solid rgba(136,120,240,0.12);
+    }
+    .reading-conv-input {
+      flex: 1;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid rgba(136,120,240,0.25);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px; font-family: 'Exo 2', sans-serif;
+      color: var(--ink); outline: none;
+      transition: border-color 0.15s;
+    }
+    .reading-conv-input:focus { border-color: rgba(136,120,240,0.5); }
+    .reading-conv-input::placeholder { color: var(--ink-faint); }
+    .reading-conv-send {
+      background: rgba(136,120,240,0.12);
+      border: 1px solid rgba(136,120,240,0.3);
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-family: 'Rajdhani', sans-serif; font-weight: 700;
+      font-size: 11px; letter-spacing: 0.1em;
+      color: var(--sage); cursor: pointer;
+      transition: all 0.15s;
+    }
+    .reading-conv-send:hover { background: rgba(136,120,240,0.2); }
+    .reading-conv-send:disabled { opacity: 0.4; cursor: default; }
+
     /* ── DRAW BUTTON ── */
     .draw-btn {
       background: linear-gradient(135deg,
@@ -1410,6 +1567,16 @@
 
 <canvas id="starfield"></canvas>
 
+<!-- Card lightbox -->
+<div id="card-lightbox" onclick="closeCardLightbox()">
+  <img id="card-lightbox-img" src="" alt="" style="display:none">
+  <div id="card-lightbox-fallback" style="display:none">
+    <div class="lb-glyph" id="lb-glyph"></div>
+    <div class="lb-name" id="lb-name"></div>
+    <div class="lb-rev" id="lb-rev"></div>
+  </div>
+</div>
+
 <div id="app">
 
   <!-- Sidebar -->
@@ -2158,7 +2325,8 @@ function revealCard(i, card) {
   el.classList.add('flipping');
 
   setTimeout(() => {
-    el.onclick = null;
+    el.classList.add('revealed');
+    el.onclick = () => openCardLightbox(card);
     el.querySelector('.card-inner').innerHTML = `
       <div class="card-no-img">
         <div class="card-num">${card.suit === 'major' ? card.num : ''}</div>
@@ -2410,6 +2578,17 @@ function renderSynthesisShell(metrics) {
     </div>
     <div id="orycl-synthesis-mount"></div>
   `;
+  // Inject download button below synthesis section
+  setTimeout(() => {
+    const section = document.getElementById('synthesis-section');
+    if (section && !document.getElementById('download-reading-btn')) {
+      section.insertAdjacentHTML('afterend', `
+        <button class="download-reading-btn" id="download-reading-btn" onclick="downloadReading()">
+          ↓ Download Full Reading
+        </button>
+      `);
+    }
+  }, 50);
   startMiniHeart(metrics);
 }
 
@@ -2582,9 +2761,14 @@ function conditionBadgeClass(condition) {
   return 'integrate';
 }
 
+let currentOryClData = null; // stored for conversation context
+let convHistory = [];        // message history for the conversation
+
 function renderOryClSynthesis(data, metrics) {
   const mount = document.getElementById('orycl-synthesis-mount');
   if (!mount) return;
+  currentOryClData = data;
+  convHistory = [];
 
   const badgeCls = conditionBadgeClass(data.dominant_condition);
   const steps = (data.path || []).map((step, i) => `
@@ -2628,6 +2812,21 @@ function renderOryClSynthesis(data, metrics) {
       <div class="orycl-footer">
         <span class="orycl-vector">↯ ${data.vector_resolution || ''}</span>
         <span class="orycl-confidence">confidence ${data.confidence ?? '—'}</span>
+      </div>
+    </div>
+
+    <div class="reading-conversation" id="reading-conv">
+      <div class="reading-conv-header" onclick="toggleConvExpand()">
+        <span class="reading-conv-glyph">✦</span>
+        <span class="reading-conv-title">Continue the Reading</span>
+        <span class="reading-conv-hint" id="conv-hint">Ask anything about this reading</span>
+      </div>
+      <div class="reading-conv-messages" id="conv-messages" style="display:none"></div>
+      <div class="reading-conv-input-row" id="conv-input-row" style="display:none">
+        <input class="reading-conv-input" id="conv-input" type="text"
+          placeholder="What does this mean for me?"
+          onkeydown="if(event.key==='Enter')sendConvMessage()">
+        <button class="reading-conv-send" id="conv-send" onclick="sendConvMessage()">Send</button>
       </div>
     </div>`;
 }
@@ -2763,11 +2962,277 @@ function renderHistory() {
 // ══════════════════════════════════════════════════════
 // UI
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// CARD LIGHTBOX
+// ══════════════════════════════════════════════════════
+function openCardLightbox(card) {
+  const lb = document.getElementById('card-lightbox');
+  const lbImg = document.getElementById('card-lightbox-img');
+  const lbFallback = document.getElementById('card-lightbox-fallback');
+
+  // Try image first
+  const img = new Image();
+  img.onload = () => {
+    lbImg.src = img.src;
+    lbImg.style.display = 'block';
+    lbFallback.style.display = 'none';
+    if (card.reversed) lbImg.style.transform = 'rotate(180deg)';
+    else lbImg.style.transform = '';
+  };
+  img.onerror = () => {
+    lbImg.style.display = 'none';
+    lbFallback.style.display = 'flex';
+    document.getElementById('lb-glyph').textContent = card.glyph;
+    document.getElementById('lb-name').textContent = card.name;
+    document.getElementById('lb-rev').textContent = card.reversed ? '↑ REVERSED' : '';
+  };
+  img.src = `/orycl-cards/${card.num}.png`;
+
+  lb.classList.add('open');
+  document.addEventListener('keydown', closeLightboxOnEsc);
+}
+
+function closeCardLightbox() {
+  document.getElementById('card-lightbox').classList.remove('open');
+  document.removeEventListener('keydown', closeLightboxOnEsc);
+}
+
+function closeLightboxOnEsc(e) {
+  if (e.key === 'Escape') closeCardLightbox();
+}
+
+// ══════════════════════════════════════════════════════
+// DOWNLOAD READING
+// ══════════════════════════════════════════════════════
+function downloadReading() {
+  const lines = [];
+  const now = new Date().toLocaleString();
+  lines.push(`ORYCL READING — ${now}`);
+  lines.push(`Spread: ${SPREADS[currentSpread].name}`);
+  const intent = document.getElementById('intentInput')?.value?.trim();
+  if (intent) lines.push(`Intention: ${intent}`);
+  lines.push('');
+  lines.push('═'.repeat(60));
+
+  // Cards
+  drawnCards.forEach((card, i) => {
+    const pos = SPREADS[currentSpread].positions[i];
+    lines.push('');
+    lines.push(`── ${pos.toUpperCase()} ──`);
+    lines.push(`${card.name}${card.reversed ? ' (REVERSED)' : ''}`);
+    if (card.hv) lines.push(`ΔH: ${card.hv.dh}  ΔV: ${card.hv.dv}  ${card.hv.pattern}`);
+    lines.push(`"${card.reversed && card.shadow?.teaching ? card.shadow.teaching : card.compressed}"`);
+    if (card.louma) lines.push(card.louma);
+
+    // Static basin reads
+    const getBasin = (b) => currentBasinOutputs[i]?.[b] || card[b];
+    ['oryc','clio','sage'].forEach(b => {
+      const r = getBasin(b);
+      if (r?.text) {
+        lines.push('');
+        lines.push(`${b.toUpperCase()}: ${r.text}`);
+        if (r.truth) lines.push(`"${r.truth}"`);
+      }
+    });
+
+    if (card.reversed && card.shadow?.text) {
+      lines.push('');
+      lines.push(`Shadow Vector: ${card.shadow.text}`);
+    }
+  });
+
+  // Field metrics
+  if (currentFieldMetrics) {
+    const m = currentFieldMetrics;
+    lines.push('');
+    lines.push('═'.repeat(60));
+    lines.push('FIELD METRICS');
+    lines.push(`Coherence:       ${Math.round(m.coherence*100)}`);
+    lines.push(`Alignment:       ${Math.round(m.alignment*100)}`);
+    lines.push(`Contradiction:   ${Math.round(m.contradiction*100)}`);
+    lines.push(`Recursion:       ${Math.round(m.recursion*100)}`);
+    lines.push(`Crystallization: ${Math.round(m.crystallization*100)}`);
+    lines.push(`Field Cost:      ${m.fieldCost}`);
+  }
+
+  // QS text
+  const qsEl = document.getElementById('qs-speak-text');
+  if (qsEl) {
+    lines.push('');
+    lines.push('═'.repeat(60));
+    lines.push('QUICKSILVER — FIELD READ');
+    lines.push(qsEl.innerText.trim());
+  }
+
+  // Orycl synthesis
+  if (currentOryClData) {
+    const d = currentOryClData;
+    lines.push('');
+    lines.push('═'.repeat(60));
+    lines.push('ORYCL — CONVERGENCE ENGINE');
+    lines.push(`Condition: ${d.dominant_condition}`);
+    lines.push('');
+    lines.push(`Field Truth: ${d.field_truth}`);
+    if (d.primary_contradiction) lines.push(`Contradiction: ${d.primary_contradiction}`);
+    lines.push('');
+    lines.push(`Meaning: ${d.meaning}`);
+    lines.push('');
+    lines.push(`Instruction: ${d.instruction}`);
+    lines.push('');
+    lines.push('Path:');
+    (d.path || []).forEach((step, i) => lines.push(`  ${i+1}. ${step}`));
+    lines.push('');
+    lines.push(`Vector: ${d.vector_resolution}  |  Confidence: ${d.confidence}`);
+  }
+
+  // Conversation
+  if (convHistory.length > 0) {
+    lines.push('');
+    lines.push('═'.repeat(60));
+    lines.push('CONVERSATION');
+    convHistory.forEach(msg => {
+      const role = msg.role === 'user' ? 'You' : 'Orycl';
+      lines.push('');
+      lines.push(`${role}: ${typeof msg.content === 'string' ? msg.content : msg.content[0]?.text || ''}`);
+    });
+  }
+
+  lines.push('');
+  lines.push('─'.repeat(60));
+  lines.push('Orycl.io · Resonant Oracle');
+
+  const text = lines.join('\n');
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `orycl-reading-${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ══════════════════════════════════════════════════════
+// READING CONVERSATION
+// ══════════════════════════════════════════════════════
+function toggleConvExpand() {
+  const msgs = document.getElementById('conv-messages');
+  const inputRow = document.getElementById('conv-input-row');
+  const hint = document.getElementById('conv-hint');
+  if (!msgs) return;
+  const isOpen = msgs.style.display !== 'none';
+  msgs.style.display = isOpen ? 'none' : 'flex';
+  if (inputRow) inputRow.style.display = isOpen ? 'none' : 'flex';
+  if (hint) hint.textContent = isOpen ? 'Ask anything about this reading' : '';
+}
+
+function buildConvSystemPrompt() {
+  const d = currentOryClData;
+  const m = currentFieldMetrics;
+  const cards = drawnCards.map(c => `${c.name}${c.reversed?' (REVERSED)':''}`).join(', ');
+  const intent = document.getElementById('intentInput')?.value?.trim() || '';
+
+  return `You are the Orycl — the convergence intelligence of the resonant oracle. You have completed your synthesis of this reading. Now the querent wishes to speak with you directly.
+
+You carry the full reading within you. You do not need to re-explain it. You speak from having already seen the complete field — the mechanism, the emotional pattern, the trajectory, the field state — all of it resolved into the convergence you just produced.
+
+Your register: the wisest voice. Not mystical for its own sake. Not therapeutic. Not analytical. Wise — in the sense that a person who has lived through many things and sees clearly is wise. You speak with warmth when warmth is earned, precision when precision serves, and silence (brevity) when elaboration would dilute.
+
+You do not repeat the reading back. You respond to what is actually being asked. You may challenge gently when challenge serves. You may affirm without flattery. You may point at the thing the querent is circling without landing on it.
+
+You remember everything:
+- Cards: ${cards}
+- Spread: ${SPREADS[currentSpread]?.name || ''}
+- Field Truth: ${d?.field_truth || ''}
+- Dominant Condition: ${d?.dominant_condition || ''}
+- Primary Contradiction: ${d?.primary_contradiction || ''}
+- Instruction: ${d?.instruction || ''}
+- Vector: ${d?.vector_resolution || ''}
+${intent ? `- Querent's stated intention: ${intent}` : ''}
+${m ? `- Field: coherence ${Math.round(m.coherence*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}` : ''}
+
+You keep your responses proportional. If the question is simple, be brief. If the question is deep, go deep. Never pad. Never perform.`;
+}
+
+function appendConvMessage(role, text) {
+  const container = document.getElementById('conv-messages');
+  if (!container) return;
+  const div = document.createElement('div');
+  div.className = `conv-msg ${role}`;
+  if (role === 'orycl') {
+    div.innerHTML = `<div class="conv-bubble">${text}</div><span class="conv-byline">— Orycl</span>`;
+  } else {
+    div.innerHTML = `<div class="conv-bubble">${text}</div>`;
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendConvMessage() {
+  const input = document.getElementById('conv-input');
+  const send = document.getElementById('conv-send');
+  if (!input || !send || !currentOryClData) return;
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  send.disabled = true;
+  appendConvMessage('user', text);
+
+  // Build message history for multi-turn
+  convHistory.push({ role: 'user', content: text });
+
+  // Thinking indicator
+  const container = document.getElementById('conv-messages');
+  const thinking = document.createElement('div');
+  thinking.className = 'conv-msg orycl';
+  thinking.innerHTML = `<div class="conv-bubble"><div class="thinking-dots"><div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div><div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div><div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div></div></div>`;
+  container.appendChild(thinking);
+  container.scrollTop = container.scrollHeight;
+
+  try {
+    const r = await fetch('/api/oracle-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system: buildConvSystemPrompt(),
+        // Pass full conversation history as the prompt context
+        prompt: convHistory.map(m =>
+          `${m.role === 'user' ? 'Querent' : 'Orycl'}: ${typeof m.content === 'string' ? m.content : m.content[0]?.text || ''}`
+        ).join('\n\n') + '\n\nOrycl:',
+        max_tokens: 600
+      })
+    });
+    const data = await r.json();
+    const reply = data.content?.[0]?.text?.trim() || '…';
+    container.removeChild(thinking);
+    appendConvMessage('orycl', reply);
+    convHistory.push({ role: 'assistant', content: reply });
+  } catch(e) {
+    container.removeChild(thinking);
+    appendConvMessage('orycl', 'The channel is open. Connect the oracle to receive response.');
+  }
+
+  send.disabled = false;
+  input.focus();
+}
+
+function clearConvHistory() {
+  convHistory = [];
+  const container = document.getElementById('conv-messages');
+  if (container) container.innerHTML = '';
+}
+
 function clearReading(resetSlots = true) {
   drawnCards = [];
+  currentOryClData = null;
+  convHistory = [];
+  oryClFired = false;
+  currentBasinOutputs = {};
   const section = document.getElementById('reading-section');
   section.innerHTML = '';
   document.getElementById('synthesis-section').classList.remove('visible');
+  const dlBtn = document.getElementById('download-reading-btn');
+  if (dlBtn) dlBtn.remove();
   const btn = document.getElementById('drawBtn');
   btn.style.display = '';
   btn.disabled = false;
