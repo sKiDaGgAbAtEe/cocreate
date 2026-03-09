@@ -2135,6 +2135,65 @@ app.post('/api/oracle-read', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Field Log Helpers ─────────────────────────────────
+async function readDriveRawText(drive, fileId) {
+  const res = await drive.files.get({ fileId, alt: 'media', supportsAllDrives: true });
+  return typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+}
+
+// /api/field-checkpoint — append one reading summary to orycl-field-log.ndjson
+app.post('/api/field-checkpoint', async (req, res) => {
+  const { checkpoint } = req.body;
+  if (!checkpoint) return res.status(400).json({ error: 'No checkpoint data' });
+  try {
+    const drive = await getSystemDrive();
+    if (!drive) return res.status(503).json({ error: 'Drive not available' });
+    const folderId = await getCoCreateRootId(drive);
+    const fileName = 'orycl-field-log.ndjson';
+
+    // Read existing log (raw text) or start fresh
+    let existing = '';
+    const existingId = await getDriveFile(drive, fileName, folderId);
+    if (existingId) {
+      try { existing = await readDriveRawText(drive, existingId); } catch(e) { existing = ''; }
+    }
+
+    // Append new entry as NDJSON line
+    const line = JSON.stringify({ ...checkpoint, timestamp: new Date().toISOString() });
+    const updated = existing ? existing.trimEnd() + '\n' + line + '\n' : line + '\n';
+
+    await writePlainTextFile(drive, fileName, folderId, updated);
+    res.json({ ok: true });
+  } catch(e) {
+    console.error('field-checkpoint error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// /api/field-history — load last N entries from orycl-field-log.ndjson
+app.get('/api/field-history', async (req, res) => {
+  const n = Math.min(parseInt(req.query.n) || 30, 100);
+  try {
+    const drive = await getSystemDrive();
+    if (!drive) return res.json({ entries: [] });
+    const folderId = await getCoCreateRootId(drive);
+    const fileId = await getDriveFile(drive, 'orycl-field-log.ndjson', folderId);
+    if (!fileId) return res.json({ entries: [] });
+
+    const raw = await readDriveRawText(drive, fileId);
+    const entries = raw.trim().split('\n')
+      .filter(Boolean)
+      .map(line => { try { return JSON.parse(line); } catch(e) { return null; } })
+      .filter(Boolean)
+      .slice(-n); // last N entries
+
+    res.json({ entries });
+  } catch(e) {
+    console.error('field-history error:', e.message);
+    res.json({ entries: [] });
+  }
+});
+
 app.post('/speak', async (req, res) => {
   const { text, basin } = req.body;
   if (!text) return res.status(400).json({ error: 'No text provided' });

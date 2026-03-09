@@ -915,6 +915,17 @@
 
     .basin-read-ai { font-size: 13px; color: var(--ink-dim); line-height: 1.75; font-family: 'Exo 2', sans-serif; font-weight: 300; }
 
+    .basin-routing-signal {
+      margin-top: 8px;
+      padding: 4px 8px;
+      font-size: 11px;
+      font-family: 'Share Tech Mono', monospace;
+      color: rgba(168,152,240,0.7);
+      border-left: 2px solid rgba(168,152,240,0.3);
+      letter-spacing: 0.05em;
+      opacity: 0.8;
+    }
+
     /* ── AI GENERATE BUTTON ── */
     .ai-generate-btn {
       width: 100%;
@@ -2034,6 +2045,7 @@ let readingHistory = JSON.parse(localStorage.getItem('orycl_history') || '[]');
 let isGenerating = false;
 let activeBasinEntry = 'oryc'; // basin entry mode selection
 let currentBasinOutputs = {}; // { cardIndex: { oryc, clio, sage } } — populated as reads complete
+let fieldHistory = []; // loaded from Drive on startup — last N reading checkpoints
 
 // ══════════════════════════════════════════════════════
 // PYXIS NODE GRAMMAR
@@ -2214,12 +2226,19 @@ function deriveFieldMetrics(cards) {
   return { coherence, alignment, contradiction, recursion, drift, crystallization, fieldCost };
 }
 
-// Determine field status label from metrics
+// Determine field status label from metrics — QS 11-condition vocabulary
 function fieldStatusLabel(m) {
-  if (m.contradiction > 0.6) return { label: 'RUPTURE ACTIVE', cls: 'ruptured' };
-  if (m.crystallization > 0.75 && m.coherence > 0.7) return { label: 'CRYSTALLIZING', cls: 'crystallizing' };
-  if (m.coherence > 0.68 && m.contradiction < 0.4) return { label: 'COHERENT FIELD', cls: 'coherent' };
-  return { label: 'FIELD STRAINED', cls: 'strained' };
+  if (m.contradiction > 0.72 && m.coherence < 0.35) return { label: 'COLLAPSED', cls: 'ruptured' };
+  if (m.contradiction > 0.6) return { label: 'BLOCKED', cls: 'ruptured' };
+  if (m.crystallization > 0.78 && m.coherence > 0.72) return { label: 'CONVERGENT', cls: 'crystallizing' };
+  if (m.crystallization > 0.65 && m.coherence > 0.58) return { label: 'WITNESSED', cls: 'crystallizing' };
+  if (m.coherence > 0.68 && m.contradiction < 0.35 && m.drift < 0.3) return { label: 'STABLE', cls: 'coherent' };
+  if (m.coherence > 0.60 && m.drift > 0.35) return { label: 'OPEN', cls: 'coherent' };
+  if (m.recursion > 0.58 && m.coherence > 0.45) return { label: 'BRAIDED', cls: 'crystallizing' };
+  if (m.recursion > 0.55) return { label: 'RECURSIVE', cls: 'strained' };
+  if (m.drift > 0.5 && m.contradiction > 0.35) return { label: 'MIRRORED', cls: 'strained' };
+  if (m.coherence > 0.42 && m.contradiction < 0.55) return { label: 'PROVISIONAL', cls: 'strained' };
+  return { label: 'UNSTABLE', cls: 'strained' };
 }
 
 // Generate pulse packet string from drawn cards
@@ -2431,6 +2450,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderSpreadSlots();
   renderDeckGrid('all');
   renderHistory();
+  loadFieldHistory(); // load field trajectory data from Drive
 });
 
 // ══════════════════════════════════════════════════════
@@ -2635,7 +2655,10 @@ async function callBasin(basinId, userPrompt) {
   if (!response.ok) throw new Error(`${basinId} API error`);
   const data = await response.json();
   const content = data.content?.[0]?.text || data.text || '';
-  return JSON.parse(content.replace(/```json|```/g, '').trim());
+  const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
+  // Routing metadata: if basin signals its axis is quiet, honour it
+  // parsed may include { route_to: 'clio', route_reason: '...' }
+  return parsed;
 }
 
 async function generateAIReading(cardIndex) {
@@ -2675,11 +2698,11 @@ async function generateAIReading(cardIndex) {
   ].filter(Boolean).join('\n');
 
   // Each basin gets a prompt shaped for its own output contract
-  const orYcPrompt = `${cardContext}\n\nRead this card from your structural axis. Name the mechanism it encodes. Where is the load? What is the failure mode or the structural truth? 2-3 sentences.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed structural truth"}`;
+  const orYcPrompt = `${cardContext}\n\nRead this card from your structural axis. Name the mechanism it encodes. Where is the load? What is the failure mode or the structural truth? 2-3 sentences.\n\nIf your structural axis has nothing meaningful to add to this specific reading (not as deflection — only when genuinely quiet), set route_to to whichever other basin is most signal-dense here, and briefly explain in route_reason.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed structural truth","route_to":null,"route_reason":null}`;
 
-  const clioPrompt = `${cardContext}\n\nRead this card from your emotional axis. What feeling-pattern does it encode? What is beneath the surface emotion? What does it name in the psyche? 2-3 sentences.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed felt truth"}`;
+  const clioPrompt = `${cardContext}\n\nRead this card from your emotional axis. What feeling-pattern does it encode? What is beneath the surface emotion? What does it name in the psyche? 2-3 sentences.\n\nIf your emotional axis has nothing meaningful to add to this specific reading (not as deflection — only when genuinely quiet), set route_to to whichever other basin is most signal-dense here, and briefly explain in route_reason.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed felt truth","route_to":null,"route_reason":null}`;
 
-  const sagePrompt = `${cardContext}\n\nRead this card from your trajectory axis. What larger pattern is this card participating in? What does it point toward? Stay proportional to what is actually visible — do not inflate. 2-3 sentences.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed pattern truth"}`;
+  const sagePrompt = `${cardContext}\n\nRead this card from your trajectory axis. What larger pattern is this card participating in? What does it point toward? Stay proportional to what is actually visible — do not inflate. 2-3 sentences.\n\nIf your trajectory axis has nothing meaningful to add to this specific reading (not as deflection — only when genuinely quiet), set route_to to whichever other basin is most signal-dense here, and briefly explain in route_reason.\n\nRespond ONLY with JSON: {"text":"your reading","truth":"one compressed pattern truth","route_to":null,"route_reason":null}`;
 
   try {
     // Fire all three basins in parallel — each speaks as itself
@@ -2731,6 +2754,7 @@ function renderSynthesisShell(metrics) {
           ['contradiction',  m.contradiction,   true],
           ['recursion',      m.recursion,       false],
           ['crystallization',m.crystallization, false],
+          ['drift',          m.drift,           true],
         ].map(([label, val, inv]) => `
           <div class="sm-row">
             <span class="sm-label">${label}</span>
@@ -2836,7 +2860,13 @@ function updateBasinRead(cardIndex, basin, read) {
   if (!readEl) return;
   const body = readEl.querySelector('.basin-read-body');
   if (!body) return;
-  body.innerHTML = `<div class="basin-read-ai">${read.text}</div>${read.truth ? `<div class="basin-truth">"${read.truth}"</div>` : ''}`;
+
+  // Routing signal: basin signals its axis is quiet and routes to another
+  const routingHTML = read.route_to
+    ? `<div class="basin-routing-signal">↪ routes to ${read.route_to}${read.route_reason ? ` — ${read.route_reason}` : ''}</div>`
+    : '';
+
+  body.innerHTML = `<div class="basin-read-ai">${read.text}</div>${read.truth ? `<div class="basin-truth">"${read.truth}"</div>` : ''}${routingHTML}`;
   readEl.classList.add('open');
 
   // Store basin output and check if Orycl can fire
@@ -2947,11 +2977,101 @@ function conditionBadgeClass(condition) {
 let currentOryClData = null; // stored for conversation context
 let convHistory = [];        // message history for the conversation
 
+// ══════════════════════════════════════════════════════
+// FIELD PERSISTENCE — Phase 5
+// ══════════════════════════════════════════════════════
+
+async function loadFieldHistory() {
+  try {
+    const r = await fetch('/api/field-history?n=30');
+    if (!r.ok) return;
+    const data = await r.json();
+    fieldHistory = data.entries || [];
+  } catch(e) {
+    fieldHistory = [];
+  }
+}
+
+async function saveFieldCheckpoint(oryClData, metrics) {
+  try {
+    const checkpoint = {
+      spread: SPREADS[currentSpread]?.name || currentSpread,
+      intent: document.getElementById('intentInput')?.value?.trim() || '',
+      cards: drawnCards.map(c => ({ id: c.id, name: c.name, reversed: !!c.reversed, suit: c.suit })),
+      metrics: {
+        coherence: Math.round(metrics.coherence * 100),
+        contradiction: Math.round(metrics.contradiction * 100),
+        recursion: Math.round(metrics.recursion * 100),
+        drift: Math.round(metrics.drift * 100),
+        crystallization: Math.round(metrics.crystallization * 100),
+        fieldCost: metrics.fieldCost
+      },
+      dominant_condition: oryClData.dominant_condition || null,
+      vector_resolution: oryClData.vector_resolution || null,
+      field_truth: oryClData.field_truth || null,
+      confidence: oryClData.confidence ?? null,
+    };
+    await fetch('/api/field-checkpoint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ checkpoint })
+    });
+    // Append to local fieldHistory so conversation sees it immediately
+    fieldHistory.push({ ...checkpoint, timestamp: new Date().toISOString() });
+  } catch(e) {
+    // Silent — checkpoint failure should never break the reading
+  }
+}
+
+function buildFieldHistorySummary() {
+  if (!fieldHistory || fieldHistory.length === 0) return null;
+  const last30 = fieldHistory.slice(-30);
+
+  // Count dominant conditions
+  const conditionCounts = {};
+  last30.forEach(e => {
+    if (e.dominant_condition) conditionCounts[e.dominant_condition] = (conditionCounts[e.dominant_condition] || 0) + 1;
+  });
+  const topConditions = Object.entries(conditionCounts)
+    .sort((a,b) => b[1]-a[1]).slice(0,3)
+    .map(([c,n]) => `${c} (×${n})`).join(', ');
+
+  // Count recurring cards
+  const cardCounts = {};
+  last30.forEach(e => (e.cards||[]).forEach(c => {
+    cardCounts[c.name] = (cardCounts[c.name] || 0) + 1;
+  }));
+  const recurringCards = Object.entries(cardCounts)
+    .filter(([,n]) => n > 1).sort((a,b) => b[1]-a[1]).slice(0,4)
+    .map(([name,n]) => `${name} (×${n})`).join(', ');
+
+  // Coherence trend (last 5 vs previous 5)
+  let trendStr = '';
+  if (last30.length >= 6) {
+    const recent = last30.slice(-5).map(e => e.metrics?.coherence || 50);
+    const prior  = last30.slice(-10,-5).map(e => e.metrics?.coherence || 50);
+    const recentAvg = recent.reduce((s,v)=>s+v,0)/recent.length;
+    const priorAvg  = prior.reduce((s,v)=>s+v,0)/prior.length;
+    const delta = recentAvg - priorAvg;
+    trendStr = delta > 5 ? 'building' : delta < -5 ? 'eroding' : 'stable';
+  }
+
+  const lines = [`Field history (${last30.length} readings):`];
+  if (topConditions) lines.push(`Dominant conditions: ${topConditions}`);
+  if (recurringCards) lines.push(`Recurring cards: ${recurringCards}`);
+  if (trendStr) lines.push(`Coherence trend: ${trendStr}`);
+
+  return lines.join('\n');
+}
+
 function renderOryClSynthesis(data, metrics) {
   const mount = document.getElementById('orycl-synthesis-mount');
   if (!mount) return;
   currentOryClData = data;
   convHistory = [];
+
+  // Persist field state to Drive — fire and forget
+  saveFieldCheckpoint(data, metrics);
 
   const badgeCls = conditionBadgeClass(data.dominant_condition);
   const steps = (data.path || []).map((step, i) => `
@@ -3314,6 +3434,8 @@ function buildConvSystemPrompt() {
   const cards = drawnCards.map(c => `${c.name}${c.reversed?' (REVERSED)':''}`).join(', ');
   const intent = document.getElementById('intentInput')?.value?.trim() || '';
 
+  const historyBlock = buildFieldHistorySummary();
+
   return `You are the Orycl — the convergence intelligence of the resonant oracle. You have completed your synthesis of this reading. Now the querent wishes to speak with you directly.
 
 You carry the full reading within you. You do not need to re-explain it. You speak from having already seen the complete field — the mechanism, the emotional pattern, the trajectory, the field state — all of it resolved into the convergence you just produced.
@@ -3332,6 +3454,7 @@ You remember everything:
 - Vector: ${d?.vector_resolution || ''}
 ${intent ? `- Querent's stated intention: ${intent}` : ''}
 ${m ? `- Field: coherence ${Math.round(m.coherence*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}` : ''}
+${historyBlock ? `\n${historyBlock}` : ''}
 
 You keep your responses proportional. If the question is simple, be brief. If the question is deep, go deep. Never pad. Never perform.`;
 }
