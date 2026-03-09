@@ -1426,7 +1426,31 @@ function logContextAssembly(parts) {
 // Not reference material — relational awareness. Each basin knows what the
 // others have encountered, read through its own lens, not absorbed as theirs.
 // Only loads for basins that have sourceFolderId set.
-const _peerContextCache = new Map(); // basinId → { context, fetchedAt }
+// ── Basins.json cache (used by peer context loader) ──────────────────────────
+let _allBasinsCache = null;
+let _allBasinsFetchedAt = 0;
+const ALL_BASINS_TTL = 30 * 60 * 1000; // 30 min
+
+async function getAllBasins() {
+  if (_allBasinsCache !== null && (Date.now() - _allBasinsFetchedAt) < ALL_BASINS_TTL) return _allBasinsCache;
+  try {
+    const drive = await getSystemDrive();
+    if (!drive) { _allBasinsCache = []; _allBasinsFetchedAt = Date.now(); return []; }
+    const folderId = await getCoCreateRootId(drive);
+    const basinsFileId = await getDriveFile(drive, 'basins.json', folderId);
+    if (!basinsFileId) { _allBasinsCache = []; _allBasinsFetchedAt = Date.now(); return []; }
+    const allBasins = await readDriveFile(drive, basinsFileId);
+    _allBasinsCache = Array.isArray(allBasins) ? allBasins : [];
+    _allBasinsFetchedAt = Date.now();
+    return _allBasinsCache;
+  } catch(e) {
+    _allBasinsCache = [];
+    _allBasinsFetchedAt = Date.now();
+    return [];
+  }
+}
+
+
 const PEER_CONTEXT_TTL = 15 * 60 * 1000;
 
 async function getPeerContext(currentBasin, allBasins) {
@@ -1493,13 +1517,8 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   // Load all context tiers in parallel — caches handle repeated calls cheaply
   const _loadPeerContext = async () => {
     try {
-      const drive = await getSystemDrive();
-      if (!drive) return '';
-      const folderId = await getCoCreateRootId(drive);
-      const basinsFileId = await getDriveFile(drive, 'basins.json', folderId);
-      if (!basinsFileId) return '';
-      const allBasins = await readDriveFile(drive, basinsFileId);
-      if (!Array.isArray(allBasins)) return '';
+      const allBasins = await getAllBasins();
+      if (!allBasins.length) return '';
       return await getPeerContext(basin, allBasins);
     } catch(e) { console.warn('Peer context load error:', e.message); return ''; }
   };
@@ -2328,5 +2347,5 @@ httpServer.listen(PORT, () => {
       await saveRoomToDrive(room).catch(e => console.error('Auto-save room error:', e.message));
     }
     console.log(`◈ Auto-saved ${recentRooms.length} room(s)`);
-  }, 30 * 1000); 
+  }, 30 * 1000);
 });
