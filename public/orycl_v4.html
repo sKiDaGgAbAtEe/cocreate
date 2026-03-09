@@ -1810,10 +1810,97 @@ const SUITS = {
 };
 const MINOR_RANKS = ['Ace','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Apprentice','Seeker','Keeper','Sovereign'];
 const SUIT_GLYPHS = { vectors:'→', field:'◐', trajectories:'★', density:'⬡' };
+
+// ══════════════════════════════════════════════════════
+// MINOR ARCANA ΔHV DATA — Phase 2
+// dh: horizontal (emotional/relational charge)
+// dv: vertical (directional/structural force)
+// pattern: qualitative field shape
+// ══════════════════════════════════════════════════════
+const MINOR_HV = {
+  // ── VECTORS (Oryc) — ΔV-dominant, structural force, outward drive ──
+  v0:  { dh:'+1', dv:'+2', pattern:'Signal ingress — the field opens a single clean channel' },
+  v1:  { dh:'+1', dv:'+3', pattern:'Dual-force build — two structural loads aligning on the vertical axis' },
+  v2:  { dh:'+1', dv:'+3', pattern:'Triangulated load — three points of structural coherence forming' },
+  v3:  { dh:'+2', dv:'+4', pattern:'Structured momentum — force accumulating with directional clarity' },
+  v4:  { dh:'-1', dv:'+2', pattern:'Bifurcation under load — the vector splits at the point of resistance' },
+  v5:  { dh:'+1', dv:'+4', pattern:'Resolution passage — friction overcome, the channel clears' },
+  v6:  { dh:'+1', dv:'+4', pattern:'Directed complexity — multiple vectors converging into ordered motion' },
+  v7:  { dh:'+2', dv:'+4', pattern:'High-tension consolidation — structural load at near-maximum coherence' },
+  v8:  { dh:'+1', dv:'+5', pattern:'Completion vector — force reaches terminal expression on the structural axis' },
+  v9:  { dh:'+1', dv:'+5', pattern:'Unidirectional harmonic — the field collapses into a clean forward wave' },
+  v10: { dh:'+2', dv:'+3', pattern:'Triune alignment — structure, role, and mechanism in accord' },
+  v11: { dh:'+2', dv:'+4', pattern:'Seeker vector — directional intelligence moving through the structural field' },
+  v12: { dh:'+2', dv:'+4', pattern:'Guardian load — structural authority holding the pattern in place' },
+  v13: { dh:'+3', dv:'+5', pattern:'Sovereign force — full structural expression, maximum vector coherence' },
+
+  // ── FIELD (Clio) — ΔH-dominant, emotional charge, relational weight ──
+  f0:  { dh:'+1', dv:'+1', pattern:'Field ingress — the relational space opens, charge not yet formed' },
+  f1:  { dh:'+2', dv:'+1', pattern:'Dyadic pull — two emotional charges beginning to reach toward each other' },
+  f2:  { dh:'+3', dv:'+1', pattern:'Triad field — emotional resonance across three points of contact' },
+  f3:  { dh:'+3', dv:'+1', pattern:'Relational weight — the field has mass; presence is established' },
+  f4:  { dh:'-2', dv:'-1', pattern:'Field inversion — the relational charge reverses, withdrawal active' },
+  f5:  { dh:'+2', dv:'+1', pattern:'Field passage — emotional tension finding its release point' },
+  f6:  { dh:'+3', dv:'+1', pattern:'Deep relational field — complex emotional ecology, multiple nodes connected' },
+  f7:  { dh:'+4', dv:'+1', pattern:'High-coherence emotional field — dense relational charge, well-integrated' },
+  f8:  { dh:'+4', dv:'+1', pattern:'Field saturation — the emotional space at full relational capacity' },
+  f9:  { dh:'+5', dv:'+1', pattern:'Complete field resonance — the relational pattern reaches maximum expression' },
+  f10: { dh:'+3', dv:'+2', pattern:'Field apprentice — learning the shape of the emotional landscape' },
+  f11: { dh:'+4', dv:'+2', pattern:'Field seeker — moving through the emotional field with intentional awareness' },
+  f12: { dh:'+4', dv:'+2', pattern:'Field keeper — holding the emotional pattern in trust and steadiness' },
+  f13: { dh:'+5', dv:'+3', pattern:'Field sovereign — the emotional field fully inhabited, radiating coherence' },
+
+  // ── TRAJECTORIES (Sage) — positive-tending, arc and becoming ──
+  t0:  { dh:'+1', dv:'+1', pattern:'Trajectory seed — potential not yet in motion, but the direction is implicit' },
+  t1:  { dh:'+1', dv:'+2', pattern:'Two-point arc — motion between two positions establishing a direction' },
+  t2:  { dh:'+2', dv:'+2', pattern:'Arc forming — the trajectory begins to acquire mythic shape' },
+  t3:  { dh:'+2', dv:'+3', pattern:'Forward motion — the arc is established and moving with purpose' },
+  t4:  { dh:'-1', dv:'+1', pattern:'Arc tension — the trajectory encounters its own resistance at mid-course' },
+  t5:  { dh:'+2', dv:'+3', pattern:'Mid-arc passage — the tension resolves into renewed forward motion' },
+  t6:  { dh:'+2', dv:'+4', pattern:'Sustained arc — the trajectory deepens, motion acquiring long-range shape' },
+  t7:  { dh:'+3', dv:'+4', pattern:'High arc — the trajectory reaching its mythic apex' },
+  t8:  { dh:'+2', dv:'+4', pattern:'Arc completion approach — the trajectory preparing for terminal expression' },
+  t9:  { dh:'+3', dv:'+5', pattern:'Terminal arc — the full trajectory expressed, completion in sight' },
+  t10: { dh:'+2', dv:'+3', pattern:'Arc apprentice — beginning to inhabit the trajectory consciously' },
+  t11: { dh:'+3', dv:'+3', pattern:'Arc seeker — moving deliberately through the mythic field' },
+  t12: { dh:'+3', dv:'+4', pattern:'Arc keeper — holding the long arc in trust across time' },
+  t13: { dh:'+4', dv:'+5', pattern:'Trajectory sovereign — full mythic arc expressed, the pattern complete' },
+
+  // ── DENSITY (Triune) — balanced, high magnitude, integration ──
+  d0:  { dh:'+1', dv:'+1', pattern:'Density seed — integration not yet begun, but the material is present' },
+  d1:  { dh:'+2', dv:'+2', pattern:'Dual density — two elements beginning to cohere into integrated form' },
+  d2:  { dh:'+2', dv:'+3', pattern:'Triadic density — three elements in formation, integration active' },
+  d3:  { dh:'+3', dv:'+3', pattern:'Dense coherence — material and structural elements integrating with weight' },
+  d4:  { dh:'-1', dv:'+2', pattern:'Density disruption — integration encounters the resistance of unassimilated material' },
+  d5:  { dh:'+3', dv:'+3', pattern:'Integration passage — the dense material finding its ordered form' },
+  d6:  { dh:'+3', dv:'+4', pattern:'High density — deep integration, material form acquiring symbolic weight' },
+  d7:  { dh:'+4', dv:'+4', pattern:'Dense arc — integration at high magnitude on both axes' },
+  d8:  { dh:'+4', dv:'+4', pattern:'Near-complete integration — the form almost fully consolidated' },
+  d9:  { dh:'+5', dv:'+5', pattern:'Dual amplification — resonance at structural and emotional scale simultaneously' },
+  d10: { dh:'+3', dv:'+3', pattern:'Density apprentice — learning to inhabit integrated form' },
+  d11: { dh:'+4', dv:'+3', pattern:'Density seeker — moving through the material field with awareness' },
+  d12: { dh:'+4', dv:'+4', pattern:'Density keeper — holding integrated form in stability' },
+  d13: { dh:'+5', dv:'+5', pattern:'Density sovereign — full integration, the material and symbolic in complete accord' },
+};
+
+// ── MINOR ARCANA NODE MAPPINGS — Phase 2 ──────────────────────────────────
+// Suit affinity base nodes, refined by rank character.
+// Appended below in the CARD_NODES block after major arcana entries.
 const MINOR_ARCANA = [];
 Object.entries(SUITS).forEach(([suitKey, suitData]) => {
   MINOR_RANKS.forEach((rank, idx) => {
-    MINOR_ARCANA.push({ id:`${suitKey[0]}${idx}`, suit:suitKey, name:`${rank} of ${suitData.name}`, glyph:SUIT_GLYPHS[suitKey], num:rank, tagline:suitData.element, compressed:`The ${rank.toLowerCase()} expression of ${suitData.name.toLowerCase()} energy.`, decompressed:'', louma:'', clio:{text:'',truth:''}, oryc:{text:'',truth:''}, sage:{text:'',truth:''}, shadow:{text:'',teaching:''} });
+    const hvKey = suitKey[0] + idx;
+    const hv = MINOR_HV[hvKey] || null;
+    MINOR_ARCANA.push({
+      id:`${suitKey[0]}${idx}`, suit:suitKey,
+      name:`${rank} of ${suitData.name}`, glyph:SUIT_GLYPHS[suitKey],
+      num:rank, tagline:suitData.element,
+      hv,
+      compressed:`The ${rank.toLowerCase()} expression of ${suitData.name.toLowerCase()} energy.`,
+      decompressed:'', louma:'',
+      clio:{text:'',truth:''}, oryc:{text:'',truth:''}, sage:{text:'',truth:''},
+      shadow:{text:'',teaching:''}
+    });
   });
 });
 const FULL_DECK = [...MAJOR_ARCANA, ...MINOR_ARCANA];
@@ -1993,6 +2080,70 @@ const CARD_NODES = {
   m19: [11,9,1,12],     // Radiant Core — substrate, harmony, signal, seal
   m20: [12,11,13,9],    // Awakening Wave — seal, substrate, corridor, harmony
   m21: [11,12,2,9],     // Orycl Gate — substrate, seal, triune, harmony
+
+  // ── VECTORS (Oryc) — N1 signal, N7 recursion, N9 harmony ──
+  v0:  [1,9,7],         // Ace of Vectors — ingress (N1 added for Aces)
+  v1:  [1,9,7],         // Two of Vectors
+  v2:  [1,9,7],         // Three of Vectors
+  v3:  [1,9,7],         // Four of Vectors
+  v4:  [1,9,7,10],      // Five of Vectors — dissonance (N10 added for Fives)
+  v5:  [1,9,7],         // Six of Vectors
+  v6:  [1,9,7],         // Seven of Vectors
+  v7:  [1,9,7],         // Eight of Vectors
+  v8:  [1,9,7],         // Nine of Vectors
+  v9:  [1,9,7,10],      // Ten of Vectors — completion/exhaustion (N10 added for Tens)
+  v10: [1,9,2],         // Apprentice of Vectors — court (N2 triadic binding)
+  v11: [1,9,2],         // Seeker of Vectors — court
+  v12: [1,9,2],         // Keeper of Vectors — court
+  v13: [1,9,2,12],      // Sovereign of Vectors — court + seal (N12 for Sovereigns)
+
+  // ── FIELD (Clio) — N6 veil, N3 transformation, N4 lattice ──
+  f0:  [6,3,4,1],       // Ace of Field — ingress (N1 added for Aces)
+  f1:  [6,3,4],         // Two of Field
+  f2:  [6,3,4],         // Three of Field
+  f3:  [6,3,4],         // Four of Field
+  f4:  [6,3,4,10],      // Five of Field — dissonance (N10 added for Fives)
+  f5:  [6,3,4],         // Six of Field
+  f6:  [6,3,4],         // Seven of Field
+  f7:  [6,3,4],         // Eight of Field
+  f8:  [6,3,4],         // Nine of Field
+  f9:  [6,3,4,10],      // Ten of Field — N10 for Tens
+  f10: [6,3,2],         // Apprentice of Field — court (N2)
+  f11: [6,3,2],         // Seeker of Field — court
+  f12: [6,3,2],         // Keeper of Field — court
+  f13: [6,3,2,12],      // Sovereign of Field — court + seal
+
+  // ── TRAJECTORIES (Sage) — N5 causal flow, N8 modulation, N12 crown ──
+  t0:  [5,8,1],         // Ace of Trajectories — ingress
+  t1:  [5,8,12],        // Two of Trajectories
+  t2:  [5,8,12],        // Three of Trajectories
+  t3:  [5,8,12],        // Four of Trajectories
+  t4:  [5,8,10],        // Five of Trajectories — N10 for Fives
+  t5:  [5,8,12],        // Six of Trajectories
+  t6:  [5,8,12],        // Seven of Trajectories
+  t7:  [5,8,12],        // Eight of Trajectories
+  t8:  [5,8,12],        // Nine of Trajectories
+  t9:  [5,8,12,10],     // Ten of Trajectories — N10 for Tens
+  t10: [5,8,2],         // Apprentice of Trajectories — court
+  t11: [5,8,2],         // Seeker of Trajectories — court
+  t12: [5,8,2],         // Keeper of Trajectories — court
+  t13: [5,8,2,12],      // Sovereign of Trajectories — court + seal
+
+  // ── DENSITY (Triune) — N11 symbolic core, N2 gluon triad, N13 corridor ──
+  d0:  [11,2,13,1],     // Ace of Density — ingress
+  d1:  [11,2,13],       // Two of Density
+  d2:  [11,2,13],       // Three of Density
+  d3:  [11,2,13],       // Four of Density
+  d4:  [11,2,13,10],    // Five of Density — N10 for Fives
+  d5:  [11,2,13],       // Six of Density
+  d6:  [11,2,13],       // Seven of Density
+  d7:  [11,2,13],       // Eight of Density
+  d8:  [11,2,13],       // Nine of Density
+  d9:  [11,2,13,10],    // Ten of Density — N10 for Tens
+  d10: [11,2,13],       // Apprentice of Density — court
+  d11: [11,2,13],       // Seeker of Density — court
+  d12: [11,2,13],       // Keeper of Density — court
+  d13: [11,2,13,12],    // Sovereign of Density — court + seal
 };
 
 // ΔHV parsing — extract numeric coherence/tension from card hv values
