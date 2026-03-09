@@ -248,8 +248,8 @@
     .room-card-inner-wrap {
       display: flex;
       flex-direction: column;
-      padding: 11px 14px 12px;
-      gap: 5px;
+      padding: 14px 16px 15px;
+      gap: 6px;
       flex: 1;
       position: relative;
     }
@@ -308,9 +308,12 @@
       font-size: 11px;
       color: rgba(255,255,255,0.72);
       font-style: italic;
-      line-height: 1.5;
+      line-height: 1.55;
       padding-left: 15px;
-      min-height: 0;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
     .room-card-summary.empty { opacity: 0.35; }
     .color-swatch {
@@ -3938,7 +3941,7 @@ function renderRooms(rooms) {
           ${r.subject ? `<span class="room-card-stat" style="font-style:italic">${esc(r.subject)}</span>` : ''}
           ${dateStr ? `<span class="room-card-date">${dateStr}</span>` : ''}
         </div>
-        ${r.summary ? `<div class="room-card-summary">${esc(r.summary)}</div>` : ''}
+        <div class="room-card-summary${r.summary ? '' : ' empty'}">${r.summary ? esc(r.summary) : '—'}</div>
       </div>
     </div>`;
   }).join('');
