@@ -137,6 +137,29 @@
       background: linear-gradient(90deg, transparent, rgba(74,184,232,0.6), rgba(120,212,248,0.8), rgba(74,184,232,0.6), transparent);
     }
 
+    .oracle-qs-pfp {
+      position: relative;
+      width: 64px; height: 64px;
+      flex-shrink: 0;
+      margin-right: 12px;
+    }
+    .oracle-qs-pfp img {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      display: block;
+    }
+    .oracle-qs-ring {
+      position: absolute; inset: -4px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,184,232,0.4);
+      animation: qs-oracle-pulse 3s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes qs-oracle-pulse {
+      0%,100% { box-shadow: 0 0 8px rgba(74,184,232,0.15); opacity: 0.5; }
+      50%      { box-shadow: 0 0 22px rgba(74,184,232,0.5); opacity: 1; }
+    }
     .oracle-title-block { display: flex; flex-direction: column; gap: 2px; }
     .oracle-title {
       font-family: 'Orbitron', sans-serif;
@@ -1340,6 +1363,12 @@
 
     <!-- Header -->
     <div id="oracle-header">
+      <!-- QS pfp — injected by parent frame via postMessage or sits as static img -->
+      <div class="oracle-qs-pfp" id="oracle-qs-pfp">
+        <!-- parent will swap src; fallback shows stand gif if loaded standalone -->
+        <img src="/qs__sleep.gif" alt="Quicksilver" id="oracle-qs-img">
+        <div class="oracle-qs-ring"></div>
+      </div>
       <div class="oracle-title-block">
         <div class="oracle-title">ORYCL</div>
         <div class="oracle-subtitle">The Resonant Oracle · Triune Divination</div>
@@ -2366,6 +2395,14 @@ window.addEventListener('message', (e) => {
   if (e.data?.type === 'orycl-draw') drawCards();
   if (e.data?.type === 'orycl-clear') clearReading();
   if (e.data?.type === 'orycl-spread') setSpread(e.data.spread);
+});
+
+// ── QS pfp sync from parent frame ──
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'qs-pfp') {
+    var img = document.getElementById('oracle-qs-img');
+    if (img) img.src = e.data.src;
+  }
 });
 </script>
 </body>

@@ -1625,14 +1625,33 @@
         inset 0 1px 0 rgba(255,255,255,0.9);
     }
 
-    .tarot-widget-header {
+    .tarot-widget-header,
+    .tarot-full-header {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 8px 12px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(210,235,255,0.75));
-      border-bottom: 1px solid rgba(74,184,232,0.25);
+      gap: 6px;
+      padding: 5px 8px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.82), rgba(205,230,252,0.7));
+      border-bottom: 1px solid rgba(74,184,232,0.2);
       flex-shrink: 0;
+      min-height: 36px;
+    }
+    .tarot-ctrl-btn {
+      width: 26px; height: 26px;
+      border: 1px solid rgba(74,184,232,0.35);
+      border-radius: 6px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(190,225,250,0.4));
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(30,80,130,0.7);
+      font-size: 12px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .tarot-ctrl-btn:hover {
+      border-color: rgba(74,184,232,0.7);
+      color: rgba(10,111,160,1);
+      box-shadow: 0 2px 8px rgba(74,184,232,0.25);
     }
 
     /* pfp lives here in the widget header — starts hidden, fades in as widget opens */
@@ -1673,48 +1692,7 @@
       transition: opacity 0.25s ease;
     }
 
-    .tarot-widget-title {
-      flex: 1;
-      font-family: 'Orbitron', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.28em;
-      background: linear-gradient(135deg, #0a6fa0 0%, #1ab0e8 50%, #2090cc 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .tarot-widget-popout {
-      width: 26px; height: 26px;
-      border: 1px solid rgba(74,184,232,0.35);
-      border-radius: 6px;
-      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(190,225,250,0.4));
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      color: rgba(74,184,232,0.8);
-      font-size: 12px;
-      transition: all 0.15s;
-      flex-shrink: 0;
-    }
-    .tarot-widget-popout:hover {
-      border-color: rgba(74,184,232,0.7);
-      box-shadow: 0 2px 10px rgba(74,184,232,0.3);
-    }
-    .tarot-widget-close {
-      width: 26px; height: 26px;
-      border: 1px solid rgba(74,184,232,0.2);
-      border-radius: 6px;
-      background: none;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      color: rgba(74,184,232,0.5);
-      font-size: 14px;
-      font-weight: 300;
-      line-height: 1;
-      transition: all 0.15s;
-      flex-shrink: 0;
-    }
-    .tarot-widget-close:hover { color: rgba(74,184,232,0.9); border-color: rgba(74,184,232,0.5); }
+    /* tarot-widget-title/popout/close replaced by .tarot-ctrl-btn */
 
     .tarot-widget-body {
       flex: 1;
@@ -4695,6 +4673,27 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   // Expose state for debugging
   window.qsState = function() { return _state; };
 
+  // After each frame change, push current gif to iframes
+  function _syncIframes() {
+    var frame = _state === 'waking' ? 'wake' :
+                _state === 'stand'  ? 'stand' :
+                _state === 'sleeping' ? 'down' : 'sleep';
+    var src = '/qs__' + frame + '.gif';
+    ['tarot-mini-frame','tarot-full-frame'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el && el.contentWindow) {
+        try { el.contentWindow.postMessage({ type:'qs-pfp', src: src }, '*'); } catch(e) {}
+      }
+    });
+  }
+
+  // Patch _show to also sync after state updates
+  var _origShow = _show;
+  _show = function(frame) {
+    _origShow(frame);
+    setTimeout(_syncIframes, 10);
+  };
+
 })();
 
 // ── Tarot Widget ──────────────────────────────────────────────────
@@ -4721,6 +4720,16 @@ function minimizeTarotWidget() {
   if (full)   full.classList.remove('open');
   if (corner) corner.classList.remove('widget-open');
   qsDown(); // plays down → sleep on all pfps
+}
+
+function refreshTarotWidget() {
+  var mini = document.getElementById('tarot-mini-frame');
+  var full = document.getElementById('tarot-full-frame');
+  var src = '/orycl_v4.html';
+  // reload whichever is currently visible
+  var fullOpen = document.getElementById('tarot-fullscreen').classList.contains('open');
+  if (fullOpen && full) { full.src = ''; full.src = src; }
+  else if (mini) { mini.src = ''; mini.src = src; }
 }
 
 function openTarotFullscreen() {
@@ -5512,16 +5521,10 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-widget">
   <div class="tarot-widget-shell">
     <div class="tarot-widget-header">
-      <!-- pfp travels here: fades in as widget opens -->
-      <div id="qs-widget-pfp">
-        <img id="qsw-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
-        <img id="qsw-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
-        <img id="qsw-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-        <img id="qsw-down"  class="qs-layer" src="/qs__down.gif" alt="">
-      </div>
-      <span class="tarot-widget-title">ORYCL</span>
-      <button class="tarot-widget-popout" onclick="openTarotFullscreen()" title="Open full oracle">⤢</button>
-      <button class="tarot-widget-close" onclick="minimizeTarotWidget()" title="Minimize">−</button>
+      <div style="flex:1"></div>
+      <button class="tarot-ctrl-btn" onclick="refreshTarotWidget()" title="Refresh oracle">↺</button>
+      <button class="tarot-ctrl-btn" id="tarot-expand-btn" onclick="openTarotFullscreen()" title="Expand">⤢</button>
+      <button class="tarot-ctrl-btn" onclick="minimizeTarotWidget()" title="Minimize">−</button>
     </div>
     <div class="tarot-widget-body">
       <iframe id="tarot-mini-frame" src="" title="Resonant Oracle"></iframe>
@@ -5533,14 +5536,9 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-fullscreen" onclick="closeTarotFullscreen(event)">
   <div class="tarot-full-shell">
     <div class="tarot-full-header">
-      <div id="qs-full-pfp">
-        <img id="qsf-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
-        <img id="qsf-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
-        <img id="qsf-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-        <img id="qsf-down"  class="qs-layer" src="/qs__down.gif" alt="">
-      </div>
-      <span class="tarot-full-title">ORYCL — THE RESONANT ORACLE</span>
-      <button class="tarot-full-close" onclick="minimizeTarotWidget()">✕</button>
+      <div style="flex:1"></div>
+      <button class="tarot-ctrl-btn" onclick="refreshTarotWidget()" title="Refresh oracle">↺</button>
+      <button class="tarot-ctrl-btn" onclick="minimizeTarotWidget()" title="Minimize to corner">⊡</button>
     </div>
     <div class="tarot-full-body">
       <iframe id="tarot-full-frame" src="" title="Resonant Oracle — Full"></iframe>
