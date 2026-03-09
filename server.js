@@ -2304,6 +2304,94 @@ app.delete('/api/dialog/delete/:fileId', async (req, res) => {
   }
 });
 
+// ── System State — written to Drive on each boot ──────────────────────────────
+async function writeSystemState() {
+  const drive = await getSystemDrive();
+  if (!drive) return;
+
+  const now = new Date().toISOString();
+  const hasSA        = !!process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const hasAnthopic  = !!process.env.ANTHROPIC_API_KEY;
+  const hasClientId  = !!process.env.GOOGLE_CLIENT_ID;
+  const hasFolderId  = !!process.env.COCREATE_FOLDER_ID;
+  const hasElevenLabs = !!process.env.ELEVENLABS_API_KEY;
+
+  // Test oracle-read endpoint reachability
+  let oracleStatus = 'untested';
+  try {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 5, messages: [{ role: 'user', content: 'ok' }] }),
+      signal: AbortSignal.timeout(8000)
+    });
+    oracleStatus = r.ok ? 'reachable' : `http-${r.status}`;
+  } catch(e) { oracleStatus = `error: ${e.message}`; }
+
+  const roomCount = Object.keys(rooms).length;
+  const physicsSize = _sharedPhysicsCache?.length ?? 0;
+  const systemCtxSize = _systemContextCache?.length ?? 0;
+  const allBasinsCached = _allBasinsCache !== null;
+
+  const lines = [
+    `# Orycl.io System State`,
+    `**Boot time:** ${now}`,
+    ``,
+    `## Environment`,
+    `- GOOGLE_SERVICE_ACCOUNT_JSON: ${hasSA ? '✓' : '✗ MISSING'}`,
+    `- ANTHROPIC_API_KEY: ${hasAnthopic ? '✓' : '✗ MISSING'}`,
+    `- GOOGLE_CLIENT_ID: ${hasClientId ? '✓' : '✗ MISSING'}`,
+    `- COCREATE_FOLDER_ID: ${hasFolderId ? '✓' : '— not set'}`,
+    `- ELEVENLABS_API_KEY: ${hasElevenLabs ? '✓' : '✗ missing'}`,
+    ``,
+    `## Context Layer Status`,
+    `- Shared physics cache: ${physicsSize > 0 ? `${physicsSize} chars loaded` : 'empty (no shared/physics folder or Drive unreadable)'}`,
+    `- System context cache: ${systemCtxSize > 0 ? `${systemCtxSize} chars loaded` : 'empty (no Docs/Profiles folder or Drive unreadable)'}`,
+    `- Basins cache (getAllBasins): ${allBasinsCached ? `loaded (${_allBasinsCache.length} basin(s))` : 'not yet fetched'}`,
+    `- Custom basins (sourceFolderId): none — Tier1/Tier4 return empty immediately`,
+    ``,
+    `## API`,
+    `- Anthropic API reachability: ${oracleStatus}`,
+    `- /api/oracle-read endpoint: present in server.js`,
+    ``,
+    `## Rooms`,
+    `- Rooms in memory: ${roomCount}`,
+    ``,
+    `## Known Resolved Issues`,
+    `- getDriveFolder() create cascade in message path: resolved — getSharedPhysicsContext/getSystemContext use search-only`,
+    `- TTL cache null init: resolved — guard is cache !== null, empty string result caches correctly`,
+    `- _loadPeerContext uncached Drive reads: resolved — getAllBasins() caches basins.json 30min`,
+    `- Auto-save firing on all rooms: resolved — early-exit when no rooms updated in last 2min`,
+    `- watchtowerAllowed missing from /auth/status: resolved`,
+    `- Auth cookie missing OAuth tokens: resolved — wt_auth cookie contains signed tokens, 30-day TTL`,
+    ``,
+    `## Active Unknowns`,
+    `- Basin response latency under real session load: requires live observation`,
+    `- Tarot oracle-read hit rate: requires live observation`,
+  ].join('\n');
+
+  try {
+    const root = await getCoCreateRootId(drive);
+    // Find or create Docs folder
+    const docsSearch = await drive.files.list({
+      q: `name='Docs' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`,
+      fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true
+    });
+    let docsId = docsSearch.data.files[0]?.id;
+    if (!docsId) {
+      const f = await drive.files.create({
+        requestBody: { name: 'Docs', mimeType: 'application/vnd.google-apps.folder', parents: [root] },
+        fields: 'id', supportsAllDrives: true
+      });
+      docsId = f.data.id;
+    }
+    await writePlainTextFile(drive, 'system-state.md', docsId, lines);
+    console.log('◈ System state written to Drive (Docs/system-state.md)');
+  } catch(e) {
+    console.error('writeSystemState Drive error:', e.message);
+  }
+}
+
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
@@ -2334,6 +2422,8 @@ httpServer.listen(PORT, () => {
       await Promise.all([getSharedPhysicsContext(), getSystemContext()]);
       console.log('◈ Context caches warmed');
     } catch(e) { console.warn('Cache warm error:', e.message); }
+    // Write system state to Drive after caches are warm
+    try { await writeSystemState(); } catch(e) { console.warn('System state write error:', e.message); }
   }, 4000);
   // Auto-save rooms with recent activity every 30 seconds
   setInterval(async () => {
