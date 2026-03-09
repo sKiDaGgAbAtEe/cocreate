@@ -1575,9 +1575,9 @@
     <div class="qs-header">
       <div class="qs-fox" id="qsFox" onmouseenter="qsWake()" onmouseleave="qsSleep()">
         <!-- Stacked portrait layers: sleep(default) → wake(once) → stand(loop) → down(once) → sleep -->
-        <img id="qs-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="Quicksilver sleeping">
+        <img id="qs-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver standing">
         <img id="qs-wake"  class="qs-layer" src="/qs__wake.gif"  alt="Quicksilver waking">
-        <img id="qs-stand" class="qs-layer" src="/qs__stand.gif" alt="Quicksilver standing">
+        <img id="qs-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="Quicksilver sleeping">
         <img id="qs-down"  class="qs-layer" src="/qs__down.gif"  alt="Quicksilver lying down">
         <div class="qs-glow-ring"></div>
         <!-- LEGACY SVG hidden below, kept for reference only -->
@@ -4287,12 +4287,10 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
     if (_state === 'stand' || _state === 'waking') return;
     _state = 'waking';
     _reloadGif('qs-wake');
-    _reloadGif('qs-stand');  // preload stand from frame 0
-    // Show wake on top, stand already underneath — no gap when wake ends
-    _hide('qs-sleep'); _hide('qs-down');
-    _show('qs-stand'); _show('qs-wake');
+    _show('qs-wake');   // wake plays on top of stand
+    _hide('qs-sleep');  // reveal stand beneath
     _wakeTimer = setTimeout(function() {
-      _hide('qs-wake');  // reveal stand already playing beneath
+      _hide('qs-wake');  // wake done — stand is already looping underneath
       _state = 'stand';
       _wakeTimer = null;
     }, WAKE_MS);
@@ -4309,7 +4307,8 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
     _wakeHolds = 0;
     if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
     _state = 'sleep';
-    _showOnly('qs-sleep');
+    _hide('qs-wake'); _hide('qs-down');
+    _show('qs-sleep');  // sleep covers stand again
   };
 })();
 
