@@ -29,7 +29,7 @@
       --resonance-bg: rgba(255,255,255,0.6);
       --basin-color: #b8922a;
     }
-    html, body { height: 100%; background: var(--parchment); color: var(--ink); font-family: 'Crimson Pro', serif; font-size: 16px; }
+    html, body { height: 100%; overflow: hidden; background: var(--parchment); color: var(--ink); font-family: 'Crimson Pro', serif; font-size: 16px; }
     body::before {
       content: '';
       position: fixed; inset: 0;
@@ -184,7 +184,7 @@
     .landing-actions .btn-ghost { flex: 1; }
     .hint { font-size: 13px; color: var(--ink-faint); letter-spacing: 0.04em; text-align: center; font-style: italic; }
 
-    #lobby { flex-direction: column; min-height: 100vh; }
+    #lobby { flex-direction: column; height: 100vh; overflow: hidden; }
     .lobby-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 28px; border-bottom: 1px solid var(--border2); background: rgba(240,236,224,0.92); backdrop-filter: blur(8px); flex-shrink: 0; }
     .lobby-title { display: flex; align-items: center; gap: 12px; }
     .lobby-title .logo-sm { font-size: 22px; color: var(--gold); }
@@ -702,7 +702,6 @@
 
     /* ── ROOM CARD EXPANDED ──────── */
     .room-card-subject { font-size: 11px; color: var(--ink-faint); font-style: italic; white-space: nowrap; }
-    .room-card-creator { display: none; }
     .room-card-notes { display: none; }
     .room-card:hover .room-card-delete { opacity: 1 !important; }
 
