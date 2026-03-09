@@ -1552,6 +1552,7 @@
       z-index: 200;
       width: 64px;
       height: 64px;
+      display: none; /* hidden until past landing */
     }
 
     /* ── The pfp itself ── */
@@ -1637,7 +1638,7 @@
     /* pfp lives here in the widget header — starts hidden, fades in as widget opens */
     #qs-widget-pfp {
       position: relative;
-      width: 38px; height: 38px;
+      width: 64px; height: 64px;
       flex-shrink: 0;
       border-radius: 50%;
       opacity: 0;
@@ -1646,7 +1647,7 @@
     #tarot-widget.open #qs-widget-pfp { opacity: 1; }
     #qs-widget-pfp img {
       position: absolute; inset: 0;
-      width: 38px; height: 38px;
+      width: 64px; height: 64px;
       border-radius: 50%;
       object-fit: cover;
       opacity: 0;
@@ -3309,6 +3310,9 @@ async function loadFolders() {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  // QS corner only visible past the landing screen
+  var corner = document.getElementById('qs-corner');
+  if (corner) corner.style.display = (id === 'landing') ? 'none' : 'block';
 }
 
 async function enterLobby() {
@@ -4722,13 +4726,17 @@ function minimizeTarotWidget() {
 function openTarotFullscreen() {
   var modal = document.getElementById('tarot-fullscreen');
   if (!modal) return;
+  // Reuse the already-loaded mini frame src to avoid black screen on reload
+  var miniFrame = document.getElementById('tarot-mini-frame');
   var fullFrame = document.getElementById('tarot-full-frame');
-  if (fullFrame && !fullFrame.src) fullFrame.src = '/orycl_v4.html';
+  if (fullFrame) {
+    var src = (miniFrame && miniFrame.src) ? miniFrame.src : '/orycl_v4.html';
+    fullFrame.src = src;
+  }
   modal.classList.add('open');
-  // collapse mini widget but keep corner hidden
   var widget = document.getElementById('tarot-widget');
   if (widget) widget.classList.remove('open');
-  qsWake(); // already awake, no-op — keeps stand looping
+  qsWake();
 }
 
 function closeTarotFullscreen(e) {
