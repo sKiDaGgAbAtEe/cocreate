@@ -208,7 +208,9 @@ app.get('/auth/logout', (req, res) => {
     client.setCredentials(tokens);
     client.revokeCredentials().catch(() => {});
   }
-  res.redirect('/watchtower');
+  const from = req.query.from;
+  const safe = from && (from === '/' || from.startsWith('/watchtower')) ? from : '/';
+  res.redirect(safe);
 });
 
 app.get('/auth/status', (req, res) => {

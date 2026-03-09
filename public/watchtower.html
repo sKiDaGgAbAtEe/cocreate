@@ -1366,7 +1366,7 @@ async function enterDashboard(email) {
   showPage('app');
   // Set auth button
   const btn = document.getElementById('authBtn');
-  if (btn) { btn.textContent = 'Sign out'; btn.href = '/auth/logout'; btn.className = 'auth-btn signed-in'; }
+  if (btn) { btn.textContent = 'Sign out'; btn.href = '/auth/logout?from=/watchtower'; btn.className = 'auth-btn signed-in'; }
   // Set email display
   const emailEl = document.getElementById('profileEmail');
   if (emailEl && email) emailEl.textContent = email;
@@ -1704,7 +1704,7 @@ function renderAuth() {
     const name = authInfo.userInfo.name || authInfo.userInfo.email || 'Connected';
     status.textContent = name;
     btn.textContent = 'Sign out';
-    btn.href = '/auth/logout';
+    btn.href = '/auth/logout?from=/watchtower';
     btn.className = 'auth-btn signed-in';
     addLog('auth', 'login', `Authenticated: ${name}`);
   } else {
