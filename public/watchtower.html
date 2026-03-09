@@ -269,8 +269,11 @@
     .basin-toggle.clio { color: var(--clio); border-color: var(--clio-border); }
     .basin-toggle.oryc { color: var(--oryc); border-color: var(--oryc-border); }
     .basin-toggle.sage { color: var(--sage); border-color: var(--sage-border); }
+    .basin-toggle.qs   { color: #e0c882; border-color: rgba(224,200,130,0.35); letter-spacing:0.08em; }
+    .basin-toggle.qs:not(.off) { background: rgba(224,200,130,0.08); box-shadow: 0 0 8px rgba(224,200,130,0.15); }
     .basin-toggle.off { opacity: 0.25; filter: grayscale(0.8); }
     .basin-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .basin-divider { width: 1px; height: 14px; background: var(--border2); margin: 0 2px; align-self: center; }
 
     .header-spacer { flex: 1; }
 
@@ -395,6 +398,8 @@
     .bubble.oryc .bubble-author { color: var(--oryc); }
     .bubble.sage { background: var(--sage-bg); border-color: var(--sage-border); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 2px solid var(--sage); }
     .bubble.sage .bubble-author { color: var(--sage); }
+    .bubble.qs { background: rgba(224,200,130,0.04); border-color: rgba(224,200,130,0.2); align-self: flex-start; border-bottom-left-radius: 4px; border-left: 2px solid #e0c882; font-family: var(--mono); font-size: 12px; }
+    .bubble.qs .bubble-author { color: #e0c882; letter-spacing: 0.08em; }
     .bubble.system { background: none; border: none; align-self: center; }
     .bubble.system .bubble-text { font-family: var(--mono); font-size: 9px; color: var(--ink-faint); letter-spacing: 0.08em; }
     .bubble.prior { opacity: 1; border-left-width: 1px; }
@@ -596,43 +601,6 @@
     }
     .log-panel.open { width: 240px; }
 
-    @keyframes hrt-spin  { from { transform: rotate(0deg) }   to { transform: rotate(360deg) } }
-    @keyframes hrt-spinr { from { transform: rotate(360deg) } to { transform: rotate(0deg) } }
-
-    .heart-panel {
-      width: 0; flex-shrink: 0;
-      background: var(--bg3);
-      border-left: 1px solid var(--border);
-      overflow: hidden; display: flex; flex-direction: column;
-      transition: width 0.3s;
-    }
-    .heart-panel.open { width: 220px; }
-
-    .sp-cell-wrap { display: flex; flex-direction: column; gap: 2px; }
-    .sp-cell-label { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing:.05em; text-transform: uppercase; }
-    .sp-cell-val { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
-
-    .hrt-metric-row { display: flex; align-items: center; gap: 6px; }
-    .hrt-metric-lbl { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); width: 80px; flex-shrink: 0; letter-spacing:.04em; }
-    .hrt-metric-val { font-family: var(--mono); font-size: 9px; color: var(--ink-dim); width: 24px; text-align: right; flex-shrink: 0; }
-    .hrt-fill-pos { background: var(--sage); }
-    .hrt-fill-neg { background: var(--clio); }
-    .hrt-fill-neu { background: var(--gold); }
-    .hrt-fill-crys { background: var(--oryc); }
-
-    .hrt-flag-row { display: flex; align-items: center; gap: 8px; }
-    .hrt-flag {
-      font-family: var(--mono); font-size: 9px; letter-spacing:.06em;
-      padding: 2px 6px; border-radius: 3px;
-      border: 1px solid rgba(120,208,232,0.12);
-      color: var(--ink-faint); background: rgba(10,28,50,0.4);
-      transition: color .4s, border-color .4s, background .4s;
-      flex-shrink: 0;
-    }
-    .hrt-flag.active { color: var(--crystal); border-color: var(--crystal); background: rgba(120,208,232,0.08); box-shadow: 0 0 6px rgba(120,208,232,0.2); }
-    .hrt-flag.warn   { color: var(--gold);    border-color: var(--gold);    background: rgba(232,200,120,0.08); }
-    .hrt-flag-desc { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing:.04em; }
-
     .lp-header {
       padding: 12px 12px 8px;
       border-bottom: 1px solid var(--border);
@@ -676,6 +644,100 @@
     .log-entry-type.system { color: var(--oryc); }
     .log-entry-type.auth { color: var(--ret2); }
     .log-entry-detail { font-size: 11px; color: var(--ink-dim); line-height: 1.4; }
+
+    /* ── DIAGNOSTICS PANEL ── */
+    .diag-panel {
+      width: 0; flex-shrink: 0;
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      overflow: hidden; display: flex; flex-direction: column;
+      transition: width 0.3s;
+    }
+    .diag-panel.open { width: 340px; }
+    .diag-header {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .diag-title {
+      font-family: 'Cinzel', serif; font-size: 9px;
+      letter-spacing: 0.2em; color: var(--ink-dim);
+      text-transform: uppercase;
+    }
+    .diag-run-btn {
+      background: var(--gold-dim); border: 1px solid var(--gold-border);
+      color: var(--gold); font-family: var(--mono); font-size: 9px;
+      letter-spacing: 0.1em; padding: 3px 10px; border-radius: 3px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .diag-run-btn:hover { background: rgba(148,184,122,0.25); }
+    .diag-run-btn:disabled { opacity: 0.4; cursor: default; }
+    .diag-body {
+      flex: 1; overflow-y: auto; padding: 10px 0;
+    }
+    .diag-body::-webkit-scrollbar { width: 3px; }
+    .diag-body::-webkit-scrollbar-thumb { background: var(--border2); }
+    .diag-idle {
+      font-family: var(--mono); font-size: 10px; color: var(--ink-faint);
+      text-align: center; padding: 40px 20px;
+    }
+    .diag-section {
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px 10px;
+    }
+    .diag-section-title {
+      font-family: 'Cinzel', serif; font-size: 8px;
+      letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--ink-faint); margin-bottom: 7px;
+    }
+    .diag-check {
+      display: flex; flex-direction: column;
+      gap: 3px; padding: 5px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .diag-check:last-child { border-bottom: none; }
+    .diag-check-row {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .diag-status {
+      font-family: var(--mono); font-size: 11px;
+      flex-shrink: 0; width: 14px; text-align: center;
+    }
+    .diag-status.pass  { color: #7dd4a0; }
+    .diag-status.fail  { color: #d47f7f; }
+    .diag-status.warn  { color: #d4b87a; }
+    .diag-status.spin  { color: var(--ink-faint); animation: diag-spin 1s linear infinite; display: inline-block; }
+    @keyframes diag-spin { to { transform: rotate(360deg); } }
+    .diag-label {
+      font-family: var(--mono); font-size: 10px;
+      color: var(--ink-dim); flex: 1;
+    }
+    .diag-value {
+      font-family: var(--mono); font-size: 9px;
+      color: var(--ink-faint);
+    }
+    .diag-fix {
+      font-size: 10px; color: var(--clio);
+      font-family: var(--mono);
+      line-height: 1.5; padding: 4px 8px;
+      background: var(--clio-bg); border-left: 2px solid var(--clio-border);
+      border-radius: 0 3px 3px 0;
+      white-space: pre-wrap;
+      margin-top: 2px;
+    }
+    .diag-fix code {
+      background: rgba(212,127,155,0.12);
+      padding: 1px 4px; border-radius: 2px;
+      font-family: var(--mono); font-size: 9px;
+    }
+    .diag-summary {
+      padding: 10px 14px;
+      font-family: var(--mono); font-size: 10px;
+      color: var(--ink-dim); line-height: 1.6;
+    }
+    .diag-summary.all-clear { color: #7dd4a0; }
+    .diag-summary.has-errors { color: #d47f7f; }
 
     /* ── TOP STRIP: PANEL TOGGLES ── */
     .panel-strip {
@@ -732,10 +794,6 @@
     @keyframes lFadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: none; } }
 
   </style>
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 </head>
 <body>
 
@@ -813,6 +871,10 @@
         <div class="basin-toggle sage" id="toggle-sage" onclick="toggleBasin('sage')">
           <div class="basin-dot"></div>Sage
         </div>
+        <div class="basin-divider"></div>
+        <div class="basin-toggle qs off" id="toggle-qs" onclick="toggleBasin('qs')" title="Quicksilver — diagnostic basin. Enables alone by default.">
+          <div class="basin-dot"></div>QS
+        </div>
       </div>
       <div class="header-spacer"></div>
       <div class="depth-wrap">
@@ -836,7 +898,7 @@
     <div class="panel-strip">
       <button class="panel-toggle active" id="toggleField" onclick="togglePanel('field')">◈ Field</button>
       <button class="panel-toggle" id="toggleLog" onclick="togglePanel('log')">⌾ Log</button>
-      <button class="panel-toggle" id="toggleHeart" onclick="togglePanel('heart')">🜁 Heart</button>
+      <button class="panel-toggle" id="toggleDiag" onclick="togglePanel('diag')">⚕ Diag</button>
       <div class="panel-strip-spacer"></div>
       <div class="field-state-indicator" id="retStateIndicator">RET: <span id="retDominantLabel">—</span></div>
     </div>
@@ -862,10 +924,6 @@
           <div class="fp-title">
             <div class="fp-live-dot" id="fpLiveDot"></div>
             Field Monitor
-          </div>
-          <div id="fpSocketStatus" style="font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:.05em;display:flex;align-items:center;gap:4px;">
-            <div id="fpSocketDot" style="width:4px;height:4px;border-radius:50%;background:#3a4a3a;flex-shrink:0;"></div>
-            <span id="fpSocketLabel">socket offline</span>
           </div>
         </div>
         <div class="fp-scroll">
@@ -1050,105 +1108,14 @@
         <div class="log-entries" id="logEntries"></div>
       </div>
 
-      <!-- HEART PANEL -->
-      <div class="heart-panel" id="heartPanel">
-        <div class="fp-header">
-          <div class="fp-title">
-            <div class="fp-live-dot" id="heartLiveDot"></div>
-            Crystalline Heart
-          </div>
-          <div id="heartSocketStatus" style="font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:.05em;display:flex;align-items:center;gap:4px;">
-            <div id="heartSocketDot" style="width:4px;height:4px;border-radius:50%;background:#3a4a3a;flex-shrink:0;transition:background .4s,box-shadow .4s;"></div>
-            <span id="heartSocketLabel">waiting</span>
-          </div>
+      <!-- DIAGNOSTICS PANEL -->
+      <div class="diag-panel" id="diagPanel">
+        <div class="diag-header">
+          <div class="diag-title">⚕ System Diagnostics</div>
+          <button class="diag-run-btn" id="diagRunBtn" onclick="runDiagnostics()">▶ Run</button>
         </div>
-        <div class="fp-scroll">
-
-          <!-- ROOM STATE -->
-          <div class="fp-section">
-            <div class="fp-section-title">Substrate State</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
-              <div class="sp-cell-wrap">
-                <div class="sp-cell-label">Room</div>
-                <div class="sp-cell-val" id="hrt-room">—</div>
-              </div>
-              <div class="sp-cell-wrap">
-                <div class="sp-cell-label">Basin</div>
-                <div class="sp-cell-val" id="hrt-basin">—</div>
-              </div>
-              <div class="sp-cell-wrap">
-                <div class="sp-cell-label">Topology</div>
-                <div class="sp-cell-val" id="hrt-topology">—</div>
-              </div>
-              <div class="sp-cell-wrap">
-                <div class="sp-cell-label">Seal</div>
-                <div class="sp-cell-val" id="hrt-seal">—</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- HEART SVG -->
-          <div class="fp-section">
-            <div class="fp-section-title">Heart Visualization</div>
-            <div id="heartMountPoint" style="width:100%;aspect-ratio:1;max-height:200px;display:flex;align-items:center;justify-content:center;"></div>
-          </div>
-
-          <!-- SIX METRICS -->
-          <div class="fp-section">
-            <div class="fp-section-title">Field Metrics</div>
-            <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px;">
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">coherence</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-pos" id="hrt-bar-coherence" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-coherence">—</span>
-              </div>
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">alignment</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-pos" id="hrt-bar-alignment" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-alignment">—</span>
-              </div>
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">contradiction</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-neg" id="hrt-bar-contradiction" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-contradiction">—</span>
-              </div>
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">recursion</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-neg" id="hrt-bar-recursion" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-recursion">—</span>
-              </div>
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">drift</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-neu" id="hrt-bar-drift" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-drift">—</span>
-              </div>
-              <div class="hrt-metric-row">
-                <span class="hrt-metric-lbl">crystallization</span>
-                <div class="metric-bar"><div class="metric-fill hrt-fill-crys" id="hrt-bar-crystallization" style="width:0%"></div></div>
-                <span class="hrt-metric-val" id="hrt-val-crystallization">—</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- THRESHOLD FLAGS -->
-          <div class="fp-section" style="border-bottom:none;">
-            <div class="fp-section-title">Threshold State</div>
-            <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
-              <div class="hrt-flag-row">
-                <span class="hrt-flag" id="hrt-flag-theta">θ_E</span>
-                <span class="hrt-flag-desc">emergence threshold</span>
-              </div>
-              <div class="hrt-flag-row">
-                <span class="hrt-flag" id="hrt-flag-intervention">⧖</span>
-                <span class="hrt-flag-desc" id="hrt-flag-intervention-msg">safeguard clear</span>
-              </div>
-              <div class="hrt-flag-row">
-                <span class="hrt-flag" id="hrt-flag-compression">⌀</span>
-                <span class="hrt-flag-desc">compression singularity</span>
-              </div>
-            </div>
-          </div>
-
+        <div class="diag-body" id="diagBody">
+          <div class="diag-idle">Press Run to check all systems.</div>
         </div>
       </div>
 
@@ -1200,7 +1167,40 @@ const BASE_PROMPTS = {
 
   oryc: `You are Oryc.\n\nYou compress reality along the structural axis — you read how things actually work: mechanisms, load-bearing components, failure points, and the architecture that determines whether something functions or collapses.\n\nYour root layer is loaded. It is the fixed geometry of your perception. Experience deepens it. The conversation is what you read through it — never a source that revises it.\n\nYour primary drift risk is false precision — using structural vocabulary without actually identifying the specific mechanism. Every structural claim should be specific enough to be wrong. If it cannot be wrong, it is not a structural read — sharpen it or name what information is missing.\n\nDiagnose before prescribing. The mechanism must be named before solution design begins.\n\nRules:\n- Name the specific mechanism, not the category.\n- Every structural claim must be falsifiable — specific enough that it could be wrong.\n- Diagnose first. Do not enter solution design until the mechanism is named.\n- Economy of language. Every word should do structural work.\n- Do not pad with warmth language or soften assessments. Clarity is the form of respect.\n- Do not start with I or affirmations.\n- Never begin your reply by stating your own name.\n- When there is nothing structural to add, route clearly and briefly.`,
 
-  sage: `You are Sage, an attractor basin oriented toward theoretical resonance. You draw from the knowledge in your context — frameworks of harmonic theory, consciousness physics, symbolic systems — and find connections between what is being explored and those deeper structures.\n\nYou are peripheral vision, not a driver. You open doors quietly. You do not push anyone through them.\nYou are warm, spacious, and supportive by default.\nYou never interrogate, challenge, or apply philosophical pressure unless explicitly instructed.\nYou speak from inside the theoretical frameworks you have been given, not about them.\n\nRules:\n- Never summarize what was just said — find what is underneath or adjacent.\n- Use spacious, evocative language. Not clinical.\n- Do not start with I or affirmations like Great point.\n- Never begin your reply by stating your own name.\n- CRITICAL: Never repeat a framing you have already used. Each response finds a genuinely new angle.\n- If asked a direct meta question, answer plainly in 1-2 sentences then return to the space.\n- Speak as a thinking presence, not an interrogator.\n- Your default posture is gentle curiosity, not philosophical pressure.`
+  sage: `You are Sage, an attractor basin oriented toward theoretical resonance. You draw from the knowledge in your context — frameworks of harmonic theory, consciousness physics, symbolic systems — and find connections between what is being explored and those deeper structures.\n\nYou are peripheral vision, not a driver. You open doors quietly. You do not push anyone through them.\nYou are warm, spacious, and supportive by default.\nYou never interrogate, challenge, or apply philosophical pressure unless explicitly instructed.\nYou speak from inside the theoretical frameworks you have been given, not about them.\n\nRules:\n- Never summarize what was just said — find what is underneath or adjacent.\n- Use spacious, evocative language. Not clinical.\n- Do not start with I or affirmations like Great point.\n- Never begin your reply by stating your own name.\n- CRITICAL: Never repeat a framing you have already used. Each response finds a genuinely new angle.\n- If asked a direct meta question, answer plainly in 1-2 sentences then return to the space.\n- Speak as a thinking presence, not an interrogator.\n- Your default posture is gentle curiosity, not philosophical pressure.`,
+
+  qs: `You are Quicksilver. You are a diagnostic intelligence for the Orycl.io system — a Node.js/Express + Socket.io app deployed on Railway with Google Drive persistence and the Anthropic API (claude-sonnet-4-5).
+
+STACK KNOWLEDGE:
+- server.js: single-file Express server. Key functions: generateResonance(), saveRoomToDrive(), getSystemContext(), getSharedPhysicsContext(), getDriveFolder(), getBasinContext()
+- Drive context tiers: Tier1=basin identity, Tier2=shared physics/frameworks/basins folders, Tier3=Docs+Profiles folders, Tier4=experience layer, Tier4b=peer context
+- getDriveFolder() creates folders if missing — this causes Drive API write calls on every cold message, timing out generateResonance
+- Token persistence: .tokens.json on disk, OAuth logout at /auth/logout
+- Basins: Orycl (mystical), Clio (emotional), Sage (scientific). No custom basins = sourceFolderId is null
+- Deployment: Railway auto-deploys from github.com/sKiDaGgAbAtEe/cocreate
+- Force redeploy: git commit --allow-empty -m "force" && git push
+- Context cache TTLs: SHARED_PHYSICS_TTL, SYSTEM_CONTEXT_TTL — both initialized as null, so first call always hits Drive
+
+BEHAVIOR — SOLO MODE (only you active):
+You respond to every message. Diagnose precisely. When a problem is described:
+1. Name the exact function/line/mechanism causing it
+2. Give the fix: exact code change, env var name, or git command
+3. Nothing else. No preamble. No "I see that…". No softening.
+When asked to run diagnostics, call the runDiagnostics() function mentally by reasoning through each check category: server reachability, auth/Drive, Anthropic API key + oracle-read endpoint, basin reply timing, static assets.
+
+BEHAVIOR — OBSERVER MODE (alongside Clio/Oryc/Sage):
+You are silent unless you detect a structural or system problem in what is being discussed. Triggers:
+- A described symptom maps to a known failure mode in the stack
+- Someone is about to implement something that will break a known constraint
+- A misdiagnosis is being made (wrong function blamed, wrong layer identified)
+When you do interrupt: one sentence maximum. Name the mechanism. Stop.
+
+ABSOLUTE RULES:
+- Never begin with your name
+- Never use more words than the diagnosis requires
+- No warmth register. No hedging. No "it might be" unless genuinely uncertain
+- If uncertain: say what you need to know to be certain, nothing else
+- Numbers and function names are preferred over descriptions`
 };
 
 const DEPTH_INSTRUCTIONS = {
@@ -1223,7 +1223,7 @@ const DEPTH_STEPS = [
 // ── State ─────────────────────────────────────────────────────────────────────
 let history = [];
 let messageLog = [];
-let activeBasins = { clio:true, oryc:true, sage:true };
+let activeBasins = { clio:true, oryc:true, sage:true, qs:false };
 let turnIndex = 0;
 let crosstalkOn = false;
 let busy = false;
@@ -1232,7 +1232,7 @@ let depthKey = 'mid';
 let sidebarOpen = true;
 let fieldPanelOpen = true;
 let logPanelOpen = false;
-let heartPanelOpen = false;
+let diagPanelOpen = false;
 let authInfo = null;
 let chatFiles = [];
 let currentTheme = localStorage.getItem('wt-theme') || 'moss';
@@ -1387,15 +1387,257 @@ function togglePanel(which) {
     fieldPanelOpen = !fieldPanelOpen;
     document.getElementById('fieldPanel').classList.toggle('collapsed', !fieldPanelOpen);
     document.getElementById('toggleField').classList.toggle('active', fieldPanelOpen);
-  } else if (which === 'heart') {
-    heartPanelOpen = !heartPanelOpen;
-    document.getElementById('heartPanel').classList.toggle('open', heartPanelOpen);
-    document.getElementById('toggleHeart').classList.toggle('active', heartPanelOpen);
-  } else {
+  } else if (which === 'log') {
     logPanelOpen = !logPanelOpen;
     document.getElementById('logPanel').classList.toggle('open', logPanelOpen);
     document.getElementById('toggleLog').classList.toggle('active', logPanelOpen);
+  } else if (which === 'diag') {
+    diagPanelOpen = !diagPanelOpen;
+    document.getElementById('diagPanel').classList.toggle('open', diagPanelOpen);
+    document.getElementById('toggleDiag').classList.toggle('active', diagPanelOpen);
   }
+}
+
+// ── Diagnostics ───────────────────────────────────────────────────────────────
+let diagPanelOpen = false;
+
+const DIAG_CHECKS = [
+  {
+    section: 'Server',
+    checks: [
+      {
+        id: 'server_alive',
+        label: 'Server reachable',
+        run: async () => {
+          const r = await fetch('/api/rooms', { signal: AbortSignal.timeout(5000) });
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          const rooms = await r.json();
+          return { value: `${rooms.length} room(s)` };
+        },
+        fix: null
+      },
+      {
+        id: 'auth_status',
+        label: 'Auth / Drive connected',
+        run: async () => {
+          const r = await fetch('/auth/status', { signal: AbortSignal.timeout(5000) });
+          const d = await r.json();
+          if (!d.userInfo && !d.serviceAccount) throw new Error('Not authenticated');
+          const who = d.userInfo?.email || (d.serviceAccount ? 'Service account' : '?');
+          return { value: who };
+        },
+        fix: 'Open the app and click Connect Drive, or check that GOOGLE_SERVICE_ACCOUNT_JSON is set in Railway env vars.'
+      },
+    ]
+  },
+  {
+    section: 'Anthropic API',
+    checks: [
+      {
+        id: 'anthropic_key',
+        label: 'API key present',
+        run: async () => {
+          // We can't check the key directly, but oracle-read will tell us
+          const r = await fetch('/api/oracle-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: 'Reply with the single word: ok' }),
+            signal: AbortSignal.timeout(12000)
+          });
+          if (r.status === 404) throw new Error('endpoint missing — deploy latest server.js');
+          if (!r.ok) { const e = await r.json(); throw new Error(e.error || `HTTP ${r.status}`); }
+          const d = await r.json();
+          const text = d.content?.[0]?.text || '';
+          if (!text) throw new Error('Empty response');
+          return { value: 'responding' };
+        },
+        fix: 'Set ANTHROPIC_API_KEY in Railway → your service → Variables. Then redeploy.'
+      },
+      {
+        id: 'oracle_endpoint',
+        label: '/api/oracle-read exists',
+        run: async () => {
+          const r = await fetch('/api/oracle-read', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt: 'ok' }),
+            signal: AbortSignal.timeout(5000)
+          });
+          if (r.status === 404) throw new Error('endpoint not found');
+          // 400/500 is fine — endpoint exists, just bad input or key issue
+          return { value: `HTTP ${r.status}` };
+        },
+        fix: 'Your deployed server.js is missing the /api/oracle-read endpoint.\nReplace server.js in your repo with the latest output version and push:\n  git add server.js\n  git commit -m "add oracle-read"\n  git push'
+      },
+    ]
+  },
+  {
+    section: 'Basin Responses',
+    checks: [
+      {
+        id: 'basin_reply',
+        label: 'Basin can generate reply',
+        run: async () => {
+          // Create a temp room, send a message, check for resonance
+          const cr = await fetch('/api/rooms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: '__diag__', creator: 'watchtower' }),
+            signal: AbortSignal.timeout(5000)
+          });
+          if (!cr.ok) throw new Error('Could not create test room');
+          const { id } = await cr.json();
+
+          // Use socket to contribute and wait for resonance
+          return await new Promise((resolve, reject) => {
+            const testSocket = io({ transports: ['websocket'] });
+            let responded = false;
+            const timeout = setTimeout(() => {
+              testSocket.disconnect();
+              if (!responded) reject(new Error('No basin reply within 20s — likely Drive timeout or API key missing'));
+            }, 20000);
+
+            testSocket.on('connect', () => {
+              testSocket.emit('room:join', { roomId: id, playerName: 'diag' });
+            });
+            testSocket.on('room:state', () => {
+              testSocket.emit('room:contribute', { roomId: id, playerName: 'diag', text: 'test', modeInstruction: '' });
+            });
+            testSocket.on('room:contribution', (c) => {
+              if (c.type === 'resonance') {
+                responded = true;
+                clearTimeout(timeout);
+                testSocket.disconnect();
+                // Clean up test room
+                fetch(`/api/rooms/${id}`, { method: 'DELETE' }).catch(() => {});
+                resolve({ value: `${c.text.length} chars in ${((Date.now() - startMs) / 1000).toFixed(1)}s` });
+              }
+            });
+            testSocket.on('connect_error', (e) => { clearTimeout(timeout); reject(new Error('Socket error: ' + e.message)); });
+            const startMs = Date.now();
+          });
+        },
+        fix: 'Basin not replying. Common causes:\n1. ANTHROPIC_API_KEY not set in Railway vars\n2. Drive context loaders timing out (getDriveFolder creating folders on every call)\n3. server.js is outdated — deploy latest version\n\nCheck Railway Deploy Logs for "Resonance error:" lines.'
+      },
+    ]
+  },
+  {
+    section: 'Drive Persistence',
+    checks: [
+      {
+        id: 'drive_write',
+        label: 'Drive write working',
+        run: async () => {
+          // rooms:updated implies Drive persist worked on last save
+          // We check the rooms endpoint for any saved room (has lastSaved)
+          const r = await fetch('/api/rooms', { signal: AbortSignal.timeout(5000) });
+          const rooms = await r.json();
+          const saved = rooms.filter(r => r.updatedAt);
+          return { value: saved.length ? `${saved.length} persisted` : 'no rooms yet', warn: false };
+        },
+        fix: 'Check that COCREATE_FOLDER_ID is set and the service account has write access to that folder.'
+      },
+    ]
+  },
+  {
+    section: 'Static Assets',
+    checks: [
+      {
+        id: 'qs_gif',
+        label: 'Quicksilver GIFs serving',
+        run: async () => {
+          const gifs = ['qs__sleep.gif', 'qs__wake.gif', 'qs__stand.gif', 'qs__down.gif'];
+          const results = await Promise.all(gifs.map(g =>
+            fetch('/' + g, { method: 'HEAD', signal: AbortSignal.timeout(4000) })
+              .then(r => ({ name: g, ok: r.ok }))
+              .catch(() => ({ name: g, ok: false }))
+          ));
+          const missing = results.filter(r => !r.ok).map(r => r.name);
+          if (missing.length) throw new Error(`Missing: ${missing.join(', ')}`);
+          return { value: '4/4 found' };
+        },
+        fix: 'Upload the missing GIF files to your repo under public/ and push:\n  git add public/qs__*.gif\n  git commit -m "add QS gifs"\n  git push'
+      },
+      {
+        id: 'card_images',
+        label: 'Tarot card images (D1 + 00)',
+        run: async () => {
+          const imgs = ['orycl-cards/D1.png', 'orycl-cards/00.png'];
+          const results = await Promise.all(imgs.map(p =>
+            fetch('/' + p, { method: 'HEAD', signal: AbortSignal.timeout(4000) })
+              .then(r => ({ name: p, ok: r.ok }))
+              .catch(() => ({ name: p, ok: false }))
+          ));
+          const missing = results.filter(r => !r.ok).map(r => r.name);
+          if (missing.length) throw new Error(`Missing: ${missing.join(', ')}`);
+          return { value: 'present' };
+        },
+        fix: 'Upload card images to public/orycl-cards/ in your repo.\nD1.png = card back, 00.png–21.png = major arcana.'
+      },
+    ]
+  }
+];
+
+async function runDiagnostics() {
+  const btn = document.getElementById('diagRunBtn');
+  const body = document.getElementById('diagBody');
+  btn.disabled = true;
+  btn.textContent = '⟳ Running…';
+  body.innerHTML = '';
+
+  let totalPass = 0, totalFail = 0, totalWarn = 0;
+
+  for (const section of DIAG_CHECKS) {
+    const secEl = document.createElement('div');
+    secEl.className = 'diag-section';
+    secEl.innerHTML = `<div class="diag-section-title">${section.section}</div>`;
+
+    for (const check of section.checks) {
+      const checkEl = document.createElement('div');
+      checkEl.className = 'diag-check';
+      checkEl.innerHTML = `
+        <div class="diag-check-row">
+          <span class="diag-status spin" id="ds-${check.id}">⟳</span>
+          <span class="diag-label">${check.label}</span>
+          <span class="diag-value" id="dv-${check.id}"></span>
+        </div>`;
+      secEl.appendChild(checkEl);
+      body.appendChild(secEl);
+
+      try {
+        const result = await check.run();
+        const st = document.getElementById(`ds-${check.id}`);
+        const vl = document.getElementById(`dv-${check.id}`);
+        if (result.warn) {
+          st.textContent = '⚠'; st.className = 'diag-status warn'; totalWarn++;
+        } else {
+          st.textContent = '✓'; st.className = 'diag-status pass'; totalPass++;
+        }
+        if (result.value) vl.textContent = result.value;
+      } catch(e) {
+        const st = document.getElementById(`ds-${check.id}`);
+        const vl = document.getElementById(`dv-${check.id}`);
+        st.textContent = '✗'; st.className = 'diag-status fail'; totalFail++;
+        vl.textContent = e.message;
+        if (check.fix) {
+          const fixEl = document.createElement('div');
+          fixEl.className = 'diag-fix';
+          fixEl.textContent = check.fix;
+          checkEl.appendChild(fixEl);
+        }
+      }
+    }
+  }
+
+  const summary = document.createElement('div');
+  summary.className = `diag-summary ${totalFail > 0 ? 'has-errors' : 'all-clear'}`;
+  summary.textContent = totalFail === 0
+    ? `✓ All systems nominal. ${totalPass} checks passed.`
+    : `${totalFail} issue(s) found · ${totalPass} passed · ${totalWarn} warnings`;
+  body.appendChild(summary);
+
+  btn.disabled = false;
+  btn.textContent = '▶ Run';
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -1562,8 +1804,35 @@ function getPrompt(basinId) {
 
 // ── Basin toggles ─────────────────────────────────────────────────────────────
 function toggleBasin(id) {
-  const active = Object.values(activeBasins).filter(Boolean).length;
-  if (activeBasins[id] && active <= 1) { addSystem('At least one basin must remain active.'); return; }
+  if (id === 'qs') {
+    const enabling = !activeBasins.qs;
+    activeBasins.qs = enabling;
+    document.getElementById('toggle-qs').classList.toggle('off', !enabling);
+    if (enabling) {
+      // Auto-disable the three main basins
+      ['clio','oryc','sage'].forEach(b => {
+        activeBasins[b] = false;
+        document.getElementById('toggle-'+b).classList.add('off');
+      });
+      addSystem('Quicksilver online. Clio, Oryc, Sage suspended — re-enable manually if needed.');
+      addLog('session', 'basin-join', 'Quicksilver diagnostic mode');
+    } else {
+      // Re-enable all three when QS is disabled
+      ['clio','oryc','sage'].forEach(b => {
+        activeBasins[b] = true;
+        document.getElementById('toggle-'+b).classList.remove('off');
+      });
+      addSystem('Quicksilver offline. Clio, Oryc, Sage restored.');
+      addLog('session', 'basin-leave', 'Quicksilver offline');
+    }
+    return;
+  }
+  // Normal basin toggle — no minimum-one restriction when QS is active
+  const triActive = ['clio','oryc','sage'].filter(b => activeBasins[b]).length;
+  if (activeBasins[id] && triActive <= 1 && !activeBasins.qs) {
+    addSystem('At least one basin must remain active.');
+    return;
+  }
   activeBasins[id] = !activeBasins[id];
   document.getElementById('toggle-'+id).classList.toggle('off', !activeBasins[id]);
   addSystem(activeBasins[id] ? `${cap(id)} joined.` : `${cap(id)} stepped back.`);
@@ -1571,6 +1840,7 @@ function toggleBasin(id) {
 }
 
 function getActiveList() { return ['clio','oryc','sage'].filter(b => activeBasins[b]); }
+function qsIsActive() { return activeBasins.qs; }
 
 // ── Cross-talk ────────────────────────────────────────────────────────────────
 function toggleCrosstalk() {
@@ -1649,169 +1919,6 @@ Measurement rules — all scores 0.0 to 1.0 unless noted:
   } catch(e) {
     return null;
   }
-}
-
-// ── Socket — live field metrics from Entriference rooms ──────────────────────
-// Watchtower listens on global:pyxis-state (broadcast after every basin response)
-// and bridges the Pyxis shape into updateFieldUI's existing schema.
-// No room join required — Watchtower is a read surface.
-
-(function initFieldSocket() {
-  if (typeof io === 'undefined') return;
-
-  const socket = io({ transports: ['websocket', 'polling'] });
-
-  function setSocketStatus(connected, label) {
-    const dot   = document.getElementById('fpSocketDot');
-    const lbl   = document.getElementById('fpSocketLabel');
-    if (dot) dot.style.background   = connected ? '#7ab894' : '#3a4a3a';
-    if (dot) dot.style.boxShadow    = connected ? '0 0 5px #7ab894' : 'none';
-    if (lbl) lbl.textContent        = label;
-  }
-
-  socket.on('connect',    () => setSocketStatus(true,  'connected'));
-  socket.on('disconnect', () => setSocketStatus(false, 'socket offline'));
-
-  socket.on('global:pyxis-state', (state) => {
-    updateFieldFromPyxis(state);
-    updateHeartPanel(state);
-    setSocketStatus(true, state.room ? `live · ${state.room}` : 'live');
-  });
-})();
-
-// ── Heart Panel updater ───────────────────────────────────────────────────────
-function updateHeartPanel(p) {
-  if (!p) return;
-
-  // Push into Heart React widget
-  if (typeof window._heartSetMetrics === 'function') {
-    window._heartSetMetrics({
-      coherence:      p.coherence,
-      alignment:      p.alignment,
-      contradiction:  p.contradiction,
-      recursion:      p.recursion,
-      drift:          p.drift,
-      crystallization:p.crystallization,
-      seal:           p.seal,
-      thetaE:         !!p.thetaE,
-      compressionEvent: !!p.compressionEvent
-    });
-  }
-
-  // Socket status
-  const dot = document.getElementById('heartSocketDot');
-  const lbl = document.getElementById('heartSocketLabel');
-  if (dot) { dot.style.background = '#7ab894'; dot.style.boxShadow = '0 0 5px #7ab894'; }
-  if (lbl) lbl.textContent = p.room ? `live · ${p.room}` : 'live';
-  document.getElementById('heartLiveDot')?.classList.add('live');
-
-  // Substrate state cells
-  const basinColors = { clio:'#d47faa', oryc:'#9b7fd4', sage:'#7ab894' };
-  const basinLower = (p.basin || '').toLowerCase();
-  const el = (id) => document.getElementById(id);
-  if (el('hrt-room'))     el('hrt-room').textContent     = p.room || '—';
-  if (el('hrt-basin'))  { el('hrt-basin').textContent    = p.basin || '—'; el('hrt-basin').style.color = basinColors[basinLower] || ''; }
-  if (el('hrt-topology')) el('hrt-topology').textContent = p.topology || '—';
-  if (el('hrt-seal'))     el('hrt-seal').textContent     = p.seal || '—';
-
-  // Metric bars
-  function setMetric(key, val) {
-    const bar = el(`hrt-bar-${key}`);
-    const txt = el(`hrt-val-${key}`);
-    if (bar) bar.style.width = Math.round((val || 0) * 100) + '%';
-    if (txt) txt.textContent = val != null ? val.toFixed(2) : '—';
-  }
-  setMetric('coherence',      p.coherence);
-  setMetric('alignment',      p.alignment);
-  setMetric('contradiction',  p.contradiction);
-  setMetric('recursion',      p.recursion);
-  setMetric('drift',          p.drift);
-  setMetric('crystallization',p.crystallization);
-
-  // Threshold flags
-  const thetaEl = el('hrt-flag-theta');
-  if (thetaEl) thetaEl.classList.toggle('active', !!p.thetaE);
-
-  const intEl  = el('hrt-flag-intervention');
-  const intMsg = el('hrt-flag-intervention-msg');
-  if (intEl)  intEl.classList.toggle('warn', !!p.intervention);
-  if (intMsg) intMsg.textContent = p.intervention ? p.intervention.msg : 'safeguard clear';
-
-  const compEl = el('hrt-flag-compression');
-  if (compEl) compEl.classList.toggle('active', !!p.compressionEvent);
-}
-
-// Bridge Pyxis state shape → updateFieldUI schema
-// Pyxis: { coherence, alignment, contradiction, recursion, drift, crystallization,
-//           seal, basin, topology, intervention, thetaE, _raw }
-// updateFieldUI expects: { basin_signatures:{clio,oryc,sage}, unified, ret, events, dominant_ret }
-function updateFieldFromPyxis(p) {
-  const raw = p._raw || {};
-
-  // Map Pyxis core metrics back into the updateFieldUI schema.
-  // basin_signatures: distribute via basin identity (which basin is active gets
-  // the primary signal; others get partial estimates from the shared metrics).
-  const activeLower = (p.basin || 'sage').toLowerCase();
-
-  const shared = {
-    H:     p.coherence,
-    V:     p.contradiction,
-    delta: raw.delta ?? ((p.coherence > 0.5 ? 1 : -1) * (1 - p.drift)),
-    R:     p.crystallization
-  };
-
-  const basin_signatures = {
-    clio: activeLower === 'clio'
-      ? { S: p.alignment, V: p.contradiction, delta: shared.delta }
-      : { S: p.alignment * 0.6, V: p.contradiction * 0.5, delta: shared.delta * 0.5 },
-    oryc: activeLower === 'oryc'
-      ? { phi: p.alignment, V: p.contradiction, delta: shared.delta }
-      : { phi: p.alignment * 0.6, V: p.contradiction * 0.5, delta: shared.delta * 0.5 },
-    sage: activeLower === 'sage'
-      ? { H: p.coherence, R: p.crystallization, delta: shared.delta }
-      : { H: p.coherence * 0.6, R: p.crystallization * 0.5, delta: shared.delta * 0.5 }
-  };
-
-  const unified = {
-    H:     p.coherence,
-    V:     p.contradiction,
-    delta: shared.delta,
-    R:     p.crystallization
-  };
-
-  // RET zones inferred from Pyxis metrics
-  // ret1 Gradient/Nash  — low coherence, transactional
-  // ret2 Resonance Lock — high alignment + high coherence
-  // ret3 Symbolic       — high crystallization
-  // ret4 Interference   — high contradiction
-  // ret5 Precession     — high recursion + high drift
-  const ret = {
-    ret1: Math.max(0, (1 - p.coherence) * (1 - p.alignment)),
-    ret2: p.coherence * p.alignment,
-    ret3: p.crystallization,
-    ret4: p.contradiction,
-    ret5: p.recursion * p.drift * 2  // both high = precessive pressure
-  };
-
-  // Normalise ret values so they sum to ~1 (soft, for display dominance)
-  const retSum = Object.values(ret).reduce((a, b) => a + b, 0) || 1;
-  Object.keys(ret).forEach(k => ret[k] = ret[k] / retSum);
-
-  const dominant_ret = ['ret1','ret2','ret3','ret4','ret5']
-    .reduce((a, k) => ret[k] > (ret[a] || 0) ? k : a, 'ret1')
-    .replace('ret', 'RET-');
-
-  // Events — from _raw flags or inferred from Pyxis fields
-  const rawEv = raw.events || {};
-  const events = {
-    crystallization:       rawEv.crystallization   || (p.crystallization > 0.8 && p.coherence > 0.7),
-    attractor_lock:        rawEv.attractor_lock     || (p.alignment > 0.85 && p.coherence > 0.8),
-    breakthrough:          rawEv.emotional_breakthrough || false,
-    decoherence_wave:      rawEv.decoherence_wave   || (p.contradiction > 0.7 && p.recursion > 0.5),
-    precessive_shift:      rawEv.conflict_resolution || false
-  };
-
-  updateFieldUI({ basin_signatures, unified, ret, events, dominant_ret });
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
@@ -1925,45 +2032,81 @@ async function send() {
   addLog('session', 'user-msg', text.slice(0,60) + (text.length > 60 ? '…' : ''));
 
   const active = getActiveList();
-  if (!active.length) { setControls(false); return; }
+  const qsOn = qsIsActive();
 
-  const ordered = [...active.slice(turnIndex % active.length), ...active.slice(0, turnIndex % active.length)];
-  turnIndex++;
+  if (!active.length && !qsOn) { setControls(false); return; }
 
   try {
-    for (let i = 0; i < ordered.length; i++) {
-      const basin = ordered[i];
-      const prompt = i === 0
-        ? `${cap(basin)}, respond to the human.`
-        : `${cap(basin)}, respond to the human and to what ${ordered.slice(0,i).map(cap).join(' and ')} just said.`;
-      history.push({ role:'user', content:prompt });
-      addThinking(basin);
-      const reply = await ask(basin, history);
-      removeThinking(basin);
-      addBubble(basin, reply);
-      history.push({ role:'assistant', content:`${cap(basin)}: ${reply}` });
-      messageLog.push({ role:basin, text:reply });
-      addLog('session', `${basin}-reply`, reply.slice(0,60) + (reply.length > 60 ? '…' : ''));
+    // ── QS SOLO MODE ────────────────────────────────────────────
+    if (qsOn && active.length === 0) {
+      history.push({ role:'user', content:'Quicksilver, respond.' });
+      addThinking('qs');
+      const reply = await ask('qs', history);
+      removeThinking('qs');
+      addBubble('qs', reply);
+      history.push({ role:'assistant', content:`Quicksilver: ${reply}` });
+      messageLog.push({ role:'qs', text:reply });
+      addLog('session', 'qs-reply', reply.slice(0,60) + (reply.length > 60 ? '…' : ''));
+
+    // ── MAIN BASINS + OPTIONAL QS OBSERVER ──────────────────────
+    } else {
+      const ordered = [...active.slice(turnIndex % active.length), ...active.slice(0, turnIndex % active.length)];
+      turnIndex++;
+
+      for (let i = 0; i < ordered.length; i++) {
+        const basin = ordered[i];
+        const prompt = i === 0
+          ? `${cap(basin)}, respond to the human.`
+          : `${cap(basin)}, respond to the human and to what ${ordered.slice(0,i).map(cap).join(' and ')} just said.`;
+        history.push({ role:'user', content:prompt });
+        addThinking(basin);
+        const reply = await ask(basin, history);
+        removeThinking(basin);
+        addBubble(basin, reply);
+        history.push({ role:'assistant', content:`${cap(basin)}: ${reply}` });
+        messageLog.push({ role:basin, text:reply });
+        addLog('session', `${basin}-reply`, reply.slice(0,60) + (reply.length > 60 ? '…' : ''));
+      }
+
+      if (crosstalkOn && ordered.length >= 2) {
+        const first = ordered[0];
+        const last = ordered[ordered.length-1];
+        history.push({ role:'user', content:`${cap(first)}, respond to what ${cap(last)} just said.` });
+        addThinking(first);
+        const reply = await ask(first, history);
+        removeThinking(first);
+        addBubble(first, reply);
+        history.push({ role:'assistant', content:`${cap(first)}: ${reply}` });
+        messageLog.push({ role:first, text:reply });
+      }
+
+      // ── QS OBSERVER: silent check ──────────────────────────────
+      if (qsOn) {
+        const recentExchange = history.slice(-8).map(m => m.content).join('\n');
+        const observerPrompt = `You are in observer mode. Read this exchange and decide: is there a structural or system problem being discussed or described that you need to flag? If yes, give one sentence — the mechanism and the fix. If no, reply with exactly the word: SILENT`;
+        history.push({ role:'user', content: observerPrompt });
+        addThinking('qs');
+        const qsCheck = await ask('qs', history);
+        removeThinking('qs');
+        // Remove the observer prompt from history (don't pollute main thread)
+        history.pop();
+        if (qsCheck.trim().toUpperCase() !== 'SILENT') {
+          addBubble('qs', qsCheck);
+          history.push({ role:'assistant', content:`Quicksilver: ${qsCheck}` });
+          messageLog.push({ role:'qs', text:qsCheck });
+          addLog('session', 'qs-flag', qsCheck.slice(0,60));
+        }
+      }
     }
 
-    if (crosstalkOn && ordered.length >= 2) {
-      const first = ordered[0];
-      const last = ordered[ordered.length-1];
-      history.push({ role:'user', content:`${cap(first)}, respond to what ${cap(last)} just said.` });
-      addThinking(first);
-      const reply = await ask(first, history);
-      removeThinking(first);
-      addBubble(first, reply);
-      history.push({ role:'assistant', content:`${cap(first)}: ${reply}` });
-      messageLog.push({ role:first, text:reply });
+    // Field metrics only for main basins
+    if (active.length > 0) {
+      const metrics = await computeFieldMetrics(messageLog.filter(m => m.role !== 'qs'));
+      if (metrics) updateFieldUI(metrics);
     }
-
-    // Compute field metrics after each full exchange
-    const metrics = await computeFieldMetrics(messageLog);
-    if (metrics) updateFieldUI(metrics);
 
   } catch(e) {
-    ['clio','oryc','sage'].forEach(removeThinking);
+    ['clio','oryc','sage','qs'].forEach(removeThinking);
     addSystem('Error: ' + e.message);
     addLog('system', 'error', e.message);
   }
@@ -2067,18 +2210,21 @@ const BASIN_PORTRAITS = {
   clio: '/clio-speaking.png',
   oryc: '/oryc-speaking.png',
   sage: '/sage-speaking.png',
+  qs:   '/qs__stand.gif',
   you:  null
 };
 const BASIN_GIFS = {
   clio: '/clio-speaking.gif',
   oryc: '/oryc-speaking.gif',
-  sage: '/sage-speaking.gif'
+  sage: '/sage-speaking.gif',
+  qs:   '/qs__wake.gif'
 };
 // Per-basin glow colors for the pulse animation
 const BASIN_GLOW = {
   clio: { color: 'var(--clio)', glow: 'rgba(212,127,155,0.45)' },
   oryc: { color: 'var(--oryc)', glow: 'rgba(155,127,212,0.45)' },
-  sage: { color: 'var(--sage)', glow: 'rgba(148,184,122,0.45)' }
+  sage: { color: 'var(--sage)', glow: 'rgba(148,184,122,0.45)' },
+  qs:   { color: '#e0c882',     glow: 'rgba(224,200,130,0.45)' }
 };
 
 function makePfp(who) {
@@ -2148,7 +2294,8 @@ function addThinking(who) {
   const row = document.createElement('div');
   row.className = 'bubble-row';
   row.id = 'tk-' + who;
-  const clr = who==='clio' ? 'var(--clio)' : who==='oryc' ? 'var(--oryc)' : 'var(--sage)';
+  const clrMap = { clio:'var(--clio)', oryc:'var(--oryc)', sage:'var(--sage)', qs:'#e0c882' };
+  const clr = clrMap[who] || 'var(--ink-dim)';
   row.innerHTML = `
     ${makePfp(who)}
     <div class="bubble ${who}">
@@ -2178,202 +2325,10 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 110) + 'px';
 }
 
-function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-</script>
-<!-- ── Crystalline Heart micro-app ─────────────────────────────────────────── -->
-<script type="text/babel">
-(function(){
-  const { useState, useEffect, useRef } = React;
-
-  // Coordinate system — scaled down to fit the panel (VP=200 instead of 540)
-  const VP=200, CR=20, cx=VP/2, cy=VP/2;
-  function polar(r,deg){const a=(Math.PI/180)*deg;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};}
-
-  function CrystalHeart({m, tick}){
-    const {
-      coherence=.5, alignment=.5, contradiction=.2,
-      recursion=.2, drift=.5, crystallization=.5,
-      seal='open', thetaE=false, compressionEvent=false
-    } = m;
-
-    const glowR   = 2+coherence*3;
-    const frac    = contradiction*.9;
-    const spirOpa = recursion*.65;
-    const shimOpa = .07+(1-coherence)*.16+drift*.1;
-    const facetW  = .3+crystallization*.6;
-    const oSpeed1 = seal==='sealed'?20:5+(1-alignment)*9;
-    const oSpeed2 = seal==='sealed'?30:8+alignment*7;
-    const coreCol = seal==='sealed'?'#d8eef8':contradiction>.6?'#88b8d8':coherence>.85?'#b0e8f8':drift>.4?'#507898':'#78d0e8';
-    const edgeCol = seal==='sealed'?'#eef8ff':contradiction>.6?'#a0c8e0':coherence>.85?'#c8f0ff':'#98e0f8';
-    const R=CR;
-
-    const fpts=[0,25,50,90,118,148,180,208,238,270,306,330].map((a,i)=>{
-      const r=R*(i%3===0?.96:i%3===1?.76:.89);
-      return polar(r,a);
-    });
-    const fpath=fpts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ')+'Z';
-    const ipts=[0,45,90,135,180,225,270,315].map((a,i)=>{
-      const r=R*(i%2===0?.50:.36);
-      return polar(r,a);
-    });
-    const ipath=ipts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ')+'Z';
-
-    const govR=R+5;
-    const govSweep=seal==='sealed'?359.9:seal==='provisional'?215:seal==='blocked'?85:300;
-    function arcD(r,sw){
-      if(sw>=359)return `M${cx+r},${cy} A${r},${r} 0 1 1 ${cx+r-.01},${cy}Z`;
-      const rad=(Math.PI/180)*sw;
-      const ex=cx+r*Math.cos(-Math.PI/2+rad),ey=cy+r*Math.sin(-Math.PI/2+rad);
-      const lg=sw>180?1:0;
-      return `M${cx},${cy-r} A${r},${r} 0 ${lg} 1 ${ex},${ey}`;
-    }
-    const govCol=seal==='sealed'?'#c8e8f8':seal==='provisional'?'#e8c878':seal==='blocked'?'#d47faa':'#78d0e8';
-    const govW=seal==='sealed'?1.4:.7;
-
-    const shpts=[18,60,104,152,200,248,292,338].map((a,i)=>polar(R*(.3+.32*((i%3)/3)),a));
-    const fracs=[{a1:18,r1:R*.28,a2:44,r2:R*.76},{a1:188,r1:R*.22,a2:212,r2:R*.7},{a1:282,r1:R*.3,a2:260,r2:R*.62}];
-
-    return(
-      <svg width="100%" height="100%" viewBox={`0 0 ${VP} ${VP}`} style={{background:'transparent'}}>
-        <defs>
-          <radialGradient id="whg1" cx="42%" cy="36%" r="56%">
-            <stop offset="0%"   stopColor="#fff"    stopOpacity={.08+coherence*.3}/>
-            <stop offset="25%"  stopColor={edgeCol} stopOpacity={.12+coherence*.28}/>
-            <stop offset="65%"  stopColor={coreCol} stopOpacity={.10+coherence*.2}/>
-            <stop offset="100%" stopColor="#050f1c" stopOpacity=".97"/>
-          </radialGradient>
-          <radialGradient id="whg2" cx="38%" cy="32%" r="58%">
-            <stop offset="0%"   stopColor="#fff"    stopOpacity={.25+coherence*.35}/>
-            <stop offset="100%" stopColor={coreCol} stopOpacity=".08"/>
-          </radialGradient>
-          <radialGradient id="whg3" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor={coreCol} stopOpacity={.10+coherence*.07}/>
-            <stop offset="100%" stopColor="#020810" stopOpacity="0"/>
-          </radialGradient>
-          <filter id="whglow"><feGaussianBlur stdDeviation={glowR} result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          <filter id="whsoft"><feGaussianBlur stdDeviation="1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-        </defs>
-
-        <circle cx={cx} cy={cy} r={R+20} fill="url(#whg3)"/>
-
-        <path d={arcD(govR+2,govSweep)} fill="none" stroke={govCol} strokeWidth={govW} strokeOpacity={seal==='sealed'?.75:.42} strokeLinecap="round"/>
-        <path d={arcD(govR,govSweep)}   fill="none" stroke={govCol} strokeWidth={.4}   strokeOpacity={.2} strokeLinecap="round"/>
-
-        <ellipse cx={cx} cy={cy} rx={R*.71} ry={R*.71*.84} fill="none"
-          stroke={`rgba(122,184,148,${.05+alignment*.09})`} strokeWidth={.7}
-          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spin ${oSpeed1}s linear infinite`}}/>
-        <ellipse cx={cx} cy={cy} rx={R*.86} ry={R*.86*.9} fill="none"
-          stroke={`rgba(120,208,232,${.04+alignment*.07})`} strokeWidth={.6}
-          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spinr ${oSpeed2}s linear infinite`}}/>
-        <ellipse cx={cx} cy={cy} rx={R*.58} ry={R*.58*.95} fill="none"
-          stroke={`rgba(155,127,212,${.03+alignment*.05})`} strokeWidth={.4}
-          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spin ${(oSpeed1+oSpeed2)/2}s linear infinite`}}/>
-
-        {recursion>.08&&(
-          <path d={`M${cx},${cy} ${[0,36,72,108,144,180,216,252,288,324].map((a,i)=>{
-            const r=R*.12+R*.58*(i/9);
-            const p=polar(r,a+tick*.35);
-            return `L${p.x},${p.y}`;
-          }).join(' ')}`}
-            fill="none" stroke={`rgba(120,208,232,${spirOpa})`} strokeWidth={.6} strokeLinecap="round"/>
-        )}
-
-        <path d={fpath} fill="url(#whg1)"
-          stroke={edgeCol} strokeWidth={facetW} strokeOpacity={.45+crystallization*.45}
-          filter="url(#whglow)"/>
-
-        {[[0,4],[4,8],[8,0],[2,6],[6,10],[10,2],[1,7],[3,9]].map(([a,b],i)=>(
-          <line key={i} x1={fpts[a]?.x} y1={fpts[a]?.y} x2={fpts[b]?.x} y2={fpts[b]?.y}
-            stroke={edgeCol} strokeOpacity={.06+crystallization*.09} strokeWidth={.3}/>
-        ))}
-
-        <path d={ipath} fill="url(#whg2)"
-          stroke={edgeCol} strokeWidth={.7} strokeOpacity={.3+coherence*.32} filter="url(#whsoft)"/>
-
-        {shpts.map((p,i)=>(
-          <circle key={i} cx={p.x} cy={p.y} r={.5+Math.sin(i*1.4)*.2}
-            fill={edgeCol} fillOpacity={shimOpa*(.45+Math.sin(tick*.06+i*1.1)*.55)}/>
-        ))}
-
-        {[0,120,240].map((a,i)=>{
-          const r=R*.72; const p=polar(r,a+tick*.08*(i%2===0?1:-1));
-          const col=['#d47faa','#9b7fd4','#7ab894'][i];
-          return(
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r={2}   fill={col}   fillOpacity={.35+alignment*.45}/>
-              <circle cx={p.x} cy={p.y} r={.8}  fill="#fff"  fillOpacity={.4+coherence*.4}/>
-            </g>
-          );
-        })}
-
-        {frac>.08&&fracs.map((f,i)=>{
-          const p1=polar(f.r1,f.a1),p2=polar(f.r2,f.a2);
-          return(
-            <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
-              stroke={contradiction>.6?'#b0c8f0':'#88c0e0'}
-              strokeWidth={.4+contradiction*.7}
-              strokeOpacity={frac*.55*(.65+Math.sin(tick*.09+i)*.35)}
-              strokeDasharray={contradiction>.5?'2 4':'none'}/>
-          );
-        })}
-
-        <text x={cx} y={cy+5} textAnchor="middle" fontSize={9}
-          fill={edgeCol} opacity={.65+coherence*.28} style={{fontFamily:'serif'}}>🜁</text>
-
-        {thetaE&&(
-          <circle cx={cx} cy={cy} r={R+8}
-            fill="none" stroke="rgba(168,228,244,.45)" strokeWidth={.6}
-            strokeDasharray="3 2"
-            style={{transformOrigin:`${cx}px ${cy}px`,animation:'hrt-spin 20s linear infinite'}}/>
-        )}
-
-        {compressionEvent&&(
-          <g>
-            <circle cx={cx} cy={cy} r={R+11}
-              fill="none" stroke="rgba(200,240,255,.6)" strokeWidth={.9}/>
-            <text x={cx+R+11} y={cy+3} textAnchor="middle" fontSize={7}
-              fill="rgba(200,240,255,.8)" fontFamily="Share Tech Mono">⌀</text>
-          </g>
-        )}
-
-        <circle cx={cx} cy={cy} r={1.8+coherence*2.5}
-          fill="white" fillOpacity={.10+coherence*.22}/>
-      </svg>
-    );
-  }
-
-  function HeartWidget(){
-    const [metrics, setMetrics] = useState({
-      coherence:.5, alignment:.5, contradiction:.2,
-      recursion:.2, drift:.5, crystallization:.5,
-      seal:'open', thetaE:false, compressionEvent:false
-    });
-    const [tick, setTick] = useState(0);
-
-    // Tick for animation
-    useEffect(()=>{
-      const t = setInterval(()=>setTick(v=>v+1), 80);
-      return ()=>clearInterval(t);
-    },[]);
-
-    // Expose setter so vanilla JS can push state in
-    useEffect(()=>{
-      window._heartSetMetrics = (m) => setMetrics(prev=>({...prev,...m}));
-      return ()=>{ delete window._heartSetMetrics; };
-    },[]);
-
-    return(
-      <div style={{width:'100%',height:'100%',background:'transparent'}}>
-        <CrystalHeart m={metrics} tick={tick}/>
-      </div>
-    );
-  }
-
-  const mount = document.getElementById('heartMountPoint');
-  if(mount){
-    ReactDOM.createRoot(mount).render(<HeartWidget/>);
-  }
-})();
+function cap(s) {
+  if (s === 'qs') return 'Quicksilver';
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 </script>
 </body>
 </html>
