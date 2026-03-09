@@ -378,44 +378,14 @@
     .tarot-card:hover { transform: translateY(-6px) rotateX(3deg); filter: drop-shadow(0 12px 20px rgba(74,184,232,0.3)); }
 
     .tarot-card.face-down .card-inner {
-      background: linear-gradient(145deg,
-        #c8dff0 0%,
-        #a8ccec 20%,
-        #ddf0ff 45%,
-        #9fc5e8 65%,
-        #b8d8f5 100%
-      );
-      border: 1px solid rgba(74,184,232,0.5);
-      box-shadow:
-        0 8px 30px rgba(74,184,232,0.2),
-        0 2px 8px rgba(74,184,232,0.15),
-        0 0 0 1px rgba(255,255,255,0.6) inset,
-        0 1px 0 rgba(255,255,255,0.9) inset;
+      background: url('/orycl-cards/D1.png') center/cover no-repeat;
+      border: none;
+      box-shadow: 0 8px 30px rgba(74,184,232,0.2), 0 2px 8px rgba(74,184,232,0.15);
     }
-    .tarot-card.face-down .card-inner::before {
-      content: '';
-      position: absolute; inset: 7px;
-      border: 1px solid rgba(74,184,232,0.4);
-      border-radius: 6px;
-      box-shadow: inset 0 0 10px rgba(255,255,255,0.4);
-    }
-    .tarot-card.face-down .card-inner::after {
-      content: '';
-      position: absolute; inset: 12px;
-      background:
-        repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(74,184,232,0.06) 3px, rgba(74,184,232,0.06) 6px),
-        repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px);
-      border-radius: 4px;
-    }
-    .card-back-glyph {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 26px;
-      color: rgba(26,124,192,0.5);
-      font-family: 'Orbitron', sans-serif;
-      z-index: 1;
-      text-shadow: 0 0 14px rgba(74,184,232,0.6), 0 1px 0 rgba(255,255,255,0.7);
-    }
+    /* old CSS decorations replaced by D1.png */
+    .tarot-card.face-down .card-inner::before,
+    .tarot-card.face-down .card-inner::after { display: none; }
+    .card-back-glyph { display: none; }
 
     .card-inner {
       width: 100%; height: 100%;
@@ -2004,7 +1974,7 @@ function revealCard(i, card) {
     img.onload = () => {
       el.querySelector('.card-inner').innerHTML = `<img src="${img.src}" class="card-img">${card.reversed ? '<div class="card-reversed-badge">REV</div>' : ''}`;
     };
-    img.src = `/orycl-cards/${card.id}.jpg`;
+    img.src = `/orycl-cards/${card.num}.png`;
   }, 275);
 }
 
@@ -2305,7 +2275,7 @@ function renderDeckGrid(filter) {
       el.style.backgroundSize = 'cover';
       el.style.backgroundPosition = 'center';
     };
-    img.src = `/orycl-cards/${card.id}.jpg`;
+    img.src = `/orycl-cards/${card.num}.png`;
   });
 }
 
