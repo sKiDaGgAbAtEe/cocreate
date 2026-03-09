@@ -208,7 +208,8 @@ function getRoomList() {
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     summary: r.summary || '',
-    summaryAt: r.summaryAt || 0
+    summaryAt: r.summaryAt || 0,
+    cardColor: r.cardColor || ''
   }));
 }
 
@@ -893,6 +894,7 @@ app.post('/api/rooms', (req, res) => {
     activeFolders: req.body.activeFolders || [],
     folderMap: req.body.folderMap || {},
     saveFolderId: req.body.saveFolderId || null,
+    cardColor: req.body.cardColor || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
