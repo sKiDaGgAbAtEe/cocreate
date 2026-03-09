@@ -1139,31 +1139,37 @@
     }
     .qs-fox {
       position: relative; flex-shrink: 0;
-      width: 64px; height: 64px;
-      display: flex; align-items: center; justify-content: center;
+      width: 96px; height: 96px;
+      cursor: pointer;
     }
-    .qs-fox svg {
-      filter: drop-shadow(0 0 8px rgba(140,190,240,0.5));
-      animation: qs-float 4s ease-in-out infinite;
+    /* All four portrait layers stacked */
+    .qs-fox img {
+      position: absolute; inset: 0;
+      width: 96px; height: 96px;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      pointer-events: none;
     }
-    @keyframes qs-float {
-      0%,100% { transform: translateY(0) rotate(-2deg); }
-      50%      { transform: translateY(-5px) rotate(2deg); }
-    }
+    /* The active layer is shown */
+    .qs-fox img.qs-visible { opacity: 1; }
+    /* Soft etheric glow ring */
     .qs-glow-ring {
-      position: absolute; inset: -8px; border-radius: 50%;
+      position: absolute; inset: -6px; border-radius: 50%;
       border: 1px solid rgba(140,190,240,0.3);
       animation: qs-ring 3s ease-in-out infinite;
+      pointer-events: none;
     }
     .qs-glow-ring::after {
       content: '';
-      position: absolute; inset: -6px; border-radius: 50%;
+      position: absolute; inset: -5px; border-radius: 50%;
       border: 1px solid rgba(180,140,240,0.15);
-      animation: qs-ring 3s ease-in-out infinite 1s;
+      animation: qs-ring 3s ease-in-out infinite 1.2s;
     }
     @keyframes qs-ring {
-      0%,100% { transform: scale(1); opacity: 0.6; }
-      50%      { transform: scale(1.15); opacity: 1; }
+      0%,100% { transform: scale(1); opacity: 0.5; }
+      50%      { transform: scale(1.12); opacity: 1; }
     }
     .qs-intro h2 {
       font-family: 'Cinzel', serif; font-size: 20px;
@@ -1567,8 +1573,15 @@
 
     <!-- Quicksilver header -->
     <div class="qs-header">
-      <div class="qs-fox">
-        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <div class="qs-fox" id="qsFox" onmouseenter="qsWake()" onmouseleave="qsSleep()">
+        <!-- Stacked portrait layers: sleep(default) → wake(once) → stand(loop) → down(once) → sleep -->
+        <img id="qs-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="Quicksilver sleeping">
+        <img id="qs-wake"  class="qs-layer" src="/qs__wake.gif"  alt="Quicksilver waking">
+        <img id="qs-stand" class="qs-layer" src="/qs__stand.gif" alt="Quicksilver standing">
+        <img id="qs-down"  class="qs-layer" src="/qs__down.gif"  alt="Quicksilver lying down">
+        <div class="qs-glow-ring"></div>
+        <!-- LEGACY SVG hidden below, kept for reference only -->
+        <svg style="display:none" width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <!-- Fox body -->
           <ellipse cx="24" cy="30" rx="10" ry="8" fill="url(#qs-body)"/>
           <!-- Fox head -->
@@ -1609,7 +1622,6 @@
             </linearGradient>
           </defs>
         </svg>
-        <div class="qs-glow-ring"></div>
       </div>
       <div class="qs-intro">
         <h2>Quicksilver</h2>
@@ -4248,7 +4260,65 @@ function saveRoom() {
 // ── Definition & About ────────────────────────
 function openDefinition() { document.getElementById('defTooltip').classList.add('open'); }
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
-function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); }
+
+// ── Quicksilver Portrait State Machine ──────────────────────────────────────
+// States: sleep → wake(once) → stand(loop) → down(once) → sleep(loop)
+(function() {
+  const WAKE_MS = 2200;
+  const DOWN_MS = 2200;
+  let _state = 'sleep';
+  let _wakeTimer = null;
+  let _downTimer = null;
+  let _wakeHolds = 0;
+
+  function _layer(id) { return document.getElementById(id); }
+  function _showOnly(id) {
+    ['qs-sleep','qs-wake','qs-stand','qs-down'].forEach(function(lid) {
+      var el = _layer(lid); if (el) el.classList.toggle('qs-visible', lid === id);
+    });
+  }
+  function _reloadGif(id) {
+    var el = _layer(id); if (!el) return;
+    var src = el.src; el.src = ''; el.src = src;
+  }
+
+  window.qsWake = function() {
+    _wakeHolds++;
+    if (_state === 'stand' || _state === 'waking') return;
+    if (_downTimer) { clearTimeout(_downTimer); _downTimer = null; }
+    if (_state === 'sleeping') { _state = 'stand'; _showOnly('qs-stand'); return; }
+    _state = 'waking';
+    _reloadGif('qs-wake');
+    _showOnly('qs-wake');
+    _wakeTimer = setTimeout(function() {
+      _state = 'stand'; _showOnly('qs-stand'); _wakeTimer = null;
+    }, WAKE_MS);
+  };
+
+  window.qsSleep = function() {
+    if (_wakeHolds > 0) _wakeHolds--;
+    if (_wakeHolds > 0) return;
+    if (_state === 'sleep' || _state === 'sleeping') return;
+    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
+    if (_state === 'waking') { _state = 'sleep'; _showOnly('qs-sleep'); return; }
+    _state = 'sleeping';
+    _reloadGif('qs-down');
+    _showOnly('qs-down');
+    _downTimer = setTimeout(function() {
+      _state = 'sleep'; _showOnly('qs-sleep'); _downTimer = null;
+    }, DOWN_MS);
+  };
+
+  window.qsReset = function() {
+    _wakeHolds = 0;
+    if (_wakeTimer) clearTimeout(_wakeTimer);
+    if (_downTimer) clearTimeout(_downTimer);
+    _wakeTimer = _downTimer = null;
+    _state = 'sleep'; _showOnly('qs-sleep');
+  };
+})();
+
+function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); qsWake(); }
 
 // ── Profile Modal ──────────────────────────────────────
 let _profileIsFirstTime = false;
@@ -4448,7 +4518,7 @@ document.addEventListener('click', (e) => {
 });
 function closeAbout(e) {
   if (!e || e.target === document.getElementById('aboutOverlay') || e.currentTarget?.classList.contains('about-close')) {
-    document.getElementById('aboutOverlay').classList.remove('open');
+    document.getElementById('aboutOverlay').classList.remove('open'); qsSleep();
   }
 }
 
