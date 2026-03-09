@@ -1540,81 +1540,75 @@
        QUICKSILVER PFP + TAROT WIDGET
     ══════════════════════════════════════════ */
 
-    /* ── QS PFP dock in lobby chat panel ── */
-    .qs-dock-row {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: rgba(240,236,224,0.6);
-      flex-shrink: 0;
+    /* ══════════════════════════════════════════
+       QS CORNER PFP + TAROT WIDGET
+    ══════════════════════════════════════════ */
+
+    /* ── QS corner anchor: fixed bottom-right of lobby area ── */
+    #qs-corner {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      z-index: 200;
+      width: 64px;
+      height: 64px;
     }
-    body.dark .qs-dock-row { background: rgba(18,16,28,0.5); }
-    .qs-dock-btn {
-      position: relative;
-      width: 52px; height: 52px;
-      flex-shrink: 0;
-      cursor: pointer;
-      background: none;
-      border: none;
-      border-right: 1px solid var(--border);
-      padding: 6px;
-      display: flex; align-items: center; justify-content: center;
-      transition: background 0.15s;
-    }
-    .qs-dock-btn:hover { background: rgba(74,184,232,0.08); }
-    .qs-dock-btn img {
+
+    /* ── The pfp itself ── */
+    #qs-corner-pfp {
       position: absolute;
-      inset: 4px;
-      width: calc(100% - 8px); height: calc(100% - 8px);
+      inset: 0;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: transform 0.2s ease;
+    }
+    #qs-corner-pfp:hover { transform: scale(1.06); }
+    #qs-corner-pfp img {
+      position: absolute; inset: 0;
+      width: 64px; height: 64px;
       border-radius: 50%;
       object-fit: cover;
       opacity: 0;
       transition: opacity 0.22s ease;
       pointer-events: none;
     }
-    .qs-dock-btn img.qs-visible { opacity: 1; }
-    .qs-dock-label {
-      flex: 1;
-      padding: 0 10px;
-      font-family: 'Cinzel', serif;
-      font-size: 9px;
-      letter-spacing: 0.14em;
-      color: var(--ink-faint);
-      text-transform: uppercase;
-      cursor: pointer;
-    }
-    .qs-dock-label:hover { color: var(--ink-muted); }
-    .qs-pfp-ring {
-      position: absolute; inset: 2px;
+    #qs-corner-pfp img.qs-visible { opacity: 1; }
+
+    /* glow ring around corner pfp */
+    #qs-corner-pfp::after {
+      content: '';
+      position: absolute;
+      inset: -4px;
       border-radius: 50%;
-      border: 1px solid rgba(74,184,232,0.35);
+      border: 1px solid rgba(74,184,232,0.4);
+      animation: qs-corner-pulse 3s ease-in-out infinite;
       pointer-events: none;
-      animation: qs-pfp-pulse 3s ease-in-out infinite;
     }
-    @keyframes qs-pfp-pulse {
-      0%,100% { box-shadow: 0 0 6px rgba(74,184,232,0.15); opacity: 0.5; }
-      50% { box-shadow: 0 0 16px rgba(74,184,232,0.45); opacity: 1; }
+    @keyframes qs-corner-pulse {
+      0%,100% { box-shadow: 0 0 8px rgba(74,184,232,0.15); opacity: 0.5; }
+      50%      { box-shadow: 0 0 22px rgba(74,184,232,0.5); opacity: 1; }
     }
 
-    /* ── TAROT OVERLAY WIDGET ── */
+    /* ── TAROT WIDGET ── */
     #tarot-widget {
       position: fixed;
-      bottom: 108px;   /* sits above the dock row */
-      right: 4px;
-      z-index: 999;
+      bottom: 18px;
+      right: 18px;
+      z-index: 199;
+      width: 380px;
       pointer-events: none;
       opacity: 0;
-      transform: scale(0.82) translate(24px, 24px);
+      transform: scale(0.78) translate(40px, 40px);
       transform-origin: bottom right;
-      transition: opacity 0.32s cubic-bezier(0.34,1.2,0.64,1), transform 0.32s cubic-bezier(0.34,1.2,0.64,1);
+      transition: opacity 0.35s cubic-bezier(0.34,1.15,0.64,1),
+                  transform 0.35s cubic-bezier(0.34,1.15,0.64,1);
     }
     #tarot-widget.open {
       pointer-events: all;
       opacity: 1;
       transform: scale(1) translate(0, 0);
     }
+
     .tarot-widget-shell {
       width: 380px;
       height: 540px;
@@ -1629,13 +1623,55 @@
         0 4px 16px rgba(74,184,232,0.25),
         inset 0 1px 0 rgba(255,255,255,0.9);
     }
+
     .tarot-widget-header {
-      display: flex; align-items: center; gap: 10px;
-      padding: 10px 14px 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
       background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(210,235,255,0.75));
       border-bottom: 1px solid rgba(74,184,232,0.25);
       flex-shrink: 0;
     }
+
+    /* pfp lives here in the widget header — starts hidden, fades in as widget opens */
+    #qs-widget-pfp {
+      position: relative;
+      width: 38px; height: 38px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity 0.25s ease 0.15s; /* slight delay so it arrives mid-expand */
+    }
+    #tarot-widget.open #qs-widget-pfp { opacity: 1; }
+    #qs-widget-pfp img {
+      position: absolute; inset: 0;
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      pointer-events: none;
+    }
+    #qs-widget-pfp img.qs-visible { opacity: 1; }
+    #qs-widget-pfp::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,184,232,0.4);
+      pointer-events: none;
+      animation: qs-corner-pulse 3s ease-in-out infinite;
+    }
+
+    /* corner pfp fades out when widget is open */
+    #tarot-widget.open ~ #qs-corner #qs-corner-pfp,
+    body.tarot-open #qs-corner #qs-corner-pfp {
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
     .tarot-widget-title {
       flex: 1;
       font-family: 'Orbitron', sans-serif;
@@ -1661,7 +1697,6 @@
     }
     .tarot-widget-popout:hover {
       border-color: rgba(74,184,232,0.7);
-      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(180,225,255,0.6));
       box-shadow: 0 2px 10px rgba(74,184,232,0.3);
     }
     .tarot-widget-close {
@@ -1672,7 +1707,9 @@
       cursor: pointer;
       display: flex; align-items: center; justify-content: center;
       color: rgba(74,184,232,0.5);
-      font-size: 12px;
+      font-size: 14px;
+      font-weight: 300;
+      line-height: 1;
       transition: all 0.15s;
       flex-shrink: 0;
     }
@@ -1688,34 +1725,14 @@
       border: none;
     }
 
-    /* ── QS pfp inside tarot widget header ── */
-    .tarot-qs-pfp {
-      position: relative;
-      width: 36px; height: 36px;
-      flex-shrink: 0;
-    }
-    .tarot-qs-pfp-lg {
-      width: 44px; height: 44px;
-    }
-    .tarot-qs-pfp img {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      border-radius: 50%;
-      object-fit: cover;
-      opacity: 0;
-      transition: opacity 0.22s ease;
+    /* corner pfp fades when open */
+    #qs-corner.widget-open #qs-corner-pfp {
+      opacity: 0 !important;
       pointer-events: none;
-    }
-    .tarot-qs-pfp img.qs-visible { opacity: 1; }
-    .tarot-qs-pfp .qs-pfp-ring {
-      position: absolute; inset: -3px;
-      border-radius: 50%;
-      border: 1px solid rgba(74,184,232,0.4);
-      pointer-events: none;
-      animation: qs-pfp-pulse 3s ease-in-out infinite;
+      transition: opacity 0.2s ease;
     }
 
-    /* ── TAROT FULLSCREEN MODAL ── */
+    /* ── TAROT FULLSCREEN ── */
     #tarot-fullscreen {
       position: fixed; inset: 0;
       z-index: 1000;
@@ -1743,6 +1760,29 @@
       border-bottom: 1px solid rgba(74,184,232,0.3);
       flex-shrink: 0;
     }
+    #qs-full-pfp {
+      position: relative;
+      width: 44px; height: 44px;
+      flex-shrink: 0;
+    }
+    #qs-full-pfp img {
+      position: absolute; inset: 0;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      pointer-events: none;
+    }
+    #qs-full-pfp img.qs-visible { opacity: 1; }
+    #qs-full-pfp::after {
+      content: '';
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,184,232,0.4);
+      pointer-events: none;
+      animation: qs-corner-pulse 3s ease-in-out infinite;
+    }
     .tarot-full-title {
       flex: 1;
       font-family: 'Orbitron', sans-serif;
@@ -1765,17 +1805,14 @@
       font-size: 14px;
       transition: all 0.15s;
     }
-    .tarot-full-close:hover { border-color: rgba(74,184,232,0.7); color: rgba(74,184,232,1); box-shadow: 0 2px 12px rgba(74,184,232,0.3); }
-    .tarot-full-body {
-      flex: 1;
-      overflow: hidden;
-    }
-    .tarot-full-body iframe {
-      width: 100%; height: 100%;
-      border: none;
-    }
+    .tarot-full-close:hover { border-color: rgba(74,184,232,0.7); color: rgba(74,184,232,1); }
+    .tarot-full-body { flex: 1; overflow: hidden; }
+    .tarot-full-body iframe { width: 100%; height: 100%; border: none; }
 
-    /* ── CHROMIUM THEME: override global vars to ice palette ── */
+    /* ── OLD .qs-dock-row kept for compat (unused) ── */
+    .qs-dock-row { display: none; }
+
+    /* ── CHROMIUM THEME: override global vars to ice palette ── */    /* ── CHROMIUM THEME: override global vars to ice palette ── */
     body.theme-chromium {
       --bg: #e8eef5;
       --bg2: #dde5ef;
@@ -2037,18 +2074,6 @@
       <div class="chat-input-row">
         <textarea id="lobbyChatInput" rows="1" placeholder="Message the lobby..." oninput="onLobbyChatInput(this)" onkeydown="onLobbyChatKey(event)"></textarea>
         <button class="chat-send-btn" id="lobbyChatSend" disabled onclick="sendLobbyMessage()">↑</button>
-      </div>
-
-      <!-- Quicksilver dock — above voice panel -->
-      <div class="qs-dock-row">
-        <button class="qs-dock-btn" id="qsDockBtn" onclick="openTarotWidget()" title="Open the Resonant Oracle">
-          <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
-          <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
-          <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-          <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
-          <div class="qs-pfp-ring"></div>
-        </button>
-        <span class="qs-dock-label" onclick="openTarotWidget()">Quicksilver</span>
       </div>
 
       <!-- Voice channel -->
@@ -4532,125 +4557,183 @@ function saveRoom() {
 function openDefinition() { document.getElementById('defTooltip').classList.add('open'); }
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
 
-// ── Quicksilver Portrait State Machine ──────────────────────────────────────
-// Controls both the about-panel pfp (qs-sleep etc.) and the header pfp (qsp-sleep etc.)
-// States: sleep → wake(once) → stand(loop) → reset → sleep
+// ══════════════════════════════════════════════════════════════════
+// QUICKSILVER STATE MACHINE
+// Sequence: sleep(loop) → wake(once) → stand(loop) → down(once) → sleep(loop)
+// Controls all three pfp groups: corner (qsp-), widget (qsw-), fullscreen (qsf-)
+// Rules:
+//   - sleep loops until woken
+//   - wake plays once, then stand takes over
+//   - stand loops until minimized
+//   - down plays once, then sleep takes over
+//   - transitions never interrupt mid-gif — each one-shot gif runs to completion
+// ══════════════════════════════════════════════════════════════════
 (function() {
-  const WAKE_MS = 2200;
-  const DOWN_MS = 2200;  // match qs__down.gif duration
-  let _state = 'sleep';
-  let _wakeTimer = null;
-  let _wakeHolds = 0;
+  const WAKE_MS  = 2200;  // ← tune to your qs__wake.gif duration
+  const DOWN_MS  = 2200;  // ← tune to your qs__down.gif duration
 
-  // Get layer from either pfp (about-panel OR header)
-  function _layers(suffix) {
-    var els = [];
-    var a = document.getElementById('qs-' + suffix);
-    var b = document.getElementById('qsp-' + suffix);
-    if (a) els.push(a);
-    if (b) els.push(b);
-    return els;
+  // States: 'sleep' | 'waking' | 'stand' | 'sleeping'
+  var _state = 'sleep';
+  var _timer = null;
+
+  // All suffix groups to control in sync
+  var GROUPS = ['qsp', 'qsw', 'qsf'];
+  var FRAMES = ['sleep', 'wake', 'stand', 'down'];
+
+  function _el(group, frame) {
+    return document.getElementById(group + '-' + frame);
   }
-  function _show(suffix) { _layers(suffix).forEach(function(el){ el.classList.add('qs-visible'); }); }
-  function _hide(suffix) { _layers(suffix).forEach(function(el){ el.classList.remove('qs-visible'); }); }
-  function _showOnly(suffix) {
-    ['sleep','wake','stand','down'].forEach(function(s) {
-      _layers(s).forEach(function(el){ el.classList.toggle('qs-visible', s === suffix); });
+
+  function _show(frame) {
+    GROUPS.forEach(function(g) {
+      var el = _el(g, frame);
+      if (el) el.classList.add('qs-visible');
     });
   }
-  function _reloadGif(suffix) {
-    _layers(suffix).forEach(function(el){
+
+  function _hide(frame) {
+    GROUPS.forEach(function(g) {
+      var el = _el(g, frame);
+      if (el) el.classList.remove('qs-visible');
+    });
+  }
+
+  function _showOnly(frame) {
+    FRAMES.forEach(function(f) {
+      if (f === frame) _show(f); else _hide(f);
+    });
+  }
+
+  // Restart a gif from frame 0 across all groups
+  function _reload(frame) {
+    GROUPS.forEach(function(g) {
+      var el = _el(g, frame);
+      if (!el) return;
       var src = el.src; el.src = ''; el.src = src;
     });
   }
 
+  function _clearTimer() {
+    if (_timer) { clearTimeout(_timer); _timer = null; }
+  }
+
+  // ── PUBLIC API ──
+
+  // Wake: sleep → wake(once) → stand(loop)
+  // Safe to call from: corner pfp click, widget open, fullscreen open, hover
   window.qsWake = function() {
-    _wakeHolds++;
-    if (_state === 'stand' || _state === 'waking') return;
+    if (_state === 'stand') return;   // already awake, do nothing
+    if (_state === 'waking') return;  // already mid-wake, let it finish
+
+    if (_state === 'sleeping') {
+      // down is playing — cancel and jump straight to stand
+      _clearTimer();
+      _state = 'stand';
+      _showOnly('stand');
+      return;
+    }
+
+    // from sleep → play wake once, then stand
+    _clearTimer();
     _state = 'waking';
-    _reloadGif('wake');
+    _reload('wake');
+    // stand is the persistent background; wake sits on top of it
+    _show('stand');  // preload stand underneath (invisible until wake hides)
     _show('wake');
     _hide('sleep');
-    _wakeTimer = setTimeout(function() {
-      _hide('wake');
+    _hide('down');
+
+    _timer = setTimeout(function() {
+      _hide('wake');   // stand is already running beneath
       _state = 'stand';
-      _wakeTimer = null;
+      _timer = null;
     }, WAKE_MS);
   };
 
-  window.qsSleep = function() {
-    if (_wakeHolds > 0) _wakeHolds--;
-    if (_wakeHolds > 0) return;
-    qsReset();
-  };
-
-  // qsDown: play down once, then go to sleep (used by minimize/close)
+  // Down: stand → down(once) → sleep(loop)
+  // Called by minimize button and fullscreen close
   window.qsDown = function() {
-    _wakeHolds = 0;
-    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
+    if (_state === 'sleep') return;    // already asleep
+    if (_state === 'sleeping') return; // already mid-down, let it finish
+
+    if (_state === 'waking') {
+      // wake is playing — cancel and jump straight back to sleep
+      _clearTimer();
+      _state = 'sleep';
+      _showOnly('sleep');
+      return;
+    }
+
+    // from stand → play down once, then sleep
+    _clearTimer();
     _state = 'sleeping';
-    _reloadGif('down');
+    _reload('down');
     _show('down');
-    _hide('wake'); _hide('stand'); _hide('sleep');
-    setTimeout(function() {
+    _hide('stand');
+    _hide('wake');
+    _hide('sleep');
+
+    _timer = setTimeout(function() {
       _hide('down');
       _show('sleep');
       _state = 'sleep';
+      _timer = null;
     }, DOWN_MS);
   };
 
+  // Hard reset to sleep (used by about modal close, etc.)
   window.qsReset = function() {
-    _wakeHolds = 0;
-    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
+    _clearTimer();
     _state = 'sleep';
-    _hide('wake'); _hide('down'); _hide('stand');
-    _show('sleep');
+    _showOnly('sleep');
   };
+
+  // Expose state for debugging
+  window.qsState = function() { return _state; };
+
 })();
 
-// ── Tarot Widget ──────────────────────────────────────────────────────────────
-var _tarotWidgetOpen = false;
+// ── Tarot Widget ──────────────────────────────────────────────────
 var _tarotLoaded = false;
+
 function openTarotWidget() {
   var widget = document.getElementById('tarot-widget');
+  var corner = document.getElementById('qs-corner');
   if (!widget) return;
   if (!_tarotLoaded) {
     document.getElementById('tarot-mini-frame').src = '/orycl_v4.html';
     _tarotLoaded = true;
   }
   widget.classList.add('open');
-  _tarotWidgetOpen = true;
+  if (corner) corner.classList.add('widget-open'); // fades corner pfp
   qsWake();
 }
 
-// Minimize: play down gif then sleep, collapse widget
 function minimizeTarotWidget() {
   var widget = document.getElementById('tarot-widget');
+  var full   = document.getElementById('tarot-fullscreen');
+  var corner = document.getElementById('qs-corner');
   if (widget) widget.classList.remove('open');
-  _tarotWidgetOpen = false;
-  // Trigger down → sleep sequence on the pfp
-  qsDown();
+  if (full)   full.classList.remove('open');
+  if (corner) corner.classList.remove('widget-open');
+  qsDown(); // plays down → sleep on all pfps
 }
 
 function openTarotFullscreen() {
-  qsWake();
   var modal = document.getElementById('tarot-fullscreen');
   if (!modal) return;
   var fullFrame = document.getElementById('tarot-full-frame');
-  if (fullFrame && !fullFrame.src) {
-    fullFrame.src = '/orycl_v4.html';
-  }
+  if (fullFrame && !fullFrame.src) fullFrame.src = '/orycl_v4.html';
   modal.classList.add('open');
+  // collapse mini widget but keep corner hidden
   var widget = document.getElementById('tarot-widget');
   if (widget) widget.classList.remove('open');
-  _tarotWidgetOpen = false;
+  qsWake(); // already awake, no-op — keeps stand looping
 }
 
 function closeTarotFullscreen(e) {
-  if (!e || e.target === document.getElementById('tarot-fullscreen')) {
-    document.getElementById('tarot-fullscreen').classList.remove('open');
-    qsDown();
-  }
+  if (e && e.target !== document.getElementById('tarot-fullscreen')) return;
+  minimizeTarotWidget();
 }
 
 function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); qsWake(); }
@@ -5404,13 +5487,30 @@ document.addEventListener('keydown', (e) => {
 </script>
 
 <!-- ══════════════════════════════════════════
-     QUICKSILVER TAROT WIDGET
+     QUICKSILVER CORNER PFP + TAROT WIDGET
 ══════════════════════════════════════════ -->
 
-<!-- Mini widget (expands from QS pfp corner) -->
+<!-- Corner pfp — fixed bottom-right, always present -->
+<div id="qs-corner">
+  <div id="qs-corner-pfp" onclick="openTarotWidget()" title="Open the Resonant Oracle">
+    <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
+    <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+    <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+    <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
+  </div>
+</div>
+
+<!-- Tarot mini widget — expands up-left from corner -->
 <div id="tarot-widget">
   <div class="tarot-widget-shell">
     <div class="tarot-widget-header">
+      <!-- pfp travels here: fades in as widget opens -->
+      <div id="qs-widget-pfp">
+        <img id="qsw-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
+        <img id="qsw-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+        <img id="qsw-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+        <img id="qsw-down"  class="qs-layer" src="/qs__down.gif" alt="">
+      </div>
       <span class="tarot-widget-title">ORYCL</span>
       <button class="tarot-widget-popout" onclick="openTarotFullscreen()" title="Open full oracle">⤢</button>
       <button class="tarot-widget-close" onclick="minimizeTarotWidget()" title="Minimize">−</button>
@@ -5425,15 +5525,14 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-fullscreen" onclick="closeTarotFullscreen(event)">
   <div class="tarot-full-shell">
     <div class="tarot-full-header">
-      <div class="tarot-qs-pfp tarot-qs-pfp-lg" onmouseenter="qsWake()" onmouseleave="qsSleep()">
-        <img class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
-        <img class="qs-layer" src="/qs__wake.gif" alt="">
-        <img class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-        <img class="qs-layer" src="/qs__down.gif" alt="">
-        <div class="qs-pfp-ring"></div>
+      <div id="qs-full-pfp">
+        <img id="qsf-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
+        <img id="qsf-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+        <img id="qsf-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+        <img id="qsf-down"  class="qs-layer" src="/qs__down.gif" alt="">
       </div>
       <span class="tarot-full-title">ORYCL — THE RESONANT ORACLE</span>
-      <button class="tarot-full-close" onclick="closeTarotFullscreen()">✕</button>
+      <button class="tarot-full-close" onclick="minimizeTarotWidget()">✕</button>
     </div>
     <div class="tarot-full-body">
       <iframe id="tarot-full-frame" src="" title="Resonant Oracle — Full"></iframe>
@@ -5442,4 +5541,3 @@ document.addEventListener('keydown', (e) => {
 </div>
 
 </body>
-</html>
