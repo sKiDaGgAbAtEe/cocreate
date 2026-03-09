@@ -1540,50 +1540,75 @@
        QUICKSILVER PFP + TAROT WIDGET
     ══════════════════════════════════════════ */
 
-    /* ── QS PFP in session header ── */
-    .qs-pfp-btn {
-      position: relative;
+    /* ── QS PFP dock in lobby chat panel ── */
+    .qs-dock-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(240,236,224,0.6);
       flex-shrink: 0;
+    }
+    body.dark .qs-dock-row { background: rgba(18,16,28,0.5); }
+    .qs-dock-btn {
+      position: relative;
       width: 52px; height: 52px;
+      flex-shrink: 0;
       cursor: pointer;
       background: none;
       border: none;
-      padding: 0;
-      z-index: 10;
+      border-right: 1px solid var(--border);
+      padding: 6px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
     }
-    .qs-pfp-btn img {
-      position: absolute; inset: 0;
-      width: 52px; height: 52px;
+    .qs-dock-btn:hover { background: rgba(74,184,232,0.08); }
+    .qs-dock-btn img {
+      position: absolute;
+      inset: 4px;
+      width: calc(100% - 8px); height: calc(100% - 8px);
       border-radius: 50%;
       object-fit: cover;
       opacity: 0;
       transition: opacity 0.22s ease;
       pointer-events: none;
     }
-    .qs-pfp-btn img.qs-visible { opacity: 1; }
+    .qs-dock-btn img.qs-visible { opacity: 1; }
+    .qs-dock-label {
+      flex: 1;
+      padding: 0 10px;
+      font-family: 'Cinzel', serif;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .qs-dock-label:hover { color: var(--ink-muted); }
     .qs-pfp-ring {
-      position: absolute; inset: -4px;
+      position: absolute; inset: 2px;
       border-radius: 50%;
       border: 1px solid rgba(74,184,232,0.35);
       pointer-events: none;
       animation: qs-pfp-pulse 3s ease-in-out infinite;
     }
     @keyframes qs-pfp-pulse {
-      0%,100% { box-shadow: 0 0 8px rgba(74,184,232,0.2); opacity: 0.6; }
-      50% { box-shadow: 0 0 20px rgba(74,184,232,0.5); opacity: 1; }
+      0%,100% { box-shadow: 0 0 6px rgba(74,184,232,0.15); opacity: 0.5; }
+      50% { box-shadow: 0 0 16px rgba(74,184,232,0.45); opacity: 1; }
     }
 
     /* ── TAROT OVERLAY WIDGET ── */
     #tarot-widget {
       position: fixed;
-      bottom: 72px;
-      left: 12px;
+      bottom: 108px;   /* sits above the dock row */
+      right: 4px;
       z-index: 999;
       pointer-events: none;
       opacity: 0;
-      transform: scale(0.85) translate(-20px, 20px);
-      transform-origin: bottom left;
-      transition: opacity 0.3s cubic-bezier(0.34,1.2,0.64,1), transform 0.3s cubic-bezier(0.34,1.2,0.64,1);
+      transform: scale(0.82) translate(24px, 24px);
+      transform-origin: bottom right;
+      transition: opacity 0.32s cubic-bezier(0.34,1.2,0.64,1), transform 0.32s cubic-bezier(0.34,1.2,0.64,1);
     }
     #tarot-widget.open {
       pointer-events: all;
@@ -2012,6 +2037,18 @@
       <div class="chat-input-row">
         <textarea id="lobbyChatInput" rows="1" placeholder="Message the lobby..." oninput="onLobbyChatInput(this)" onkeydown="onLobbyChatKey(event)"></textarea>
         <button class="chat-send-btn" id="lobbyChatSend" disabled onclick="sendLobbyMessage()">↑</button>
+      </div>
+
+      <!-- Quicksilver dock — above voice panel -->
+      <div class="qs-dock-row">
+        <button class="qs-dock-btn" id="qsDockBtn" onclick="openTarotWidget()" title="Open the Resonant Oracle">
+          <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="Quicksilver">
+          <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+          <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+          <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
+          <div class="qs-pfp-ring"></div>
+        </button>
+        <span class="qs-dock-label" onclick="openTarotWidget()">Quicksilver</span>
       </div>
 
       <!-- Voice channel -->
@@ -4500,6 +4537,7 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
 // States: sleep → wake(once) → stand(loop) → reset → sleep
 (function() {
   const WAKE_MS = 2200;
+  const DOWN_MS = 2200;  // match qs__down.gif duration
   let _state = 'sleep';
   let _wakeTimer = null;
   let _wakeHolds = 0;
@@ -4546,11 +4584,26 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
     qsReset();
   };
 
+  // qsDown: play down once, then go to sleep (used by minimize/close)
+  window.qsDown = function() {
+    _wakeHolds = 0;
+    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
+    _state = 'sleeping';
+    _reloadGif('down');
+    _show('down');
+    _hide('wake'); _hide('stand'); _hide('sleep');
+    setTimeout(function() {
+      _hide('down');
+      _show('sleep');
+      _state = 'sleep';
+    }, DOWN_MS);
+  };
+
   window.qsReset = function() {
     _wakeHolds = 0;
     if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
     _state = 'sleep';
-    _hide('wake'); _hide('down');
+    _hide('wake'); _hide('down'); _hide('stand');
     _show('sleep');
   };
 })();
@@ -4558,15 +4611,6 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
 // ── Tarot Widget ──────────────────────────────────────────────────────────────
 var _tarotWidgetOpen = false;
 var _tarotLoaded = false;
-
-function toggleTarotWidget() {
-  if (_tarotWidgetOpen) {
-    closeTarotWidget();
-  } else {
-    openTarotWidget();
-  }
-}
-
 function openTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   if (!widget) return;
@@ -4579,24 +4623,24 @@ function openTarotWidget() {
   qsWake();
 }
 
-function closeTarotWidget() {
+// Minimize: play down gif then sleep, collapse widget
+function minimizeTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   if (widget) widget.classList.remove('open');
   _tarotWidgetOpen = false;
-  qsSleep();
+  // Trigger down → sleep sequence on the pfp
+  qsDown();
 }
 
 function openTarotFullscreen() {
   qsWake();
   var modal = document.getElementById('tarot-fullscreen');
   if (!modal) return;
-  // Load the full frame if needed
   var fullFrame = document.getElementById('tarot-full-frame');
   if (fullFrame && !fullFrame.src) {
     fullFrame.src = '/orycl_v4.html';
   }
   modal.classList.add('open');
-  // Close mini widget
   var widget = document.getElementById('tarot-widget');
   if (widget) widget.classList.remove('open');
   _tarotWidgetOpen = false;
@@ -4605,6 +4649,7 @@ function openTarotFullscreen() {
 function closeTarotFullscreen(e) {
   if (!e || e.target === document.getElementById('tarot-fullscreen')) {
     document.getElementById('tarot-fullscreen').classList.remove('open');
+    qsDown();
   }
 }
 
@@ -5366,17 +5411,9 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-widget">
   <div class="tarot-widget-shell">
     <div class="tarot-widget-header">
-      <!-- QS pfp in tarot widget — wakes on open -->
-      <div class="tarot-qs-pfp" id="qsPfpBtn" onmouseenter="qsWake()" onmouseleave="qsSleep()">
-        <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
-        <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
-        <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-        <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
-        <div class="qs-pfp-ring"></div>
-      </div>
       <span class="tarot-widget-title">ORYCL</span>
       <button class="tarot-widget-popout" onclick="openTarotFullscreen()" title="Open full oracle">⤢</button>
-      <button class="tarot-widget-close" onclick="closeTarotWidget()">✕</button>
+      <button class="tarot-widget-close" onclick="minimizeTarotWidget()" title="Minimize">−</button>
     </div>
     <div class="tarot-widget-body">
       <iframe id="tarot-mini-frame" src="" title="Resonant Oracle"></iframe>
