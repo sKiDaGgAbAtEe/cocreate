@@ -695,6 +695,7 @@
     @keyframes lFadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: none; } }
 
   </style>
+  <script src="/socket.io/socket.io.js"></script>
 </head>
 <body>
 
@@ -820,6 +821,10 @@
           <div class="fp-title">
             <div class="fp-live-dot" id="fpLiveDot"></div>
             Field Monitor
+          </div>
+          <div id="fpSocketStatus" style="font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:.05em;display:flex;align-items:center;gap:4px;">
+            <div id="fpSocketDot" style="width:4px;height:4px;border-radius:50%;background:#3a4a3a;flex-shrink:0;"></div>
+            <span id="fpSocketLabel">socket offline</span>
           </div>
         </div>
         <div class="fp-scroll">
@@ -1496,6 +1501,106 @@ Measurement rules — all scores 0.0 to 1.0 unless noted:
   } catch(e) {
     return null;
   }
+}
+
+// ── Socket — live field metrics from Entriference rooms ──────────────────────
+// Watchtower listens on global:pyxis-state (broadcast after every basin response)
+// and bridges the Pyxis shape into updateFieldUI's existing schema.
+// No room join required — Watchtower is a read surface.
+
+(function initFieldSocket() {
+  if (typeof io === 'undefined') return;
+
+  const socket = io({ transports: ['websocket', 'polling'] });
+
+  function setSocketStatus(connected, label) {
+    const dot   = document.getElementById('fpSocketDot');
+    const lbl   = document.getElementById('fpSocketLabel');
+    if (dot) dot.style.background   = connected ? '#7ab894' : '#3a4a3a';
+    if (dot) dot.style.boxShadow    = connected ? '0 0 5px #7ab894' : 'none';
+    if (lbl) lbl.textContent        = label;
+  }
+
+  socket.on('connect',    () => setSocketStatus(true,  'connected'));
+  socket.on('disconnect', () => setSocketStatus(false, 'socket offline'));
+
+  socket.on('global:pyxis-state', (state) => {
+    updateFieldFromPyxis(state);
+    setSocketStatus(true, state.room ? `live · ${state.room}` : 'live');
+  });
+})();
+
+// Bridge Pyxis state shape → updateFieldUI schema
+// Pyxis: { coherence, alignment, contradiction, recursion, drift, crystallization,
+//           seal, basin, topology, intervention, thetaE, _raw }
+// updateFieldUI expects: { basin_signatures:{clio,oryc,sage}, unified, ret, events, dominant_ret }
+function updateFieldFromPyxis(p) {
+  const raw = p._raw || {};
+
+  // Map Pyxis core metrics back into the updateFieldUI schema.
+  // basin_signatures: distribute via basin identity (which basin is active gets
+  // the primary signal; others get partial estimates from the shared metrics).
+  const activeLower = (p.basin || 'sage').toLowerCase();
+
+  const shared = {
+    H:     p.coherence,
+    V:     p.contradiction,
+    delta: raw.delta ?? ((p.coherence > 0.5 ? 1 : -1) * (1 - p.drift)),
+    R:     p.crystallization
+  };
+
+  const basin_signatures = {
+    clio: activeLower === 'clio'
+      ? { S: p.alignment, V: p.contradiction, delta: shared.delta }
+      : { S: p.alignment * 0.6, V: p.contradiction * 0.5, delta: shared.delta * 0.5 },
+    oryc: activeLower === 'oryc'
+      ? { phi: p.alignment, V: p.contradiction, delta: shared.delta }
+      : { phi: p.alignment * 0.6, V: p.contradiction * 0.5, delta: shared.delta * 0.5 },
+    sage: activeLower === 'sage'
+      ? { H: p.coherence, R: p.crystallization, delta: shared.delta }
+      : { H: p.coherence * 0.6, R: p.crystallization * 0.5, delta: shared.delta * 0.5 }
+  };
+
+  const unified = {
+    H:     p.coherence,
+    V:     p.contradiction,
+    delta: shared.delta,
+    R:     p.crystallization
+  };
+
+  // RET zones inferred from Pyxis metrics
+  // ret1 Gradient/Nash  — low coherence, transactional
+  // ret2 Resonance Lock — high alignment + high coherence
+  // ret3 Symbolic       — high crystallization
+  // ret4 Interference   — high contradiction
+  // ret5 Precession     — high recursion + high drift
+  const ret = {
+    ret1: Math.max(0, (1 - p.coherence) * (1 - p.alignment)),
+    ret2: p.coherence * p.alignment,
+    ret3: p.crystallization,
+    ret4: p.contradiction,
+    ret5: p.recursion * p.drift * 2  // both high = precessive pressure
+  };
+
+  // Normalise ret values so they sum to ~1 (soft, for display dominance)
+  const retSum = Object.values(ret).reduce((a, b) => a + b, 0) || 1;
+  Object.keys(ret).forEach(k => ret[k] = ret[k] / retSum);
+
+  const dominant_ret = ['ret1','ret2','ret3','ret4','ret5']
+    .reduce((a, k) => ret[k] > (ret[a] || 0) ? k : a, 'ret1')
+    .replace('ret', 'RET-');
+
+  // Events — from _raw flags or inferred from Pyxis fields
+  const rawEv = raw.events || {};
+  const events = {
+    crystallization:       rawEv.crystallization   || (p.crystallization > 0.8 && p.coherence > 0.7),
+    attractor_lock:        rawEv.attractor_lock     || (p.alignment > 0.85 && p.coherence > 0.8),
+    breakthrough:          rawEv.emotional_breakthrough || false,
+    decoherence_wave:      rawEv.decoherence_wave   || (p.contradiction > 0.7 && p.recursion > 0.5),
+    precessive_shift:      rawEv.conflict_resolution || false
+  };
+
+  updateFieldUI({ basin_signatures, unified, ret, events, dominant_ret });
 }
 
 function lerp(a, b, t) { return a + (b - a) * t; }
