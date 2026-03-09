@@ -148,7 +148,7 @@ app.get('/auth/google/callback', async (req, res) => {
 app.get('/auth/wt-verify', (req, res) => {
   try {
     const { email, ts, sig } = JSON.parse(Buffer.from(req.query.t || '', 'base64url').toString());
-    if (Date.now() - ts > 3 * 60 * 1000) return res.json({ valid: false, reason: 'expired' });
+    if (Date.now() - ts > 10 * 60 * 1000) return res.json({ valid: false, reason: 'expired' });
     const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
     const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex').slice(0, 16);
     if (sig !== expected) return res.json({ valid: false, reason: 'bad sig' });
@@ -170,11 +170,13 @@ app.get('/auth/logout', (req, res) => {
 app.get('/auth/status', (req, res) => {
   const hasUserOAuth = !!req.session.userTokens;
   const hasServiceAccount = !!getServiceAccountDrive();
+  const email = req.session.userInfo?.email?.toLowerCase() || '';
   res.json({
-    connected: hasUserOAuth || hasServiceAccount,  // Drive is available via either path
+    connected: hasUserOAuth || hasServiceAccount,
     serviceAccount: hasServiceAccount,
-    userOAuth: hasUserOAuth,                        // true only when user has personally signed in
-    userInfo: req.session.userInfo || null
+    userOAuth: hasUserOAuth,
+    userInfo: req.session.userInfo || null,
+    watchtowerAllowed: hasUserOAuth && WATCHTOWER_EMAILS.includes(email)
   });
 });
 
