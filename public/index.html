@@ -169,7 +169,7 @@
     /* ── LANDING ──────────────────── */
     #landing { flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 40px 20px; gap: 14px; }
     .logo { font-size: 48px; color: var(--gold); animation: pulse 4s ease-in-out infinite; line-height: 1; }
-    h1.title { font-family: 'Cinzel', serif; font-size: 42px; font-weight: 700; letter-spacing: 0.12em; color: var(--ink); }
+    h1.title { font-family: 'Cinzel', serif; font-size: 54px; font-weight: 700; letter-spacing: 0.12em; color: var(--ink); }
     .title-line { width: 80px; height: 1px; background: var(--gold); margin: 0 auto; animation: breathe 4s ease-in-out infinite; box-shadow: 0 0 8px rgba(201,169,97,0.4); }
     .subtitle { font-size: 15px; color: var(--accent); font-style: italic; letter-spacing: 0.04em; margin-bottom: 6px; }
     .landing-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
@@ -250,7 +250,7 @@
 
     /* ── SESSION ──────────────────── */
     #session { flex-direction: column; height: 100vh; }
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px 8px 12px; padding-right: 58px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); flex-shrink: 0; gap: 10px; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 12px 20px; padding-right: 58px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); flex-shrink: 0; gap: 10px; }
     .back-btn { background: none; border: none; color: var(--accent); font-size: 18px; cursor: pointer; padding: 4px 8px; flex-shrink: 0; font-family: 'Cinzel', serif; }
     .header-center { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 0; }
     .session-name { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 700; letter-spacing: 0.10em; color: var(--ink); }
@@ -1663,6 +1663,33 @@
       border: none;
     }
 
+    /* ── QS pfp inside tarot widget header ── */
+    .tarot-qs-pfp {
+      position: relative;
+      width: 36px; height: 36px;
+      flex-shrink: 0;
+    }
+    .tarot-qs-pfp-lg {
+      width: 44px; height: 44px;
+    }
+    .tarot-qs-pfp img {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      pointer-events: none;
+    }
+    .tarot-qs-pfp img.qs-visible { opacity: 1; }
+    .tarot-qs-pfp .qs-pfp-ring {
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,184,232,0.4);
+      pointer-events: none;
+      animation: qs-pfp-pulse 3s ease-in-out infinite;
+    }
+
     /* ── TAROT FULLSCREEN MODAL ── */
     #tarot-fullscreen {
       position: fixed; inset: 0;
@@ -2467,14 +2494,6 @@
 <!-- ── SESSION ────────────────────────────────── -->
 <div id="session" class="page">
   <div class="header" style="position:relative">
-    <!-- Quicksilver PFP — opens tarot widget -->
-    <button class="qs-pfp-btn" id="qsPfpBtn" onclick="toggleTarotWidget()" onmouseenter="qsWake()" onmouseleave="qsSleep()" title="Open the Resonant Oracle">
-      <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
-      <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
-      <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
-      <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
-      <div class="qs-pfp-ring"></div>
-    </button>
     <button class="back-btn" onclick="leaveRoom()">←</button>
     <div class="header-actions">
       <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
@@ -4568,6 +4587,7 @@ function closeTarotWidget() {
 }
 
 function openTarotFullscreen() {
+  qsWake();
   var modal = document.getElementById('tarot-fullscreen');
   if (!modal) return;
   // Load the full frame if needed
@@ -5346,6 +5366,14 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-widget">
   <div class="tarot-widget-shell">
     <div class="tarot-widget-header">
+      <!-- QS pfp in tarot widget — wakes on open -->
+      <div class="tarot-qs-pfp" id="qsPfpBtn" onmouseenter="qsWake()" onmouseleave="qsSleep()">
+        <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
+        <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+        <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+        <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
+        <div class="qs-pfp-ring"></div>
+      </div>
       <span class="tarot-widget-title">ORYCL</span>
       <button class="tarot-widget-popout" onclick="openTarotFullscreen()" title="Open full oracle">⤢</button>
       <button class="tarot-widget-close" onclick="closeTarotWidget()">✕</button>
@@ -5360,6 +5388,13 @@ document.addEventListener('keydown', (e) => {
 <div id="tarot-fullscreen" onclick="closeTarotFullscreen(event)">
   <div class="tarot-full-shell">
     <div class="tarot-full-header">
+      <div class="tarot-qs-pfp tarot-qs-pfp-lg" onmouseenter="qsWake()" onmouseleave="qsSleep()">
+        <img class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
+        <img class="qs-layer" src="/qs__wake.gif" alt="">
+        <img class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+        <img class="qs-layer" src="/qs__down.gif" alt="">
+        <div class="qs-pfp-ring"></div>
+      </div>
       <span class="tarot-full-title">ORYCL — THE RESONANT ORACLE</span>
       <button class="tarot-full-close" onclick="closeTarotFullscreen()">✕</button>
     </div>
