@@ -8,7 +8,7 @@
   <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,200;0,300;0,400;0,500;1,200;1,300&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -250,7 +250,7 @@
 
     /* ── SESSION ──────────────────── */
     #session { flex-direction: column; height: 100vh; }
-    .header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 12px 20px; padding-right: 58px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); flex-shrink: 0; gap: 12px; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding: 8px 20px 8px 12px; padding-right: 58px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.6); backdrop-filter: blur(8px); flex-shrink: 0; gap: 10px; }
     .back-btn { background: none; border: none; color: var(--accent); font-size: 18px; cursor: pointer; padding: 4px 8px; flex-shrink: 0; font-family: 'Cinzel', serif; }
     .header-center { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; min-width: 0; }
     .session-name { font-family: 'Cinzel', serif; font-size: 18px; font-weight: 700; letter-spacing: 0.10em; color: var(--ink); }
@@ -1535,9 +1535,216 @@
     }
     .bpc-trigger:hover { color: var(--accent) !important; }
 
-  </style>
+  
+    /* ══════════════════════════════════════════
+       QUICKSILVER PFP + TAROT WIDGET
+    ══════════════════════════════════════════ */
+
+    /* ── QS PFP in session header ── */
+    .qs-pfp-btn {
+      position: relative;
+      flex-shrink: 0;
+      width: 52px; height: 52px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      z-index: 10;
+    }
+    .qs-pfp-btn img {
+      position: absolute; inset: 0;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      opacity: 0;
+      transition: opacity 0.22s ease;
+      pointer-events: none;
+    }
+    .qs-pfp-btn img.qs-visible { opacity: 1; }
+    .qs-pfp-ring {
+      position: absolute; inset: -4px;
+      border-radius: 50%;
+      border: 1px solid rgba(74,184,232,0.35);
+      pointer-events: none;
+      animation: qs-pfp-pulse 3s ease-in-out infinite;
+    }
+    @keyframes qs-pfp-pulse {
+      0%,100% { box-shadow: 0 0 8px rgba(74,184,232,0.2); opacity: 0.6; }
+      50% { box-shadow: 0 0 20px rgba(74,184,232,0.5); opacity: 1; }
+    }
+
+    /* ── TAROT OVERLAY WIDGET ── */
+    #tarot-widget {
+      position: fixed;
+      bottom: 72px;
+      left: 12px;
+      z-index: 999;
+      pointer-events: none;
+      opacity: 0;
+      transform: scale(0.85) translate(-20px, 20px);
+      transform-origin: bottom left;
+      transition: opacity 0.3s cubic-bezier(0.34,1.2,0.64,1), transform 0.3s cubic-bezier(0.34,1.2,0.64,1);
+    }
+    #tarot-widget.open {
+      pointer-events: all;
+      opacity: 1;
+      transform: scale(1) translate(0, 0);
+    }
+    .tarot-widget-shell {
+      width: 380px;
+      height: 540px;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(145deg, rgba(220,235,250,0.97) 0%, rgba(200,225,248,0.95) 100%);
+      border: 1px solid rgba(74,184,232,0.45);
+      box-shadow:
+        0 24px 64px rgba(10,30,60,0.35),
+        0 4px 16px rgba(74,184,232,0.25),
+        inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .tarot-widget-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px 8px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.88), rgba(210,235,255,0.75));
+      border-bottom: 1px solid rgba(74,184,232,0.25);
+      flex-shrink: 0;
+    }
+    .tarot-widget-title {
+      flex: 1;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      background: linear-gradient(135deg, #0a6fa0 0%, #1ab0e8 50%, #2090cc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tarot-widget-popout {
+      width: 26px; height: 26px;
+      border: 1px solid rgba(74,184,232,0.35);
+      border-radius: 6px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(190,225,250,0.4));
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(74,184,232,0.8);
+      font-size: 12px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .tarot-widget-popout:hover {
+      border-color: rgba(74,184,232,0.7);
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(180,225,255,0.6));
+      box-shadow: 0 2px 10px rgba(74,184,232,0.3);
+    }
+    .tarot-widget-close {
+      width: 26px; height: 26px;
+      border: 1px solid rgba(74,184,232,0.2);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(74,184,232,0.5);
+      font-size: 12px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .tarot-widget-close:hover { color: rgba(74,184,232,0.9); border-color: rgba(74,184,232,0.5); }
+
+    .tarot-widget-body {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .tarot-widget-body iframe {
+      width: 100%; height: 100%;
+      border: none;
+    }
+
+    /* ── TAROT FULLSCREEN MODAL ── */
+    #tarot-fullscreen {
+      position: fixed; inset: 0;
+      z-index: 1000;
+      background: rgba(8,18,36,0.65);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #tarot-fullscreen.open { display: flex; }
+    .tarot-full-shell {
+      width: min(92vw, 1100px);
+      height: min(90vh, 820px);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(74,184,232,0.5);
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5), 0 0 60px rgba(74,184,232,0.15);
+    }
+    .tarot-full-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 18px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(210,238,255,0.8));
+      border-bottom: 1px solid rgba(74,184,232,0.3);
+      flex-shrink: 0;
+    }
+    .tarot-full-title {
+      flex: 1;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      background: linear-gradient(135deg, #0a6fa0 0%, #1ab0e8 50%, #2090cc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tarot-full-close {
+      width: 30px; height: 30px;
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 8px;
+      background: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(74,184,232,0.6);
+      font-size: 14px;
+      transition: all 0.15s;
+    }
+    .tarot-full-close:hover { border-color: rgba(74,184,232,0.7); color: rgba(74,184,232,1); box-shadow: 0 2px 12px rgba(74,184,232,0.3); }
+    .tarot-full-body {
+      flex: 1;
+      overflow: hidden;
+    }
+    .tarot-full-body iframe {
+      width: 100%; height: 100%;
+      border: none;
+    }
+
+    /* ── CHROMIUM THEME: override global vars to ice palette ── */
+    body.theme-chromium {
+      --bg: #e8eef5;
+      --bg2: #dde5ef;
+      --bg3: #cdd8e8;
+      --bg4: #bfcfe0;
+      --parchment: #e8eef5;
+      --parchment2: #dde5ef;
+      --parchment3: #cdd8e8;
+      --ink: #0d1a2a;
+      --ink-dim: #1e3550;
+      --ink-muted: #3a5878;
+      --ink-faint: #6a8fae;
+      --accent: #1a7cc0;
+      --gold: #4ab8e8;
+      --gold-dim: rgba(74,184,232,0.18);
+      --border: rgba(74,184,232,0.28);
+      --border2: rgba(74,184,232,0.55);
+    }
+</style>
 </head>
-<body>
+<body class="theme-chromium">
 <div id="bg-gradient-layer" style="position:fixed;inset:0;pointer-events:none;z-index:0"></div>
 
 <!-- ── GLOBAL TRISKELION MENU (fixed, all pages) ── -->
@@ -2260,6 +2467,14 @@
 <!-- ── SESSION ────────────────────────────────── -->
 <div id="session" class="page">
   <div class="header" style="position:relative">
+    <!-- Quicksilver PFP — opens tarot widget -->
+    <button class="qs-pfp-btn" id="qsPfpBtn" onclick="toggleTarotWidget()" onmouseenter="qsWake()" onmouseleave="qsSleep()" title="Open the Resonant Oracle">
+      <img id="qsp-stand" class="qs-layer qs-visible" src="/qs__stand.gif" alt="">
+      <img id="qsp-wake"  class="qs-layer" src="/qs__wake.gif" alt="">
+      <img id="qsp-sleep" class="qs-layer qs-visible" src="/qs__sleep.gif" alt="">
+      <img id="qsp-down"  class="qs-layer" src="/qs__down.gif" alt="">
+      <div class="qs-pfp-ring"></div>
+    </button>
     <button class="back-btn" onclick="leaveRoom()">←</button>
     <div class="header-actions">
       <span class="room-code" id="roomCodeDisplay" onclick="copyRoomCode()" title="Click to copy room code"></span>
@@ -4262,35 +4477,45 @@ function openDefinition() { document.getElementById('defTooltip').classList.add(
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
 
 // ── Quicksilver Portrait State Machine ──────────────────────────────────────
-// States: sleep → wake(once) → stand(loop) → [down reserved for later] → reset
+// Controls both the about-panel pfp (qs-sleep etc.) and the header pfp (qsp-sleep etc.)
+// States: sleep → wake(once) → stand(loop) → reset → sleep
 (function() {
-  const WAKE_MS = 2200;  // match your qs__wake.gif duration
+  const WAKE_MS = 2200;
   let _state = 'sleep';
   let _wakeTimer = null;
   let _wakeHolds = 0;
 
-  function _layer(id) { return document.getElementById(id); }
-  function _show(id)  { var el = _layer(id); if (el) el.classList.add('qs-visible'); }
-  function _hide(id)  { var el = _layer(id); if (el) el.classList.remove('qs-visible'); }
-  function _showOnly(id) {
-    ['qs-sleep','qs-wake','qs-stand','qs-down'].forEach(function(lid) {
-      var el = _layer(lid); if (el) el.classList.toggle('qs-visible', lid === id);
+  // Get layer from either pfp (about-panel OR header)
+  function _layers(suffix) {
+    var els = [];
+    var a = document.getElementById('qs-' + suffix);
+    var b = document.getElementById('qsp-' + suffix);
+    if (a) els.push(a);
+    if (b) els.push(b);
+    return els;
+  }
+  function _show(suffix) { _layers(suffix).forEach(function(el){ el.classList.add('qs-visible'); }); }
+  function _hide(suffix) { _layers(suffix).forEach(function(el){ el.classList.remove('qs-visible'); }); }
+  function _showOnly(suffix) {
+    ['sleep','wake','stand','down'].forEach(function(s) {
+      _layers(s).forEach(function(el){ el.classList.toggle('qs-visible', s === suffix); });
     });
   }
-  function _reloadGif(id) {
-    var el = _layer(id); if (!el) return;
-    var src = el.src; el.src = ''; el.src = src;
+  function _reloadGif(suffix) {
+    _layers(suffix).forEach(function(el){
+      var src = el.src; el.src = ''; el.src = src;
+    });
   }
 
   window.qsWake = function() {
     _wakeHolds++;
     if (_state === 'stand' || _state === 'waking') return;
     _state = 'waking';
-    _reloadGif('qs-wake');
-    _show('qs-wake');   // wake plays on top of stand
-    _hide('qs-sleep');  // reveal stand beneath
+    _reloadGif('wake');
+    _show('wake');
+    _hide('sleep');
     _wakeTimer = setTimeout(function() {
-      _hide('qs-wake');  // wake done — stand is already looping underneath
+      _hide('wake');
       _state = 'stand';
       _wakeTimer = null;
     }, WAKE_MS);
@@ -4299,7 +4524,6 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   window.qsSleep = function() {
     if (_wakeHolds > 0) _wakeHolds--;
     if (_wakeHolds > 0) return;
-    // qsSleep on hover-out: same as reset for now (down reserved for later)
     qsReset();
   };
 
@@ -4307,10 +4531,62 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
     _wakeHolds = 0;
     if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
     _state = 'sleep';
-    _hide('qs-wake'); _hide('qs-down');
-    _show('qs-sleep');  // sleep covers stand again
+    _hide('wake'); _hide('down');
+    _show('sleep');
   };
 })();
+
+// ── Tarot Widget ──────────────────────────────────────────────────────────────
+var _tarotWidgetOpen = false;
+var _tarotLoaded = false;
+
+function toggleTarotWidget() {
+  if (_tarotWidgetOpen) {
+    closeTarotWidget();
+  } else {
+    openTarotWidget();
+  }
+}
+
+function openTarotWidget() {
+  var widget = document.getElementById('tarot-widget');
+  if (!widget) return;
+  if (!_tarotLoaded) {
+    document.getElementById('tarot-mini-frame').src = '/orycl_v4.html';
+    _tarotLoaded = true;
+  }
+  widget.classList.add('open');
+  _tarotWidgetOpen = true;
+  qsWake();
+}
+
+function closeTarotWidget() {
+  var widget = document.getElementById('tarot-widget');
+  if (widget) widget.classList.remove('open');
+  _tarotWidgetOpen = false;
+  qsSleep();
+}
+
+function openTarotFullscreen() {
+  var modal = document.getElementById('tarot-fullscreen');
+  if (!modal) return;
+  // Load the full frame if needed
+  var fullFrame = document.getElementById('tarot-full-frame');
+  if (fullFrame && !fullFrame.src) {
+    fullFrame.src = '/orycl_v4.html';
+  }
+  modal.classList.add('open');
+  // Close mini widget
+  var widget = document.getElementById('tarot-widget');
+  if (widget) widget.classList.remove('open');
+  _tarotWidgetOpen = false;
+}
+
+function closeTarotFullscreen(e) {
+  if (!e || e.target === document.getElementById('tarot-fullscreen')) {
+    document.getElementById('tarot-fullscreen').classList.remove('open');
+  }
+}
 
 function openAbout() { document.getElementById('aboutOverlay').classList.add('open'); qsWake(); }
 
@@ -5061,5 +5337,37 @@ document.addEventListener('keydown', (e) => {
 
 
 </script>
+
+<!-- ══════════════════════════════════════════
+     QUICKSILVER TAROT WIDGET
+══════════════════════════════════════════ -->
+
+<!-- Mini widget (expands from QS pfp corner) -->
+<div id="tarot-widget">
+  <div class="tarot-widget-shell">
+    <div class="tarot-widget-header">
+      <span class="tarot-widget-title">ORYCL</span>
+      <button class="tarot-widget-popout" onclick="openTarotFullscreen()" title="Open full oracle">⤢</button>
+      <button class="tarot-widget-close" onclick="closeTarotWidget()">✕</button>
+    </div>
+    <div class="tarot-widget-body">
+      <iframe id="tarot-mini-frame" src="" title="Resonant Oracle"></iframe>
+    </div>
+  </div>
+</div>
+
+<!-- Fullscreen tarot modal -->
+<div id="tarot-fullscreen" onclick="closeTarotFullscreen(event)">
+  <div class="tarot-full-shell">
+    <div class="tarot-full-header">
+      <span class="tarot-full-title">ORYCL — THE RESONANT ORACLE</span>
+      <button class="tarot-full-close" onclick="closeTarotFullscreen()">✕</button>
+    </div>
+    <div class="tarot-full-body">
+      <iframe id="tarot-full-frame" src="" title="Resonant Oracle — Full"></iframe>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

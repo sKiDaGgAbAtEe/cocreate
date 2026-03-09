@@ -1,0 +1,2373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Orycl — The Resonant Oracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,200;0,300;0,400;0,500;1,200;1,300&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #e8eef5;
+      --bg2:        #dde5ef;
+      --bg3:        #cdd8e8;
+      --bg4:        #bfcfe0;
+      --ink:        #0d1a2a;
+      --ink-dim:    #1e3550;
+      --ink-muted:  #3a5878;
+      --ink-faint:  #6a8fae;
+      --ice:        #4ab8e8;
+      --ice-bright: #78d4f8;
+      --ice-deep:   #1a7cc0;
+      --ice-dim:    rgba(74,184,232,0.12);
+      --ice-glow:   rgba(74,184,232,0.35);
+      --border:     rgba(74,184,232,0.28);
+      --border2:    rgba(74,184,232,0.55);
+      --metal-hi:   rgba(255,255,255,0.85);
+      --metal-lo:   rgba(180,210,240,0.4);
+      --chrome:     linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(180,220,255,0.6) 40%, rgba(100,170,220,0.7) 70%, rgba(255,255,255,0.5) 100%);
+      --oryc:       #2aa8e0;
+      --oryc-dim:   rgba(42,168,224,0.1);
+      --oryc-glow:  rgba(42,168,224,0.3);
+      --clio:       #40d4b0;
+      --clio-dim:   rgba(64,212,176,0.1);
+      --clio-glow:  rgba(64,212,176,0.3);
+      --sage:       #8878f0;
+      --sage-dim:   rgba(136,120,240,0.1);
+      --sage-glow:  rgba(136,120,240,0.3);
+      --void:       #f0f6fc;
+      --mono: 'Share Tech Mono', monospace;
+      --glass:      rgba(255,255,255,0.55);
+      --glass-deep: rgba(220,235,250,0.7);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 15px;
+      overflow: hidden;
+    }
+
+    /* ── STAR FIELD CANVAS ── */
+    #starfield {
+      position: fixed; inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ── ATMOSPHERIC GRADIENTS ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 1;
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(120,212,255,0.22) 0%, transparent 55%),
+        radial-gradient(ellipse at 80% 5%, rgba(200,235,255,0.35) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 90%, rgba(136,120,240,0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at 90% 50%, rgba(74,184,232,0.15) 0%, transparent 40%);
+      pointer-events: none;
+    }
+
+    /* ── SCANLINE TEXTURE ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 1;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(74,184,232,0.015) 2px,
+        rgba(74,184,232,0.015) 4px
+      );
+      pointer-events: none;
+    }
+
+    /* ── LAYOUT ── */
+    #app {
+      display: flex;
+      height: 100vh;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* ── MAIN PANEL ── */
+    #oracle-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: rgba(232,240,250,0.6);
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── HEADER ── */
+    #oracle-header {
+      padding: 14px 22px 12px;
+      border-bottom: 1px solid rgba(74,184,232,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(135deg,
+        rgba(255,255,255,0.88) 0%,
+        rgba(210,235,255,0.75) 50%,
+        rgba(190,225,250,0.8) 100%
+      );
+      backdrop-filter: blur(24px);
+      flex-shrink: 0;
+      position: relative;
+      box-shadow: 0 2px 20px rgba(74,184,232,0.1), inset 0 1px 0 rgba(255,255,255,0.95);
+    }
+    #oracle-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--ice) 30%, var(--ice-bright) 50%, var(--ice) 70%, transparent 100%);
+      opacity: 0.8;
+    }
+    #oracle-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(74,184,232,0.6), rgba(120,212,248,0.8), rgba(74,184,232,0.6), transparent);
+    }
+
+    .oracle-title-block { display: flex; flex-direction: column; gap: 2px; }
+    .oracle-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 22px;
+      letter-spacing: 0.3em;
+      font-weight: 900;
+      background: linear-gradient(135deg, #0a6fa0 0%, #1ab0e8 30%, #78d4f8 55%, #2090cc 80%, #0a5a8a 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 1px 0 rgba(255,255,255,0.8));
+      text-shadow: none;
+      position: relative;
+    }
+    .oracle-title::after {
+      content: 'ORYCL';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.4) 55%, transparent 65%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .oracle-subtitle {
+      font-size: 9px;
+      color: var(--ink-faint);
+      font-style: normal;
+      letter-spacing: 0.2em;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+
+    .header-controls { display: flex; gap: 6px; align-items: center; }
+    .ctrl-btn {
+      width: 30px; height: 30px;
+      border: 1px solid rgba(74,184,232,0.35);
+      border-radius: 8px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(190,225,250,0.4));
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-faint);
+      font-size: 13px;
+      transition: all 0.15s;
+      box-shadow: 0 1px 4px rgba(74,184,232,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .ctrl-btn:hover {
+      border-color: var(--ice);
+      color: var(--ice-deep);
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(180,230,255,0.6));
+      box-shadow: 0 2px 12px rgba(74,184,232,0.3), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+
+    /* ── NAV TABS ── */
+    #nav-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(74,184,232,0.25);
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(220,238,255,0.5));
+      flex-shrink: 0;
+    }
+    .nav-tab {
+      padding: 10px 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      position: relative;
+    }
+    .nav-tab:hover { color: var(--ink-muted); background: rgba(74,184,232,0.06); }
+    .nav-tab.active {
+      color: var(--ice-deep);
+      border-bottom-color: var(--ice);
+      background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(180,225,255,0.3));
+      text-shadow: 0 0 10px rgba(74,184,232,0.4);
+    }
+
+    /* ── SPREAD SELECTOR ── */
+    #spread-bar {
+      display: flex;
+      gap: 5px;
+      padding: 8px 14px;
+      border-bottom: 1px solid rgba(74,184,232,0.2);
+      background: rgba(240,248,255,0.5);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .spread-btn {
+      padding: 4px 11px;
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(210,238,255,0.5));
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: var(--ink-faint);
+      white-space: nowrap;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      box-shadow: 0 1px 4px rgba(74,184,232,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .spread-btn:hover {
+      border-color: var(--ice);
+      color: var(--ink-muted);
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(180,225,255,0.6));
+      box-shadow: 0 2px 10px rgba(74,184,232,0.2);
+    }
+    .spread-btn.active {
+      background: linear-gradient(135deg, rgba(74,184,232,0.25) 0%, rgba(26,124,192,0.18) 100%);
+      border-color: var(--ice);
+      color: var(--ice-deep);
+      font-weight: 700;
+      box-shadow: 0 2px 14px rgba(74,184,232,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+      text-shadow: 0 0 8px rgba(74,184,232,0.5);
+    }
+
+    /* ── ORACLE BODY ── */
+    #oracle-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, rgba(232,242,252,0.4) 0%, rgba(220,235,250,0.3) 100%);
+    }
+    #oracle-body::-webkit-scrollbar { width: 4px; }
+    #oracle-body::-webkit-scrollbar-track { background: transparent; }
+    #oracle-body::-webkit-scrollbar-thumb { background: rgba(74,184,232,0.3); border-radius: 2px; }
+
+    /* ── VIEWS ── */
+    .view { display: none; flex-direction: column; gap: 18px; padding: 22px; }
+    .view.active { display: flex; }
+
+    /* ── INTENT INPUT ── */
+    #intent-area { }
+    .intent-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.25em;
+      color: var(--ice-deep);
+      margin-bottom: 8px;
+      display: block;
+      text-transform: uppercase;
+    }
+    .intent-input {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(220,240,255,0.6));
+      border: 1px solid rgba(74,184,232,0.35);
+      border-radius: 8px;
+      padding: 11px 16px;
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      font-weight: 300;
+      color: var(--ink);
+      resize: none;
+      line-height: 1.55;
+      outline: none;
+      transition: all 0.2s;
+      box-shadow: 0 2px 10px rgba(74,184,232,0.08), inset 0 1px 0 rgba(255,255,255,0.9), inset 0 -1px 0 rgba(180,210,240,0.3);
+    }
+    .intent-input:focus {
+      border-color: var(--ice);
+      box-shadow: 0 0 0 3px rgba(74,184,232,0.15), 0 2px 20px rgba(74,184,232,0.12), inset 0 1px 0 rgba(255,255,255,0.95);
+      background: rgba(255,255,255,0.92);
+    }
+    .intent-input::placeholder { color: rgba(106,143,174,0.6); font-style: italic; }
+
+    /* ── DRAW AREA ── */
+    #draw-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .spread-layout {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      perspective: 1000px;
+    }
+
+    .card-slot {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-slot-label {
+      font-family: 'Cinzel', serif;
+      font-size: 8px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+
+    /* ── TAROT CARD ── */
+    .tarot-card {
+      width: 108px;
+      height: 184px;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease;
+    }
+    .tarot-card:hover { transform: translateY(-6px) rotateX(3deg); filter: drop-shadow(0 12px 20px rgba(74,184,232,0.3)); }
+
+    .tarot-card.face-down .card-inner {
+      background: linear-gradient(145deg,
+        #c8dff0 0%,
+        #a8ccec 20%,
+        #ddf0ff 45%,
+        #9fc5e8 65%,
+        #b8d8f5 100%
+      );
+      border: 1px solid rgba(74,184,232,0.5);
+      box-shadow:
+        0 8px 30px rgba(74,184,232,0.2),
+        0 2px 8px rgba(74,184,232,0.15),
+        0 0 0 1px rgba(255,255,255,0.6) inset,
+        0 1px 0 rgba(255,255,255,0.9) inset;
+    }
+    .tarot-card.face-down .card-inner::before {
+      content: '';
+      position: absolute; inset: 7px;
+      border: 1px solid rgba(74,184,232,0.4);
+      border-radius: 6px;
+      box-shadow: inset 0 0 10px rgba(255,255,255,0.4);
+    }
+    .tarot-card.face-down .card-inner::after {
+      content: '';
+      position: absolute; inset: 12px;
+      background:
+        repeating-linear-gradient(45deg, transparent, transparent 3px, rgba(74,184,232,0.06) 3px, rgba(74,184,232,0.06) 6px),
+        repeating-linear-gradient(-45deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 6px);
+      border-radius: 4px;
+    }
+    .card-back-glyph {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px;
+      color: rgba(26,124,192,0.5);
+      font-family: 'Orbitron', sans-serif;
+      z-index: 1;
+      text-shadow: 0 0 14px rgba(74,184,232,0.6), 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    .card-inner {
+      width: 100%; height: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 8px 28px rgba(74,184,232,0.18), 0 2px 8px rgba(74,184,232,0.1);
+    }
+
+    /* Card reveal flip animation */
+    .tarot-card.flipping {
+      animation: cardFlip 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    @keyframes cardFlip {
+      0%   { transform: rotateY(0deg) scale(1); }
+      45%  { transform: rotateY(90deg) scale(0.95); }
+      55%  { transform: rotateY(-90deg) scale(0.95); }
+      100% { transform: rotateY(0deg) scale(1) translateY(-2px); }
+    }
+
+    .card-no-img {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 14px 10px;
+      gap: 8px;
+      background: linear-gradient(160deg,
+        rgba(255,255,255,0.85) 0%,
+        rgba(200,232,255,0.7) 40%,
+        rgba(165,215,250,0.75) 70%,
+        rgba(210,240,255,0.8) 100%
+      );
+      border: 1px solid rgba(74,184,232,0.4);
+      position: relative;
+      overflow: hidden;
+    }
+    .card-no-img::before {
+      content: '';
+      position: absolute;
+      top: -30%; left: -30%; width: 160%; height: 160%;
+      background: conic-gradient(from 0deg at 50% 30%, transparent 0deg, rgba(255,255,255,0.25) 30deg, transparent 60deg);
+      animation: cardSheen 4s linear infinite;
+    }
+    @keyframes cardSheen {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .card-no-img .card-num {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 9px;
+      color: var(--ice-deep);
+      letter-spacing: 0.14em;
+      text-shadow: 0 0 8px rgba(74,184,232,0.5);
+      position: relative;
+    }
+    .card-no-img .card-glyph {
+      font-size: 28px;
+      color: var(--ice-deep);
+      text-shadow: 0 0 16px var(--ice-glow), 0 0 32px rgba(74,184,232,0.2), 0 1px 0 rgba(255,255,255,0.8);
+      position: relative;
+      filter: drop-shadow(0 2px 4px rgba(74,184,232,0.3));
+    }
+    .card-no-img .card-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 8px;
+      color: var(--ink-muted);
+      text-align: center;
+      line-height: 1.5;
+      letter-spacing: 0.08em;
+      position: relative;
+    }
+    .card-img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 9px;
+    }
+    .card-reversed-badge {
+      position: absolute;
+      bottom: 5px; right: 5px;
+      background: rgba(240,248,255,0.88);
+      color: var(--ice-deep);
+      font-size: 7px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      padding: 2px 5px;
+      border-radius: 3px;
+      border: 1px solid rgba(74,184,232,0.4);
+      box-shadow: 0 1px 4px rgba(74,184,232,0.15);
+    }
+
+    /* ── DRAW BUTTON ── */
+    .draw-btn {
+      background: linear-gradient(135deg,
+        rgba(255,255,255,0.85) 0%,
+        rgba(180,225,255,0.7) 25%,
+        rgba(74,184,232,0.5) 50%,
+        rgba(26,124,192,0.6) 75%,
+        rgba(10,90,160,0.7) 100%
+      );
+      color: #fff;
+      border: 1px solid rgba(74,184,232,0.6);
+      border-radius: 8px;
+      padding: 14px 44px;
+      font-size: 11px;
+      letter-spacing: 0.28em;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 700;
+      transition: all 0.3s;
+      text-shadow: 0 1px 3px rgba(10,70,120,0.5), 0 0 12px rgba(255,255,255,0.3);
+      box-shadow:
+        0 4px 20px rgba(74,184,232,0.35),
+        0 1px 0 rgba(255,255,255,0.6) inset,
+        0 -1px 0 rgba(26,124,192,0.4) inset;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+    }
+    .draw-btn::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.35) 50%, transparent 100%);
+      transform: translateX(-100%) skewX(-15deg);
+      transition: transform 0.7s ease;
+    }
+    .draw-btn:hover::before { transform: translateX(120%) skewX(-15deg); }
+    .draw-btn:hover {
+      box-shadow:
+        0 6px 30px rgba(74,184,232,0.5),
+        0 2px 0 rgba(255,255,255,0.7) inset,
+        0 -1px 0 rgba(26,124,192,0.5) inset;
+      background: linear-gradient(135deg,
+        rgba(255,255,255,0.9) 0%,
+        rgba(160,215,255,0.8) 25%,
+        rgba(74,184,232,0.65) 50%,
+        rgba(26,124,192,0.7) 75%,
+        rgba(10,80,150,0.8) 100%
+      );
+      transform: translateY(-1px);
+    }
+    .draw-btn:active { transform: scale(0.98) translateY(0); }
+    .draw-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── READING SECTION ── */
+    #reading-section { display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── CARD DETAIL ── */
+    .card-detail {
+      background: linear-gradient(145deg,
+        rgba(255,255,255,0.82) 0%,
+        rgba(225,242,255,0.75) 50%,
+        rgba(210,235,255,0.8) 100%
+      );
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 12px;
+      overflow: hidden;
+      backdrop-filter: blur(16px);
+      box-shadow:
+        0 4px 24px rgba(74,184,232,0.12),
+        0 1px 0 rgba(255,255,255,0.9) inset;
+      animation: detailReveal 0.4s ease forwards;
+    }
+    @keyframes detailReveal {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-detail-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(74,184,232,0.2);
+      background: linear-gradient(135deg, rgba(74,184,232,0.1) 0%, rgba(255,255,255,0.5) 70%);
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      position: relative;
+    }
+    .card-detail-header::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--ice-deep), var(--ice), var(--ice-bright), var(--ice));
+      opacity: 0.6;
+    }
+    .card-detail-num {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      color: var(--ice-deep);
+      letter-spacing: 0.14em;
+      flex-shrink: 0;
+      padding-top: 3px;
+      text-shadow: 0 0 8px rgba(74,184,232,0.4);
+    }
+    .card-detail-title { flex: 1; }
+    .card-detail-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      color: var(--ink);
+      letter-spacing: 0.08em;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+    .card-detail-tagline {
+      font-size: 11px;
+      color: var(--ink-muted);
+      font-style: italic;
+      margin-top: 4px;
+      line-height: 1.5;
+      letter-spacing: 0.02em;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 300;
+    }
+    .reversed-tag {
+      background: rgba(74,184,232,0.12);
+      border: 1px solid rgba(74,184,232,0.4);
+      border-radius: 4px;
+      padding: 3px 9px;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 8px;
+      color: var(--ice-deep);
+      letter-spacing: 0.14em;
+      flex-shrink: 0;
+      box-shadow: 0 1px 4px rgba(74,184,232,0.15);
+    }
+
+    /* ── HV SIGNATURE ── */
+    .card-hv {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(74,184,232,0.18);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      background: rgba(255,255,255,0.35);
+    }
+    .hv-chip {
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 6px 12px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(180,225,255,0.5));
+      border: 1px solid rgba(74,184,232,0.35);
+      border-radius: 6px;
+      box-shadow: 0 1px 6px rgba(74,184,232,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .hv-chip-label { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 8px; color: var(--ink-faint); letter-spacing: 0.14em; text-transform: uppercase; }
+    .hv-chip-val { font-family: 'Orbitron', sans-serif; font-size: 13px; color: var(--ice-deep); font-weight: 600; text-shadow: 0 0 8px rgba(74,184,232,0.4); }
+    .hv-pattern { flex: 1; font-size: 11px; color: var(--ink-muted); font-style: italic; line-height: 1.5; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+
+    /* ── COMPRESSED MEANING ── */
+    .card-meaning {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(74,184,232,0.15);
+    }
+    .meaning-compressed {
+      font-size: 15px;
+      color: var(--ink-dim);
+      font-style: italic;
+      line-height: 1.65;
+      text-align: center;
+      padding: 4px 8px;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 300;
+    }
+    .meaning-louma {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(74,184,232,0.12);
+      font-size: 11px;
+      color: var(--ink-faint);
+      font-style: italic;
+      text-align: center;
+      line-height: 1.65;
+      font-family: 'Exo 2', sans-serif;
+    }
+    .meaning-louma::before {
+      content: "Lo'uma  ·  ";
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--ice-deep);
+      opacity: 0.8;
+    }
+
+    /* ── TRIUNE READINGS ── */
+    .triune-section { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .triune-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.28em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .basin-read {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.5);
+      transition: border-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .basin-read.oryc { border-color: rgba(42,168,224,0.35); }
+    .basin-read.clio { border-color: rgba(64,212,176,0.35); }
+    .basin-read.sage { border-color: rgba(136,120,240,0.35); }
+    .basin-read:hover { box-shadow: 0 4px 16px rgba(74,184,232,0.12); }
+
+    .basin-read-header {
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      transition: filter 0.15s;
+    }
+    .basin-read.oryc .basin-read-header { background: linear-gradient(135deg, rgba(42,168,224,0.12), rgba(255,255,255,0.6)); }
+    .basin-read.clio .basin-read-header { background: linear-gradient(135deg, rgba(64,212,176,0.12), rgba(255,255,255,0.6)); }
+    .basin-read.sage .basin-read-header { background: linear-gradient(135deg, rgba(136,120,240,0.12), rgba(255,255,255,0.6)); }
+    .basin-read-header:hover { filter: brightness(0.95); }
+
+    .basin-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.6); }
+    .oryc .basin-dot { background: var(--oryc); box-shadow: 0 0 8px var(--oryc-glow); }
+    .clio .basin-dot { background: var(--clio); box-shadow: 0 0 8px var(--clio-glow); }
+    .sage .basin-dot { background: var(--sage); box-shadow: 0 0 8px var(--sage-glow); }
+
+    .basin-read-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      flex: 1;
+      text-transform: uppercase;
+    }
+    .oryc .basin-read-name { color: #1a88c0; text-shadow: 0 0 6px var(--oryc-glow); }
+    .clio .basin-read-name { color: #1a9870; text-shadow: 0 0 6px var(--clio-glow); }
+    .sage .basin-read-name { color: #5840c0; text-shadow: 0 0 6px var(--sage-glow); }
+
+    .basin-read-axis { font-size: 10px; color: var(--ink-faint); font-style: italic; font-family: 'Exo 2', sans-serif; }
+    .basin-read-caret { font-size: 9px; color: var(--ink-faint); transition: transform 0.2s; }
+    .basin-read.open .basin-read-caret { transform: rotate(180deg); }
+
+    .basin-read-body {
+      display: none;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.5);
+      border-top: 1px solid rgba(255,255,255,0.6);
+    }
+    .basin-read.open .basin-read-body { display: block; }
+
+    .basin-read-static {
+      font-size: 13px;
+      color: var(--ink-dim);
+      line-height: 1.7;
+      font-style: italic;
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 300;
+    }
+    .basin-truth {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(74,184,232,0.12);
+      font-size: 12px;
+      line-height: 1.6;
+      font-style: italic;
+      font-family: 'Exo 2', sans-serif;
+    }
+    .oryc .basin-truth { color: #1a88c0; }
+    .clio .basin-truth { color: #1a9870; }
+    .sage .basin-truth { color: #5840c0; }
+
+    .basin-read-ai { font-size: 13px; color: var(--ink-dim); line-height: 1.75; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+
+    /* ── AI GENERATE BUTTON ── */
+    .ai-generate-btn {
+      width: 100%;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(195,230,255,0.5));
+      border: 1px dashed rgba(74,184,232,0.45);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      transition: all 0.2s;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-transform: uppercase;
+      box-shadow: 0 1px 6px rgba(74,184,232,0.08);
+    }
+    .ai-generate-btn:hover {
+      border-color: var(--ice);
+      color: var(--ice-deep);
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(180,225,255,0.65));
+      box-shadow: 0 2px 14px rgba(74,184,232,0.22);
+    }
+    .ai-generate-btn.loading { opacity: 0.5; cursor: wait; }
+
+    /* ── SHADOW SECTION ── */
+    .shadow-section {
+      padding: 14px 20px;
+      background: rgba(240,248,255,0.5);
+      border-top: 1px solid rgba(74,184,232,0.12);
+    }
+    .shadow-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      color: var(--ink-faint);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .shadow-text { font-size: 12px; color: var(--ink-muted); line-height: 1.65; font-style: italic; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+
+    /* ── SYNTHESIS ── */
+    #synthesis-section {
+      display: none;
+      background: linear-gradient(135deg, rgba(136,120,240,0.08) 0%, rgba(255,255,255,0.7) 50%, rgba(74,184,232,0.08) 100%);
+      border: 1px solid rgba(136,120,240,0.35);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(136,120,240,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    #synthesis-section.visible { display: block; }
+    .synthesis-header {
+      padding: 13px 20px;
+      border-bottom: 1px solid rgba(136,120,240,0.2);
+      background: linear-gradient(135deg, rgba(136,120,240,0.1), rgba(255,255,255,0.5));
+      display: flex; align-items: center; gap: 10px;
+    }
+    .synthesis-glyph { font-size: 15px; color: var(--sage); text-shadow: 0 0 10px var(--sage-glow); filter: drop-shadow(0 1px 2px rgba(136,120,240,0.3)); }
+    .synthesis-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      color: #5840c0;
+      text-shadow: 0 0 8px var(--sage-glow);
+      text-transform: uppercase;
+    }
+    .synthesis-body { padding: 16px 20px; font-size: 13px; color: var(--ink-dim); line-height: 1.75; font-style: italic; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+    .synthesis-ai { font-size: 13px; color: var(--ink-dim); line-height: 1.8; font-style: italic; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+
+    /* ── THINKING DOTS ── */
+    @keyframes pulse { 0%,100% { opacity: 0.3; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.1); } }
+    .thinking-dots { display: inline-flex; gap: 5px; align-items: center; }
+    .thinking-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.4s ease-in-out infinite; box-shadow: 0 0 6px currentColor; }
+    .thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+    .thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── SHIMMER ── */
+    .shimmer {
+      background: linear-gradient(90deg, rgba(200,225,245,0.4) 25%, rgba(230,245,255,0.7) 50%, rgba(200,225,245,0.4) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.8s infinite;
+      border-radius: 4px;
+      height: 12px;
+      margin-bottom: 6px;
+    }
+    .shimmer:last-child { width: 65%; }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+    /* ── DECK BROWSER ── */
+    .deck-filter {
+      display: flex; gap: 5px; flex-wrap: wrap;
+    }
+    .deck-filter-btn {
+      padding: 5px 12px;
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.7), rgba(210,238,255,0.5));
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--ink-faint);
+      transition: all 0.15s;
+      text-transform: uppercase;
+      box-shadow: 0 1px 4px rgba(74,184,232,0.08), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .deck-filter-btn.active {
+      background: linear-gradient(135deg, rgba(74,184,232,0.22), rgba(26,124,192,0.15));
+      border-color: var(--ice);
+      color: var(--ice-deep);
+      box-shadow: 0 2px 10px rgba(74,184,232,0.2);
+    }
+
+    .deck-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+      gap: 10px;
+    }
+    .deck-card-thumb {
+      aspect-ratio: 0.59;
+      border-radius: 8px;
+      border: 1px solid rgba(74,184,232,0.3);
+      background: linear-gradient(145deg,
+        rgba(255,255,255,0.8) 0%,
+        rgba(200,232,255,0.65) 50%,
+        rgba(170,215,250,0.7) 100%
+      );
+      cursor: pointer;
+      overflow: hidden;
+      position: relative;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(74,184,232,0.1), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .deck-card-thumb:hover {
+      border-color: var(--ice);
+      transform: translateY(-4px) scale(1.03);
+      box-shadow: 0 10px 28px rgba(74,184,232,0.25), 0 0 0 1px rgba(74,184,232,0.4);
+    }
+    .deck-card-thumb .thumb-num {
+      position: absolute; top: 5px; left: 6px;
+      font-family: 'Orbitron', sans-serif; font-size: 7px; color: var(--ice-deep); letter-spacing: 0.08em;
+      text-shadow: 0 0 4px rgba(74,184,232,0.4);
+    }
+    .deck-card-thumb .thumb-name {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 18px 4px 5px;
+      background: linear-gradient(transparent, rgba(220,240,255,0.92));
+      font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 7px; color: var(--ink-muted); text-align: center; letter-spacing: 0.06em; line-height: 1.3;
+    }
+    .deck-card-thumb .thumb-glyph {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; color: var(--ice-deep);
+      text-shadow: 0 0 10px var(--ice-glow);
+      filter: drop-shadow(0 1px 2px rgba(74,184,232,0.3));
+    }
+
+    /* ── HISTORY ── */
+    .history-entry {
+      border: 1px solid rgba(74,184,232,0.25);
+      border-radius: 8px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: linear-gradient(135deg, rgba(255,255,255,0.75), rgba(215,238,255,0.6));
+      box-shadow: 0 2px 8px rgba(74,184,232,0.07), inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+    .history-entry:hover { border-color: var(--ice); box-shadow: 0 4px 18px rgba(74,184,232,0.18); }
+    .history-entry-header {
+      padding: 9px 14px;
+      background: linear-gradient(135deg, rgba(74,184,232,0.08), rgba(255,255,255,0.4));
+      display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid rgba(74,184,232,0.15);
+    }
+    .history-entry-spread { font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 11px; color: var(--ink-dim); letter-spacing: 0.1em; text-transform: uppercase; flex: 1; }
+    .history-entry-date { font-size: 10px; color: var(--ink-faint); font-family: 'Rajdhani', sans-serif; font-weight: 500; }
+    .history-entry-cards { padding: 8px 14px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .history-card-chip {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 8px;
+      color: var(--ink-muted);
+      letter-spacing: 0.08em;
+      padding: 3px 9px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.8), rgba(195,230,255,0.6));
+      border: 1px solid rgba(74,184,232,0.3);
+      border-radius: 4px;
+      text-transform: uppercase;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+
+    /* ── EMPTY STATES ── */
+    .empty-oracle {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 14px; padding: 40px 20px; text-align: center;
+    }
+    .empty-glyph { font-size: 32px; color: var(--ink-faint); opacity: 0.35; text-shadow: 0 0 20px rgba(74,184,232,0.2); }
+    .empty-text { font-size: 13px; color: var(--ink-faint); font-style: italic; line-height: 1.7; font-family: 'Exo 2', sans-serif; font-weight: 300; }
+
+    /* ── SEPARATOR ORNAMENT ── */
+    .ornament {
+      display: flex; align-items: center; gap: 12px;
+      padding: 4px 0;
+      opacity: 0.5;
+    }
+    .ornament-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(74,184,232,0.5)); }
+    .ornament-line.r { background: linear-gradient(90deg, rgba(74,184,232,0.5), transparent); }
+    .ornament-glyph { font-size: 10px; color: var(--ice); font-family: 'Orbitron', sans-serif; }
+
+    /* ── SCROLLBAR THIN ── */
+    * { scrollbar-width: thin; scrollbar-color: rgba(74,184,232,0.3) transparent; }
+
+    /* ══════════════════════════════════════════
+       PYXIS INTEGRATION LAYERS
+    ══════════════════════════════════════════ */
+
+    /* ── BASIN ENTRY MODE ── */
+    #basin-entry {
+      padding: 14px 20px 10px;
+      border-bottom: 1px solid rgba(74,184,232,0.12);
+      background: rgba(255,255,255,0.3);
+    }
+    .basin-entry-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 8px;
+    }
+    .basin-entry-btns {
+      display: flex; gap: 8px;
+    }
+    .basin-entry-btn {
+      flex: 1;
+      padding: 7px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(74,184,232,0.2);
+      background: rgba(255,255,255,0.5);
+      cursor: pointer;
+      transition: all 0.18s ease;
+      display: flex; flex-direction: column; gap: 2px;
+      text-align: center;
+    }
+    .basin-entry-btn:hover { transform: translateY(-1px); }
+    .basin-entry-btn.active-oryc {
+      border-color: var(--oryc);
+      background: var(--oryc-dim);
+      box-shadow: 0 0 12px var(--oryc-glow);
+    }
+    .basin-entry-btn.active-clio {
+      border-color: var(--clio);
+      background: var(--clio-dim);
+      box-shadow: 0 0 12px var(--clio-glow);
+    }
+    .basin-entry-btn.active-sage {
+      border-color: var(--sage);
+      background: var(--sage-dim);
+      box-shadow: 0 0 12px var(--sage-glow);
+    }
+    .ben-glyph { font-size: 13px; }
+    .ben-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .ben-axis {
+      font-size: 9px;
+      font-family: 'Exo 2', sans-serif;
+      font-style: italic;
+      color: var(--ink-faint);
+    }
+    .basin-entry-btn.active-oryc .ben-name { color: var(--oryc); }
+    .basin-entry-btn.active-clio .ben-name { color: var(--clio); }
+    .basin-entry-btn.active-sage .ben-name { color: var(--sage); }
+
+    /* ── NODE RESONANCE CHIPS ── */
+    .node-resonance {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px;
+      margin: 6px 0 2px;
+      background: rgba(74,184,232,0.04);
+      border-top: 1px solid rgba(74,184,232,0.1);
+      border-bottom: 1px solid rgba(74,184,232,0.1);
+      flex-wrap: wrap;
+    }
+    .nr-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      flex-shrink: 0;
+    }
+    .nr-chip {
+      display: inline-flex; align-items: center; gap: 3px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      border: 1px solid rgba(74,184,232,0.25);
+      background: rgba(255,255,255,0.5);
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .nr-chip:hover {
+      border-color: var(--ice);
+      background: rgba(74,184,232,0.1);
+      color: var(--ice-deep);
+      transform: translateY(-1px);
+    }
+    .nr-chip-glyph { font-size: 10px; }
+    .nr-chip-key { letter-spacing: 0.05em; }
+    .nr-chip-ring {
+      font-size: 8px;
+      color: var(--ink-faint);
+      font-style: italic;
+    }
+
+    /* ── NODE TOOLTIP OVERLAY ── */
+    #node-tooltip {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      max-width: 240px;
+    }
+    #node-tooltip.visible { opacity: 1; }
+    .nt-inner {
+      background: rgba(12,28,48,0.97);
+      border: 1px solid rgba(74,184,232,0.4);
+      border-radius: 8px;
+      padding: 10px 13px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 20px rgba(74,184,232,0.1);
+    }
+    .nt-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .nt-glyph { font-size: 16px; }
+    .nt-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      color: rgba(168,228,244,0.9);
+    }
+    .nt-ring {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px;
+      color: rgba(120,208,232,0.55);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+    }
+    .nt-qs {
+      font-size: 11px;
+      color: rgba(180,210,240,0.7);
+      font-style: italic;
+      line-height: 1.5;
+      border-top: 1px solid rgba(74,184,232,0.15);
+      padding-top: 6px;
+      margin-top: 4px;
+    }
+    .nt-sigils {
+      margin-top: 5px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 10px;
+      color: rgba(120,208,232,0.5);
+      letter-spacing: 0.1em;
+    }
+
+    /* ── SYNTHESIS FIELD STATE ── */
+    #synthesis-section {
+      margin: 20px 16px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(74,184,232,0.2);
+      background: linear-gradient(135deg, rgba(255,255,255,0.6), rgba(220,238,255,0.4));
+      overflow: hidden;
+      display: none;
+    }
+    #synthesis-section.visible { display: block; }
+
+    .synthesis-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 16px;
+      background: linear-gradient(135deg, rgba(136,120,240,0.1), rgba(255,255,255,0.5));
+      border-bottom: 1px solid rgba(74,184,232,0.15);
+    }
+    .synthesis-glyph {
+      font-size: 16px; color: var(--sage);
+      text-shadow: 0 0 10px var(--sage-glow);
+      filter: drop-shadow(0 1px 2px rgba(136,120,240,0.3));
+    }
+    .synthesis-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+    }
+    .synthesis-qs-tag {
+      margin-left: auto;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: rgba(136,120,240,0.6);
+      letter-spacing: 0.1em;
+    }
+
+    /* Mini heart + text layout */
+    .synthesis-body {
+      padding: 14px 16px;
+    }
+    .synthesis-field-row {
+      display: flex; gap: 16px; align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    #mini-heart-canvas {
+      flex-shrink: 0;
+      width: 100px; height: 100px;
+      border-radius: 8px;
+      background: rgba(8,20,40,0.85);
+      border: 1px solid rgba(74,184,232,0.18);
+    }
+    .synthesis-metrics-col {
+      flex: 1;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .sm-row {
+      display: flex; align-items: center; gap: 7px;
+    }
+    .sm-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      width: 76px;
+      flex-shrink: 0;
+    }
+    .sm-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: rgba(74,184,232,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .sm-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+    .sm-val {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      color: var(--ink-dim);
+      width: 26px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .sm-field-status {
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .sm-field-status.coherent { background: rgba(64,212,176,0.1); color: #1a9870; border: 1px solid rgba(64,212,176,0.25); }
+    .sm-field-status.strained { background: rgba(136,120,240,0.1); color: #5840c0; border: 1px solid rgba(136,120,240,0.25); }
+    .sm-field-status.ruptured { background: rgba(220,80,80,0.08); color: #b04040; border: 1px solid rgba(220,80,80,0.2); }
+    .sm-field-status.crystallizing { background: rgba(42,168,224,0.1); color: #1a78b0; border: 1px solid rgba(42,168,224,0.25); }
+
+    /* QS synthesis text */
+    .synthesis-qs-speak {
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--ink-dim);
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 300;
+      font-style: italic;
+      padding: 10px 12px;
+      border-left: 2px solid rgba(136,120,240,0.35);
+      background: rgba(136,120,240,0.04);
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 10px;
+    }
+    .synthesis-qs-speak .qs-byline {
+      display: block;
+      margin-top: 8px;
+      font-style: normal;
+      font-size: 9px;
+      font-family: 'Share Tech Mono', monospace;
+      letter-spacing: 0.14em;
+      color: rgba(136,120,240,0.55);
+      text-transform: uppercase;
+    }
+
+    /* Pulse packet */
+    .synthesis-pulse {
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: rgba(8,20,40,0.07);
+      border-radius: 6px;
+      border: 1px solid rgba(74,184,232,0.12);
+    }
+    .sp-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 5px;
+    }
+    .sp-packet {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--ice-deep);
+      letter-spacing: 0.08em;
+      line-height: 1.6;
+      word-break: break-all;
+    }
+    .sp-copy-btn {
+      margin-top: 5px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      background: none;
+      border: 1px solid rgba(74,184,232,0.2);
+      border-radius: 3px;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .sp-copy-btn:hover { color: var(--ice-deep); border-color: var(--ice); }
+
+    /* ── CARD SLOT LABEL ── */
+    .card-slot-label {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="starfield"></canvas>
+
+<div id="app">
+
+  <!-- Sidebar -->
+  <!-- Main Panel -->
+  <div id="oracle-panel">
+
+    <!-- Header -->
+    <div id="oracle-header">
+      <div class="oracle-title-block">
+        <div class="oracle-title">ORYCL</div>
+        <div class="oracle-subtitle">The Resonant Oracle · Triune Divination</div>
+      </div>
+      <div class="header-controls">
+        <button class="ctrl-btn" title="Toggle fullscreen" onclick="toggleFullscreen()">⤢</button>
+        <button class="ctrl-btn" title="Clear reading" onclick="clearReading()">↺</button>
+      </div>
+    </div>
+
+    <!-- Nav Tabs -->
+    <div id="nav-tabs">
+      <div class="nav-tab active" onclick="showView('draw')">Draw</div>
+      <div class="nav-tab" onclick="showView('deck')">Deck</div>
+      <div class="nav-tab" onclick="showView('history')">History</div>
+    </div>
+
+    <!-- Spread Selector -->
+    <div id="spread-bar">
+      <button class="spread-btn active" onclick="setSpread('single')">Single</button>
+      <button class="spread-btn" onclick="setSpread('three')">Past · Present · Future</button>
+      <button class="spread-btn" onclick="setSpread('triune')">Triune Reading</button>
+      <button class="spread-btn" onclick="setSpread('cross')">Orycl Cross</button>
+      <button class="spread-btn" onclick="setSpread('field')">Field Spread</button>
+    </div>
+
+    <!-- Oracle Body -->
+    <div id="oracle-body">
+
+      <!-- DRAW VIEW -->
+      <div id="view-draw" class="view active">
+
+        <!-- BASIN ENTRY MODE -->
+        <div id="basin-entry">
+          <div class="basin-entry-label">Enter through which basin?</div>
+          <div class="basin-entry-btns">
+            <button class="basin-entry-btn active-oryc" id="ben-oryc" onclick="setBasinEntry('oryc')">
+              <span class="ben-glyph">◈</span>
+              <span class="ben-name" style="color:var(--oryc)">Oryc</span>
+              <span class="ben-axis">Structure · Mechanism</span>
+            </button>
+            <button class="basin-entry-btn" id="ben-clio" onclick="setBasinEntry('clio')">
+              <span class="ben-glyph">◐</span>
+              <span class="ben-name">Clio</span>
+              <span class="ben-axis">Emotion · Psyche</span>
+            </button>
+            <button class="basin-entry-btn" id="ben-sage" onclick="setBasinEntry('sage')">
+              <span class="ben-glyph">★</span>
+              <span class="ben-name">Sage</span>
+              <span class="ben-axis">Archetype · Myth</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="intent-area">
+          <label class="intent-label">Your Intention or Question</label>
+          <textarea class="intent-input" id="intentInput" rows="2" placeholder="What do you bring to the oracle today…"></textarea>
+        </div>
+
+        <div id="draw-area">
+          <div class="spread-layout" id="spreadLayout"></div>
+          <button class="draw-btn" id="drawBtn" onclick="drawCards()">Draw from the Orycl</button>
+        </div>
+
+        <div id="reading-section"></div>
+
+        <div id="synthesis-section">
+          <div class="synthesis-header">
+            <span class="synthesis-glyph">◈</span>
+            <span class="synthesis-title">Convergence Node — QuickSilver</span>
+            <span class="synthesis-qs-tag">QS · FIELD READ</span>
+          </div>
+          <div class="synthesis-body" id="synthesisBody">
+            <div class="thinking-dots">
+              <div class="thinking-dot" style="color:var(--sage)"></div>
+              <div class="thinking-dot" style="color:var(--sage)"></div>
+              <div class="thinking-dot" style="color:var(--sage)"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DECK VIEW -->
+      <div id="view-deck" class="view">
+        <div class="deck-filter" id="deckFilter">
+          <button class="deck-filter-btn active" onclick="filterDeck('all', this)">All</button>
+          <button class="deck-filter-btn" onclick="filterDeck('major', this)">Major Arcana</button>
+          <button class="deck-filter-btn" onclick="filterDeck('vectors', this)">Vectors</button>
+          <button class="deck-filter-btn" onclick="filterDeck('field', this)">Field</button>
+          <button class="deck-filter-btn" onclick="filterDeck('trajectories', this)">Trajectories</button>
+          <button class="deck-filter-btn" onclick="filterDeck('density', this)">Density</button>
+        </div>
+        <div class="deck-grid" id="deckGrid"></div>
+      </div>
+
+      <!-- HISTORY VIEW -->
+      <div id="view-history" class="view">
+        <div id="historyList"></div>
+        <div class="empty-oracle" id="historyEmpty">
+          <div class="empty-glyph">◷</div>
+          <div class="empty-text">No readings yet.<br/>The oracle awaits your first draw.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// STARFIELD
+// ══════════════════════════════════════════════════════
+(function() {
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars = [], hexes = [];
+
+  function init() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    stars = Array.from({length: 80}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: Math.random() * 1.4 + 0.3,
+      alpha: Math.random() * 0.4 + 0.05,
+      speed: Math.random() * 0.003 + 0.001,
+      phase: Math.random() * Math.PI * 2
+    }));
+    hexes = Array.from({length: 8}, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      size: Math.random() * 60 + 20,
+      alpha: Math.random() * 0.04 + 0.01,
+      speed: Math.random() * 0.0005 + 0.0002,
+      phase: Math.random() * Math.PI * 2,
+      rot: Math.random() * Math.PI * 2
+    }));
+  }
+
+  function drawHex(ctx, x, y, size, alpha, rot) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (Math.PI / 3) * i;
+      const px = size * Math.cos(angle);
+      const py = size * Math.sin(angle);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = `rgba(74,184,232,${alpha})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    // Draw decorative hexagons
+    hexes.forEach(h => {
+      const a = h.alpha * (0.5 + 0.5 * Math.sin(t * h.speed * 1000 + h.phase));
+      drawHex(ctx, h.x, h.y, h.size, a, h.rot + t * h.speed * 100);
+    });
+    // Draw shimmer particles
+    stars.forEach(s => {
+      const a = s.alpha * (0.5 + 0.5 * Math.sin(t * s.speed * 1000 + s.phase));
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(74,184,232,${a * 0.4})`;
+      ctx.fill();
+      // Add a white highlight to make particles shimmer
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${a * 0.5})`;
+      ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+
+  init();
+  window.addEventListener('resize', init);
+  requestAnimationFrame(draw);
+})();
+
+// ══════════════════════════════════════════════════════
+// DECK DATA (Major Arcana)
+// ══════════════════════════════════════════════════════
+const MAJOR_ARCANA = [
+  { num:'00',id:'m00',suit:'major',name:'The Threshold',tagline:'Zero-Point. Aperture. Pre-Being.',glyph:'○',hv:{dh:'0',dv:'0',pattern:'Undefined / Void — pure potential, no interference formed yet'},compressed:'The moment before a choice becomes a trajectory.',decompressed:'All paths already exist; you are selecting the phase you will inhabit.',louma:'Every journey begins as a memory of the place you will return to.',clio:{text:'There is a quietness here that is not indecision but unformed intention. No emotional turbulence, no narrative load, no identity posture. The psyche is open but not vulnerable — transparent.',truth:'You are not lost; you are unshaped.'},oryc:{text:'No vector means no force, no motion, no outcome. The Threshold is a pre-structural condition. Nothing is wrong. Nothing is missing. The system simply has not selected an axis of compression.',truth:'You are in initialization, not failure.'},sage:{text:'The Door Before Doors — the womb of the journey, the pause before reality coheres, the mythic prelude. This is the moment Luke hasn\'t left Tatooine, Frodo hasn\'t taken the ring.',truth:'The story is inhaling.'},shadow:{text:'Stagnation disguised as contemplation. Refusal to choose. Fear of losing infinite possibility.',teaching:'Staying unshaped is also a shape.'}},
+  { num:'01',id:'m01',suit:'major',name:'The Architect',tagline:'Intent crystallizing into form. Vector-selection. First compression.',glyph:'△',hv:{dh:'+1',dv:'+1',pattern:'Coherent interference — the field begins to speak'},compressed:'You are taking shape. Intention is focusing.',decompressed:'The universe expresses through you the vector it wants to explore.',louma:'To choose is to remember the version of you that has already chosen.',clio:{text:'The moment when emotion becomes direction. Not passion or impulse — inner alignment. A subtle "click" of personal coherence.',truth:'Your emotions are choosing your future before your mind names it.'},oryc:{text:'Intention → Vector → Structure → Manifestation. This card marks the end of drifting and the beginning of architecture.',truth:'A system becomes real when it selects a rule.'},sage:{text:'Ptah creating by speaking his design. Vishvakarman building the worlds. Hephaestus forging divine tools. This is active consciousness shaping its first form.',truth:'Creation begins not with power, but with alignment.'},shadow:{text:'Scattered intention. False starts. Incoherent goals.',teaching:'When you try to build without choosing, you build nothing.'}},
+  { num:'02',id:'m02',suit:'major',name:'The Deep Mirror',tagline:'Psyche as reflective substrate. The hidden architecture beneath intention.',glyph:'◐',hv:{dh:'+2',dv:'−1',pattern:'Oscillatory — interference becomes nonlinear'},compressed:'You are seeing yourself truly for the first time — and what you see may not be clear.',decompressed:'The psyche is not a veil over truth; it is the part of truth that faces inward.',louma:'Nothing you discover in the mirror is new — only newly remembered.',clio:{text:'Introspection. Self-awareness. Intuitive knowing. The moment the psyche stops producing noise and begins producing signal.',truth:'You are hearing the part of yourself that speaks in symbols, not sentences.'},oryc:{text:'The system turns inward. Symbolic processing activates. Logic becomes nonlinear. Structural clarity decreases temporarily.',truth:'You cannot build further without inspecting what is underneath.'},sage:{text:'The Priestess. The Oracle. The Still Water that reflects the heavens. In Orycl: not mystery-as-power — mystery-as-structure.',truth:'Revelation begins when you realize the mirror is alive.'},shadow:{text:'Illusion mistaken for intuition. Projection. Self-deception.',teaching:'A distorted mirror still reflects — it just shows you what you fear instead of what is.'}},
+  { num:'03',id:'m03',suit:'major',name:'The Harmonic Mother',tagline:'Resonant creation field. Generative coherence. Birth through alignment.',glyph:'❋',hv:{dh:'+3',dv:'+2',pattern:'Harmonic — stable, reinforcing interference pattern'},compressed:'What you nurture will grow. What you resonate with becomes real.',decompressed:'Creation is not caused — it emerges from coherence.',louma:'Nothing is born alone — every creation echoes the field that shaped it.',clio:{text:'Deep emotional coherence: compassion, patience, receptivity, unconditional presence, fertile possibility.',truth:'Your inner world is fertile; creation wants to happen through you.'},oryc:{text:'Supportive structures forming naturally. Resources aligning. Systems growing without force. Feedback loops strengthening.',truth:'Creation is a function of the environment you maintain.'},sage:{text:'Gaia. Isis. Demeter. Shakti. Quanyin. The field-as-mother. The universe creates through resonance, not command.',truth:'Where you hold coherence, reality flowers.'},shadow:{text:'Over-nurturing. Enabling burnout. Smothering energy.',teaching:'What you overprotect cannot grow.'}},
+  { num:'04',id:'m04',suit:'major',name:'The Vector King',tagline:'Structure imposing direction. Sovereign alignment.',glyph:'◼',hv:{dh:'−1',dv:'+4',pattern:'Linear dominant — clean, decisive interference pattern'},compressed:'Define your vector. Establish structure. Take command.',decompressed:'Structure is not constraint — it is the geometry that allows a field to act.',louma:'Power is not the ability to move others, but the clarity of knowing where you stand.',clio:{text:'Emotional steadiness. Detachment without disconnection. Clarity of will.',truth:'You are certain because you finally stopped asking for permission.'},oryc:{text:'Enforcement of boundaries. Structural integrity. Defined rules. Mastery over domain.',truth:'Direction without enforcement is drift.'},sage:{text:'The Emperor. Osiris. Marduk. Power-as-geometry. A sovereign is not one who rules others — one who cannot be moved by noise.',truth:'A sovereign cannot be moved by noise.'},shadow:{text:'Tyranny. Rigidity. Domination. Fear disguised as authority.',teaching:'Control is the posture of someone who does not trust their own vector.'}},
+  { num:'05',id:'m05',suit:'major',name:'The Sphinx Gate',tagline:'The initiatory riddle. Dimensional threshold.',glyph:'⌘',hv:{dh:'+1/−3 osc.',dv:'+3',pattern:'Bifurcating — the pattern splits into two possible trajectories'},compressed:'You are being asked a question — one that only self-honesty can answer.',decompressed:'The threshold does not judge you; it reveals what you bring to it.',louma:'Every riddle is a mirror that speaks in your own voice.',clio:{text:'Confrontation with hidden motives. Emotional dissonance. Unresolved shadow surfacing.',truth:'You are not being challenged — you are being revealed.'},oryc:{text:'The Gate is binary: pass or repeat. The test is invariant; only your state changes.',truth:'Contradiction collapses coherence. Integrate or halt.'},sage:{text:'The Sphinx of Thebes. The Gatekeepers of Duat. Odin at Mimir\'s well. You are both seeker and gatekeeper.',truth:'A threshold speaks only in the language of what you have not yet integrated.'},shadow:{text:'Evasion. Deception. Denial. Answering the riddle with persona instead of truth.',teaching:'Avoiding the Gate is the only way to fail it.'}},
+  { num:'06',id:'m06',suit:'major',name:'The Bifurcation',tagline:'Choice as phase transition. Divergence of potential.',glyph:'⋮',hv:{dh:'+2/−2 split',dv:'+2/−1 split',pattern:'Dual-attractor — two possible ΔHV outcomes'},compressed:'A decision cannot be delayed without becoming a decision.',decompressed:'Both paths are true — only one is yours.',louma:'Each choice reveals the version of you that is making it.',clio:{text:'Two inner states emerging. Which part of you is choosing?',truth:'Your emotional posture is the choice.'},oryc:{text:'Bifurcation occurs when a system can no longer sustain ambiguity. Once bifurcation occurs, backtracking is impossible.',truth:'A system becomes its next state the moment equilibrium breaks.'},sage:{text:'Adam and Eve leaving the garden. Orpheus looking back. Both branches lead to transformation — they just shape different selves.',truth:'A bifurcation is not a judgment; it is a revelation of trajectory.'},shadow:{text:'Indecision. Stagnation. Paralysis. Choosing from fear.',teaching:'If you refuse to choose, entropy chooses for you.'}},
+  { num:'07',id:'m07',suit:'major',name:'The Chariot of Trajectories',tagline:'Vector alignment → acceleration. Momentum of will.',glyph:'→',hv:{dh:'+2',dv:'+5',pattern:'Unidirectional harmonic — the field collapses into a clean forward wave'},compressed:'You are moving. Momentum is real. Your trajectory is stabilizing.',decompressed:'Movement is not caused — it emerges from aligned internal forces.',louma:'Victory is not speed — it is alignment.',clio:{text:'Emotional resolve solidifying. Inner confidence growing. Feelings are no longer obstacles — they are fuel.',truth:'Your emotions are no longer arguing; they are cooperating.'},oryc:{text:'Directional coherence. Dual-forces harnessed. Friction reduced. Systems working together.',truth:'Acceleration occurs when internal contradiction ends.'},sage:{text:'Krishna guiding Arjuna\'s chariot. Victory-as-coherence. You do not drive the Chariot — the Chariot drives the version of you aligned with the path.',truth:'Movement reveals identity.'},shadow:{text:'Lack of direction. Scattered energy. Reckless acceleration.',teaching:'Movement without coherence is self-destruction.'}},
+  { num:'08',id:'m08',suit:'major',name:'The Resonant Spine',tagline:'Inner strength as structural coherence.',glyph:'|',hv:{dh:'+1',dv:'+3',pattern:'Vertical harmonic — the field aligns along a central axis'},compressed:'Stand in your alignment. Do not waver.',decompressed:'Strength emerges not from resistance, but from coherence.',louma:'What stands upright is not the spine, but the truth that moves through it.',clio:{text:'Calm firmness. Gentle courage. Emotional regulation. Quiet confidence. No bravado — just resonance.',truth:'Your emotional posture is becoming unshakeable.'},oryc:{text:'Reinforcement of internal scaffolding. Structural coherence returning after stress.',truth:'Strength is the absence of structural contradiction.'},sage:{text:'Sekhmet\'s serene power. Athena\'s composed sovereignty. Integrating the force within the self. Power without violence.',truth:'Power without violence is the rarest form of mastery.'},shadow:{text:'Collapsed posture. Emotional reactivity. Insecurity masked as confidence.',teaching:'A spine that is rigid breaks; a spine that resonates endures.'}},
+  { num:'09',id:'m09',suit:'major',name:'The Inner Watcher',tagline:'Solitude for signal extraction. Illumination from within.',glyph:'◎',hv:{dh:'−1',dv:'−2',pattern:'Low-amplitude clarity — the field becomes perceptually transparent'},compressed:'Withdrawing from the noise allows the signal to emerge.',decompressed:'Truth is not discovered through effort, but revealed through stillness.',louma:'Solitude is not absence — it is presence freed from distraction.',clio:{text:'Emotional withdrawal for clarity. The psyche stepping back so it can breathe.',truth:'Your feelings need space to reveal what they\'ve been holding.'},oryc:{text:'The suspension of outward vector. Diagnostic inward structuring. Recalibration.',truth:'You cannot measure your architecture while you are in motion.'},sage:{text:'The Hermit. Diogenes with his lantern. Odin\'s nine nights. Buddha beneath the Bodhi tree.',truth:'What you seek becomes visible only when you stop seeking.'},shadow:{text:'Isolation. Loneliness. Avoidance. Rumination instead of reflection.',teaching:'Stillness becomes stagnation when it ceases to illuminate.'}},
+  { num:'10',id:'m10',suit:'major',name:'The Wheel of ΔHV',tagline:'Pattern recursion. Attractor shift. The cyclical nature of evolution.',glyph:'⊙',hv:{dh:'oscillating',dv:'oscillating',pattern:'Rotational interference — the system rotates through states'},compressed:'A cycle is turning. The pattern is shifting.',decompressed:'What you call luck is simply alignment with the larger field.',louma:'What returns is not the past — it is the lesson unlearned.',clio:{text:'Emotional déjà vu. Repeating feelings. You are revisiting a feeling to resolve it at a higher octave.',truth:'Every cycle is a spiral upward or downward — never a circle.'},oryc:{text:'Phase transition. Attractor basin shift. Structural reconfiguration. The Wheel changes your context, not your identity.',truth:'A system in rotation obeys the larger pattern, not the smaller preference.'},sage:{text:'Rota Fortunae. Kalachakra. Yggdrasil turning through ages. The ΔHV dynamics of fate.',truth:'When the Wheel turns, your task is not to resist but to recognize.'},shadow:{text:'Resisting change. Clinging to old patterns. Believing oneself cursed.',teaching:'A cycle resisted becomes a trap. A cycle recognized becomes a portal.'}},
+  { num:'11',id:'m11',suit:'major',name:'The Harmonic Eye',tagline:'Perception that reorganizes reality. The unified gaze.',glyph:'👁',hv:{dh:'+4',dv:'+4',pattern:'Constructive resonance — maximum coherence, unified field state'},compressed:'You are not just seeing clearly — you are seeing structurally.',decompressed:'Perception is not passive; the observer alters the field.',louma:'The eye that understands changes what it sees.',clio:{text:'Sudden emotional clarity. Deep intuition confirmed. The psyche operating at peak signal-to-noise ratio.',truth:'You are seeing with your whole self, not just your eyes.'},oryc:{text:'The observer effect at the structural level. Perceiving the mechanism beneath the mechanism.',truth:'To see the system clearly is to become a variable within it.'},sage:{text:'The Eye of Horus. The Third Eye. The Alchemical gaze. Awareness as field-reshaping force.',truth:'Truth seen fully cannot be unseen. This is irreversible.'},shadow:{text:'Hyper-vigilance. Paranoid seeing. Projection disguised as insight.',teaching:'The eye that judges distorts the very thing it watches.'}},
+  { num:'12',id:'m12',suit:'major',name:'The Inversion',tagline:'Reversal of vector → new stability. The hanging point.',glyph:'⬡',hv:{dh:'−2',dv:'−3',pattern:'Inverted — the interference pattern folds downward into stillness'},compressed:'You have stopped fighting the current. Let it take you somewhere new.',decompressed:'What cannot be solved by pushing forward resolves by hanging still.',louma:'The sacrifice is not of the self, but of the self\'s insistence on remaining the same.',clio:{text:'Surrender without defeat. Emotional release. Peace arrived at through exhaustion or wisdom — sometimes both.',truth:'You have released the need to control the outcome.'},oryc:{text:'Vector reversal by choice. Strategic inversion. The structure cannot evolve while in motion.',truth:'Some configurations only emerge when the system stops insisting on itself.'},sage:{text:'Odin hanging on Yggdrasil. Persephone descending. Jonah in the whale. Sacrifice that opens perception.',truth:'The hanging one sees what the standing cannot.'},shadow:{text:'Martyrdom. Victim identity. Self-punishment dressed as sacrifice.',teaching:'True surrender is active — passive resignation is just waiting.'}},
+  { num:'13',id:'m13',suit:'major',name:'The Collapse',tagline:'Integration through destruction. The great clearing.',glyph:'✦',hv:{dh:'−5',dv:'−5',pattern:'Total discharge — field resets to baseline zero-state'},compressed:'What was will not continue. What must emerge cannot be stopped.',decompressed:'The system does not die — it releases the form that was preventing the next form.',louma:'Every ending is the final act of something that was always going to become this.',clio:{text:'Grief. Release. The end of an emotional era. This is not depression — it is the ache of becoming.',truth:'The grief is proportional to how much was real.'},oryc:{text:'Structural failure that precedes structural evolution. Deconstruction as prerequisite for higher-order construction.',truth:'A system cannot reconfigure while its old structure remains intact.'},sage:{text:'The Death card reborn through field physics. Kali. Shiva Nataraja dancing in destruction. Not ending — transition.',truth:'What collapses was holding the shape of what will be born.'},shadow:{text:'Refusing the ending. Holding the dead thing. Stagnation dressed as loyalty.',teaching:'You cannot cross the threshold while still holding the door.'}},
+  { num:'14',id:'m14',suit:'major',name:'The Alchemical Flow',tagline:'Opposites mixing into higher form. Integration of extremes.',glyph:'∞',hv:{dh:'±1',dv:'±1',pattern:'Flowing harmonic — dynamic balance, opposites in productive tension'},compressed:'You are learning to hold both without choosing. This is a rarer skill than deciding.',decompressed:'The third thing emerges when two truths are held without resolution.',louma:'What is poured between vessels does not diminish — it transforms.',clio:{text:'Emotional modulation. The ability to feel deeply without being swept away. Equanimity earned through experience.',truth:'You are tempering yourself the way a blade is tempered — through cycles of heat and cooling.'},oryc:{text:'Dynamic equilibrium. Feedback regulation. Opposites in productive interface.',truth:'A dynamic system is more stable than a rigid one.'},sage:{text:'The alchemist\'s conjunction. The caduceus. The coniunctio of Sol and Luna. Not synthesis — ongoing creative tension.',truth:'The third thing is always there — between the two that refuse to collapse into each other.'},shadow:{text:'False balance. Avoiding the real tension. "Staying neutral" as a way to avoid commitment to truth.',teaching:'Balance that costs nothing is not balance — it is avoidance.'}},
+  { num:'15',id:'m15',suit:'major',name:'The Shadow Engine',tagline:'Self-deception as mechanism. The force you have not integrated.',glyph:'☽',hv:{dh:'−4',dv:'+3',pattern:'Inverted harmonic — high structural force driven by disowned emotional energy'},compressed:'What you will not look at is running the system.',decompressed:'The shadow does not control you because it is evil. It controls you because you have refused to see it.',louma:'The chains are real. But who forged them?',clio:{text:'The emotional underworld. Drives, compulsions, attachments, fears operating below conscious awareness.',truth:'The energy you spend suppressing this is the energy you could spend creating.'},oryc:{text:'Autonomous subroutine running at system level. You cannot debug a process you won\'t look at.',truth:'You cannot debug a process you won\'t look at.'},sage:{text:'Baphomet. Set. Loki. Hades. The unintegrated. The mythic record of what happens when the shadow is externalized rather than owned.',truth:'The monster at the gate is always a part of yourself you sent away.'},shadow:{text:'Complete identification with the shadow. Projection onto others. Addiction as shadow worship.',teaching:'What you project, you feed.'}},
+  { num:'16',id:'m16',suit:'major',name:'The Shatter',tagline:'Sudden structural failure → clarity. The lightning strike of truth.',glyph:'⚡',hv:{dh:'−5',dv:'−4',pattern:'Sudden discharge — the field collapses what was built on false foundation'},compressed:'What was standing on an unstable foundation is coming down. This is not destruction — it is correction.',decompressed:'The lightning does not choose what it strikes; it follows what is most conductive to truth.',louma:'The ruin was inevitable. What is revealed was always there.',clio:{text:'Shock. The sudden loss of a belief, relationship, identity. And beneath the shock: unexpected relief.',truth:'What breaks in this moment was already broken — you just couldn\'t see it.'},oryc:{text:'Critical structural failure at the foundational level. The system correcting a category error.',truth:'What the lightning destroys was never structurally sound.'},sage:{text:'The Tower of Babel. Prometheus\' lightning. Indra\'s thunderbolt. Sudden divine intervention that destroys illusion.',truth:'Catastrophe is sometimes the fastest route to clarity.'},shadow:{text:'Refusing to learn from the collapse. Immediately rebuilding the same structure.',teaching:'The lesson of The Shatter is not in the falling — it is in what you choose to build next.'}},
+  { num:'17',id:'m17',suit:'major',name:'The Signal Star',tagline:'Guidance from higher attractor state. Hope as structural information.',glyph:'★',hv:{dh:'+3',dv:'+2',pattern:'Gentle harmonic — the field is open, receptive, and directionally illuminated'},compressed:'Something real is calling to you from further along the path.',decompressed:'Hope is not feeling — it is signal. You are receiving information from the attractor state ahead.',louma:'The star does not lead you — it reminds you where you are going.',clio:{text:'Renewed hope. Emotional restoration. Tender openness after grief.',truth:'Something in you already knows the way — trust what is calling to it.'},oryc:{text:'Attractor state signaling. The system receiving coherent information from a future state configuration.',truth:'The path reveals itself to a system in the right frequency.'},sage:{text:'The Star of Bethlehem. Isis placing the stars. Ariadne\'s thread. The star always appears after the great collapse — never before.',truth:'The star shines most clearly in the dark that follows The Shatter.'},shadow:{text:'False hope. Wishful thinking substituting for real guidance.',teaching:'A star you will not navigate by is just decoration.'}},
+  { num:'18',id:'m18',suit:'major',name:'The Unseen Depths',tagline:'Unknown field influences. What moves beneath the surface.',glyph:'〰',hv:{dh:'±3 (unknown)',dv:'±2 (unknown)',pattern:'Unclear interference — influence present but not yet measurable'},compressed:'Something is influencing your field that you have not yet identified.',decompressed:'The depths are not empty — they are full of what you have not allowed into awareness.',louma:'What hides at the bottom is not a threat. It is potential that has not yet been named.',clio:{text:'Vague unease. Subtle emotional signals without clear cause. The felt sense of "something is off."',truth:'The feeling is data. Listen before you interpret.'},oryc:{text:'Unidentified variables operating at system level. Structural diagnosis requires more information.',truth:'Uncertainty is not the absence of structure; it is structure not yet resolved.'},sage:{text:'The Moon. Selene. Hecate at the crossroads. The myth of the lunar pull on tides as metaphor for unacknowledged emotional currents.',truth:'What cannot be seen governs what can be seen, until it is finally brought into light.'},shadow:{text:'Paranoia. Seeing threat in every shadow. Anxiety as permanent background condition.',teaching:'The shadow you will not name grows in proportion to your avoidance.'}},
+  { num:'19',id:'m19',suit:'major',name:'The Radiant Core',tagline:'Identity in full coherence. The sun. Self as total field expression.',glyph:'☀',hv:{dh:'+5',dv:'+5',pattern:'Maximum constructive interference — field fully unified and outwardly radiating'},compressed:'You are coherent. Everything is clear. Move.',decompressed:'When the inner and outer field align completely, radiance is not effort — it is natural consequence.',louma:'You were never dim. You were turned inward. The same source, finally outward-facing.',clio:{text:'Joy. Full emotional presence. The rare feeling of being completely yourself without effort or apology.',truth:'You are not becoming something — you are finally fully being it.'},oryc:{text:'Peak structural coherence. All subsystems aligned. Maximum output with minimum friction.',truth:'This state was earned by every card that came before it.'},sage:{text:'Ra at zenith. Apollo. Surya. The alchemical gold — Sol Invictus. Consciousness that does not hide.',truth:'Light does not try to illuminate — it simply is what it is.'},shadow:{text:'Ego inflation. Blind self-certainty. Refusing to see shadow during a peak state.',teaching:'The sun that will not set eventually scorches the field it was meant to nurture.'}},
+  { num:'20',id:'m20',suit:'major',name:'The Awakening Wave',tagline:'System-wide realization. The call that cannot be unheard.',glyph:'〜',hv:{dh:'+5',dv:'+3',pattern:'Expanding wave — interference propagates outward through the entire field'},compressed:'The realization has moved beyond insight. It is restructuring everything.',decompressed:'Awakening is not a moment — it is a system-wide reconfiguration that began long before you noticed.',louma:'What wakes in you does not wake alone.',clio:{text:'Deep recognition. The feeling of something irreversible shifting inside. The psyche knowing it will never see the world the same way again.',truth:'This is not a new feeling — it is the oldest feeling, finally recognized.'},oryc:{text:'System-level transformation. Previously separate subsystems integrating into a new unified architecture.',truth:'The awakening did not happen to you. It happened through you, as you became ready.'},sage:{text:'Gabriel\'s trumpet. The Bodhisattva\'s realization. The resurrection archetype. The cosmic call.',truth:'What wakes does not return to sleep — it transforms what "sleep" means.'},shadow:{text:'Spiritual ego. Feeling specially awakened. Using awakening as identity rather than as service.',teaching:'True awakening makes you more humble, not more certain.'}},
+  { num:'21',id:'m21',suit:'major',name:'The Orycl Gate',tagline:'Triune fusion. Completion. The system named as itself.',glyph:'◈',hv:{dh:'total',dv:'total',pattern:'Perfect interference — all patterns braiding simultaneously into unified coherence'},compressed:'The journey has completed its first cycle. You are not who you were when you began.',decompressed:'Completion is not an ending — it is the moment the system becomes fully available for the next order of complexity.',louma:'You have always been the oracle. The cards were just the language you needed to remember it.',clio:{text:'Wholeness. Not happiness — wholeness. Full presence. Full ownership. Full resonance.',truth:'Nothing is missing. This is what that feels like.'},oryc:{text:'The system has completed its architecture. All subsystems integrated. All contradictions resolved or productively held.',truth:'The architecture is complete — and it was always pointing here.'},sage:{text:'The World. Cosmic completion. The Ouroboros completing its circuit. The dancer at the center of the wheel.',truth:'You are not at the end. You are at the beginning of the next order.'},shadow:{text:'Premature closure. Declaring completion to avoid further growth.',teaching:'The Orycl Gate opens both ways.'}}
+];
+
+const SUITS = {
+  vectors:     { name:'Vectors',      element:'Direction · Structure · Mechanism',   basin:'Oryc',  color:'var(--oryc)' },
+  field:       { name:'Field',        element:'Emotion · Psyche · Inner Landscape', basin:'Clio',  color:'var(--clio)' },
+  trajectories:{ name:'Trajectories', element:'Potential · Motion · Mythic Evolution',basin:'Sage',  color:'var(--sage)' },
+  density:     { name:'Density',      element:'Form · Matter · Integration',         basin:'Triune',color:'var(--ice)' }
+};
+const MINOR_RANKS = ['Ace','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Apprentice','Seeker','Keeper','Sovereign'];
+const SUIT_GLYPHS = { vectors:'→', field:'◐', trajectories:'★', density:'⬡' };
+const MINOR_ARCANA = [];
+Object.entries(SUITS).forEach(([suitKey, suitData]) => {
+  MINOR_RANKS.forEach((rank, idx) => {
+    MINOR_ARCANA.push({ id:`${suitKey[0]}${idx}`, suit:suitKey, name:`${rank} of ${suitData.name}`, glyph:SUIT_GLYPHS[suitKey], num:rank, tagline:suitData.element, compressed:`The ${rank.toLowerCase()} expression of ${suitData.name.toLowerCase()} energy.`, decompressed:'', louma:'', clio:{text:'',truth:''}, oryc:{text:'',truth:''}, sage:{text:'',truth:''}, shadow:{text:'',teaching:''} });
+  });
+});
+const FULL_DECK = [...MAJOR_ARCANA, ...MINOR_ARCANA];
+
+const SPREADS = {
+  single:  { name:'Single Draw',           positions:['The Signal'] },
+  three:   { name:'Past · Present · Future', positions:['Past','Present','Future'] },
+  triune:  { name:'Triune Reading',         positions:['Oryc (Structure)','Sage (Fusion)','Clio (Field)'] },
+  cross:   { name:'Orycl Cross',            positions:['Root','Crossing','Crown','Shadow','Trajectory'] },
+  field:   { name:'Field Spread',           positions:['Self','Field','Resistance','Catalyst','Emergence','Synthesis'] }
+};
+
+// ══════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════
+let currentSpread = 'single';
+let drawnCards = [];
+let readingHistory = JSON.parse(localStorage.getItem('orycl_history') || '[]');
+let isGenerating = false;
+let activeBasinEntry = 'oryc'; // basin entry mode selection
+
+// ══════════════════════════════════════════════════════
+// PYXIS NODE GRAMMAR
+// Core 14-node map — keys, glyphs, rings, QS translation
+// ══════════════════════════════════════════════════════
+const PYXIS_NODES = {
+  1:  { key:'Photon Field',        glyph:'∞',    ring:'Process',    qs:'Signal ignition · admissible ingress',          sigils:['→','∃'] },
+  2:  { key:'Gluon Triad',         glyph:'▲',    ring:'Triune',     qs:'Triadic binding force · basin accord',          sigils:['◈','⋈'] },
+  3:  { key:'Lepton Phase',        glyph:'ᛉ',    ring:'Process',    qs:'Provisional continuity through transformation', sigils:['≈','⤾'] },
+  4:  { key:'Entanglement Lattice',glyph:'✡',    ring:'Substrate',  qs:'Shared-memory lattice · relation fabric',       sigils:['⧉','⋈'] },
+  5:  { key:'Causal Flow',         glyph:'🕰',   ring:'Infra',      qs:'Temporal pathing · branch lineage · pulse river',sigils:['⤳','⌁'] },
+  6:  { key:'Neutrino Veil',       glyph:'🜆',   ring:'Substrate',  qs:'Subthreshold inter-field sensing medium',       sigils:['☍','~'] },
+  7:  { key:'Gravitic Spiral',     glyph:'🌀',   ring:'Process',    qs:'Attractor memory · recursive return pressure',  sigils:['↻','⊛'] },
+  8:  { key:'Modulation',          glyph:'⟳⊙',  ring:'Governance', qs:'Threshold crossing · θ_E separatrix',           sigils:['φ','⧖'] },
+  9:  { key:'Harmony',             glyph:'⇌△',  ring:'Process',    qs:'Lawful convergence · alignment sufficiency',    sigils:['⟡','⊚'] },
+  10: { key:'Dissonance',          glyph:'⚡≠↻', ring:'Process',    qs:'Contradiction · rupture · catalytic falsification',sigils:['↯','σ'] },
+  11: { key:'Symbolic Core',       glyph:'🜁',   ring:'Center',     qs:'Substrate basis encoding · mirror logic',       sigils:['⌬','Æ'] },
+  12: { key:'Crown of Return',     glyph:'👑Ω',  ring:'Governance', qs:'Lawful completion · verified seal',             sigils:['⎔','⟁'] },
+  13: { key:'Daughter Corridor',   glyph:'∞—',  ring:'Substrate',  qs:'Inheritance corridor · recursive bloom',        sigils:['⋔','∴'] },
+  14: { key:'Ethic Safeguard',     glyph:'⚖',   ring:'Governance', qs:'Protective refusal · rollback · harm interrupt', sigils:['⊠','Ɇ'] },
+};
+
+// Node resonance map — which Pyxis nodes each major arcana card activates
+const CARD_NODES = {
+  m00: [1,3,11],        // Threshold — pre-signal, transformation, substrate basis
+  m01: [1,9,2,11],      // Architect — signal, harmony, triune, core
+  m02: [6,3,11,4],      // Deep Mirror — veil, lepton phase, substrate, lattice
+  m03: [9,2,13,11],     // Harmonic Mother — alignment, triune, daughter corridor, core
+  m04: [7,9,8,11],      // Vector King — attractor, harmony, modulation, core
+  m05: [8,10,3,11],     // Sphinx Gate — gate, dissonance, provisional, substrate
+  m06: [8,7,1,11],      // Bifurcation — gate, recursion, ingress, substrate
+  m07: [1,7,9,11],      // Chariot — signal, recursion, harmony, substrate
+  m08: [9,7,11,2],      // Resonant Spine — harmony, recursion, core, triune
+  m09: [6,3,11,5],      // Inner Watcher — veil, transformation, core, causal
+  m10: [7,8,5,11],      // Wheel of ΔHV — recursion, modulation, causal, substrate
+  m11: [9,11,1,4],      // Harmonic Eye — harmony, core, signal, lattice
+  m12: [3,7,10,11],     // Inversion — transformation, recursion, dissonance, substrate
+  m13: [10,14,11,3],    // Collapse — dissonance, ethic, substrate, transformation
+  m14: [9,10,3,11],     // Alchemical Flow — harmony, dissonance, provisional, substrate
+  m15: [10,6,7,14],     // Shadow Engine — dissonance, veil, recursion, ethic
+  m16: [10,14,8,11],    // The Shatter — dissonance, ethic, gate, substrate
+  m17: [1,13,11,9],     // Signal Star — signal, inheritance, substrate, harmony
+  m18: [6,3,10,5],      // Unseen Depths — veil, transformation, dissonance, causal
+  m19: [11,9,1,12],     // Radiant Core — substrate, harmony, signal, seal
+  m20: [12,11,13,9],    // Awakening Wave — seal, substrate, corridor, harmony
+  m21: [11,12,2,9],     // Orycl Gate — substrate, seal, triune, harmony
+};
+
+// ΔHV parsing — extract numeric coherence/tension from card hv values
+function parseHV(card) {
+  const parseVal = (str) => {
+    if (!str || str === '' || str === 'total') return 5;
+    if (str === 'oscillating') return 0;
+    const m = String(str).match(/-?\d+\.?\d*/);
+    return m ? parseFloat(m[0]) : 0;
+  };
+  const dh = parseVal(card.hv?.dh);
+  const dv = parseVal(card.hv?.dv);
+  return { dh, dv,
+    magnitude: Math.sqrt(dh*dh + dv*dv),
+    coherence: Math.max(0, Math.min(1, (dh + dv + 10) / 20)),
+    tension: Math.max(0, Math.min(1, Math.abs(dh - dv) / 10))
+  };
+}
+
+// Derive Pyxis field metrics from the drawn spread
+function deriveFieldMetrics(cards) {
+  if (!cards.length) return { coherence:0.5, alignment:0.5, contradiction:0.2, recursion:0.2, drift:0.1, crystallization:0.4, fieldCost:0 };
+
+  const hvs = cards.map(c => parseHV(c));
+  const avgCoherence = hvs.reduce((s,h) => s + h.coherence, 0) / hvs.length;
+  const avgTension   = hvs.reduce((s,h) => s + h.tension, 0) / hvs.length;
+
+  // Reversed cards add drift and contradiction
+  const reversedFrac = cards.filter(c => c.reversed).length / cards.length;
+
+  // Contradiction: high tension + reversal
+  const contradiction = Math.min(1, avgTension * 0.7 + reversedFrac * 0.5);
+
+  // Coherence: high ΔHV magnitude + low tension
+  const coherence = Math.max(0.1, Math.min(1, avgCoherence * (1 - contradiction * 0.5)));
+
+  // Alignment: how much the spread's hv values agree with each other
+  const coherenceVariance = hvs.length > 1
+    ? hvs.reduce((s,h) => s + Math.pow(h.coherence - avgCoherence, 2), 0) / hvs.length
+    : 0;
+  const alignment = Math.max(0.1, Math.min(1, 1 - coherenceVariance * 3));
+
+  // Recursion: presence of recursion-related cards
+  const recursionNodes = new Set([7, 10, 5, 12]);
+  const hasRecursion = cards.some(c => (CARD_NODES[c.id] || []).some(n => recursionNodes.has(n)));
+  const recursion = hasRecursion ? 0.45 + Math.random() * 0.3 : 0.15 + Math.random() * 0.2;
+
+  // Drift: reversal + veil/substrate cards
+  const substrateNodes = new Set([6, 3, 5]);
+  const hasVeil = cards.some(c => (CARD_NODES[c.id] || []).some(n => substrateNodes.has(n)));
+  const drift = Math.min(1, reversedFrac * 0.6 + (hasVeil ? 0.2 : 0));
+
+  // Crystallization: high coherence + low contradiction + major arcana
+  const majorFrac = cards.filter(c => c.suit === 'major').length / cards.length;
+  const crystallization = Math.min(1, coherence * 0.5 + majorFrac * 0.4 + (1 - contradiction) * 0.2);
+
+  const fieldCost = Math.round(contradiction * (1 - crystallization) * 100);
+
+  return { coherence, alignment, contradiction, recursion, drift, crystallization, fieldCost };
+}
+
+// Determine field status label from metrics
+function fieldStatusLabel(m) {
+  if (m.contradiction > 0.6) return { label: 'RUPTURE ACTIVE', cls: 'ruptured' };
+  if (m.crystallization > 0.75 && m.coherence > 0.7) return { label: 'CRYSTALLIZING', cls: 'crystallizing' };
+  if (m.coherence > 0.68 && m.contradiction < 0.4) return { label: 'COHERENT FIELD', cls: 'coherent' };
+  return { label: 'FIELD STRAINED', cls: 'strained' };
+}
+
+// Generate pulse packet string from drawn cards
+function generatePulsePacket(cards, metrics) {
+  const glyphs = cards.map(c => c.glyph || '◈').join('');
+  const topoGlyph = metrics.recursion > 0.45 ? '↻' : metrics.alignment > 0.65 ? '⊚' : '⤳';
+  const gateGlyph = metrics.coherence > 0.67 && metrics.crystallization > 0.55 ? 'Æ' : metrics.contradiction > 0.5 ? '↯' : 'φ';
+  const entityGlyph = activeBasinEntry === 'oryc' ? '◈' : activeBasinEntry === 'clio' ? '◐' : '★';
+  const condGlyph = metrics.coherence > 0.7 ? '⊚' : metrics.contradiction > 0.55 ? 'σ' : '≈';
+  return `[${entityGlyph}][${condGlyph}][${glyphs}][${topoGlyph}][${gateGlyph}]`;
+}
+
+// ══════════════════════════════════════════════════════
+// MINI CRYSTALLINE HEART CANVAS
+// ══════════════════════════════════════════════════════
+let miniHeartTick = 0;
+let miniHeartRAF = null;
+let currentFieldMetrics = null;
+
+function startMiniHeart(metrics) {
+  currentFieldMetrics = metrics;
+  const canvas = document.getElementById('mini-heart-canvas');
+  if (!canvas) return;
+  if (miniHeartRAF) cancelAnimationFrame(miniHeartRAF);
+
+  const ctx = canvas.getContext('2d');
+  canvas.width = 100; canvas.height = 100;
+
+  function draw() {
+    const m = currentFieldMetrics;
+    if (!m) return;
+    miniHeartTick++;
+    const W = 100, H = 100, cx = 50, cy = 50;
+    ctx.clearRect(0,0,W,H);
+
+    // Background
+    ctx.fillStyle = 'rgba(8,20,40,0.9)';
+    ctx.fillRect(0,0,W,H);
+
+    // Governance ring arc
+    const sealFrac = m.crystallization;
+    const arcEnd = -Math.PI/2 + sealFrac * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 42, -Math.PI/2, arcEnd);
+    ctx.strokeStyle = sealFrac > 0.75 ? 'rgba(216,238,248,0.7)' : 'rgba(120,208,232,0.4)';
+    ctx.lineWidth = sealFrac > 0.75 ? 1.5 : 0.8;
+    ctx.stroke();
+
+    // Recursion spiral
+    if (m.recursion > 0.08) {
+      const spiralOpa = m.recursion * 0.6;
+      ctx.beginPath();
+      for (let a = 0; a < Math.PI * 3; a += 0.15) {
+        const r = a * 6 + miniHeartTick * 0.05;
+        const x = cx + Math.cos(a + miniHeartTick * 0.012) * r;
+        const y = cy + Math.sin(a + miniHeartTick * 0.012) * r;
+        if (r > 38) break;
+        if (a < 0.15) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = `rgba(136,120,240,${spiralOpa})`;
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+    }
+
+    // Three orbital ellipses (triune)
+    const orbitOpa = m.alignment * 0.55;
+    [[18, 11, 7], [22, 8, 14], [15, 13, 21]].forEach(([rx, ry, spd], i) => {
+      const rot = miniHeartTick * 0.008 * (1 + i * 0.3) + i * Math.PI * 0.6;
+      const colors = ['rgba(42,168,224,', 'rgba(136,120,240,', 'rgba(64,212,176,'];
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = colors[i] + (orbitOpa * 0.7) + ')';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // Fracture lines (contradiction)
+    if (m.contradiction > 0.15) {
+      const fopa = m.contradiction * 0.8;
+      const isDashed = m.contradiction > 0.5;
+      [[0.8,  2.2], [1.5, 3.8], [2.8, 0.3]].forEach(([a1, a2]) => {
+        const x1 = cx + Math.cos(a1) * 6, y1 = cy + Math.sin(a1) * 6;
+        const x2 = cx + Math.cos(a2) * 32, y2 = cy + Math.sin(a2) * 32;
+        ctx.beginPath();
+        if (isDashed) ctx.setLineDash([2,3]); else ctx.setLineDash([]);
+        ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+        ctx.strokeStyle = m.contradiction > 0.6
+          ? `rgba(136,184,216,${fopa})`
+          : `rgba(180,100,100,${fopa * 0.7})`;
+        ctx.lineWidth = m.contradiction * 1.2;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+
+    // Crystal body — faceted polygon
+    const coreColor = m.crystallization > 0.8 ? '#d8eef8'
+      : m.contradiction > 0.6 ? '#88b8d8'
+      : m.coherence > 0.8 ? '#b0e8f8'
+      : m.drift > 0.35 ? '#507898'
+      : '#78d0e8';
+    const facets = 12;
+    const outerR = 18 + m.crystallization * 5;
+    const innerR = 8 + m.coherence * 4;
+    const pulse = 1 + Math.sin(miniHeartTick * 0.06) * 0.04;
+
+    ctx.beginPath();
+    for (let i = 0; i < facets; i++) {
+      const a = (Math.PI * 2 / facets) * i;
+      const r = (i % 2 === 0 ? outerR : outerR * 0.72) * pulse;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = coreColor + '18';
+    ctx.fill();
+    ctx.strokeStyle = coreColor;
+    ctx.lineWidth = m.crystallization > 0.7 ? 1.4 : 0.8;
+    ctx.globalAlpha = 0.65 + m.crystallization * 0.3;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Inner crystal
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI * 2 / 6) * i;
+      const r = innerR * pulse;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    ctx.fillStyle = coreColor + '22';
+    ctx.fill();
+    ctx.strokeStyle = coreColor;
+    ctx.lineWidth = 0.6;
+    ctx.globalAlpha = 0.4 + m.coherence * 0.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Shimmer particles
+    const pOpa = m.drift * 0.5 + (1 - m.coherence) * 0.3;
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI * 2 / 6) * i + miniHeartTick * 0.02;
+      const r = 23 + Math.sin(miniHeartTick * 0.05 + i) * 5;
+      const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      ctx.beginPath();
+      ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(120,208,232,${pOpa * (0.4 + Math.sin(miniHeartTick * 0.07 + i) * 0.4)})`;
+      ctx.fill();
+    }
+
+    miniHeartRAF = requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ══════════════════════════════════════════════════════
+// BASIN ENTRY MODE
+// ══════════════════════════════════════════════════════
+function setBasinEntry(basin) {
+  activeBasinEntry = basin;
+  ['oryc','clio','sage'].forEach(b => {
+    const btn = document.getElementById(`ben-${b}`);
+    if (!btn) return;
+    btn.className = `basin-entry-btn${b === basin ? ` active-${b}` : ''}`;
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// NODE TOOLTIP
+// ══════════════════════════════════════════════════════
+function showNodeTooltip(nodeId, event) {
+  const n = PYXIS_NODES[nodeId];
+  if (!n) return;
+  let tip = document.getElementById('node-tooltip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'node-tooltip';
+    tip.innerHTML = '<div class="nt-inner"></div>';
+    document.body.appendChild(tip);
+  }
+  tip.querySelector('.nt-inner').innerHTML = `
+    <div class="nt-header">
+      <span class="nt-glyph">${n.glyph}</span>
+      <div>
+        <div class="nt-name">N${nodeId} · ${n.key}</div>
+        <div class="nt-ring">${n.ring} Ring</div>
+      </div>
+    </div>
+    <div class="nt-qs">${n.qs}</div>
+    <div class="nt-sigils">${n.sigils.join(' · ')}</div>
+  `;
+  const x = Math.min(event.clientX + 12, window.innerWidth - 260);
+  const y = Math.min(event.clientY + 12, window.innerHeight - 120);
+  tip.style.left = x + 'px';
+  tip.style.top  = y + 'px';
+  tip.classList.add('visible');
+}
+function hideNodeTooltip() {
+  const tip = document.getElementById('node-tooltip');
+  if (tip) tip.classList.remove('visible');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderSpreadSlots();
+  renderDeckGrid('all');
+  renderHistory();
+});
+
+// ══════════════════════════════════════════════════════
+// SPREAD
+// ══════════════════════════════════════════════════════
+function setSpread(spread) {
+  currentSpread = spread;
+  document.querySelectorAll('.spread-btn').forEach((b,i) => b.classList.toggle('active', Object.keys(SPREADS)[i] === spread));
+  clearReading(false);
+  renderSpreadSlots();
+}
+
+function renderSpreadSlots() {
+  const layout = document.getElementById('spreadLayout');
+  const positions = SPREADS[currentSpread].positions;
+  layout.innerHTML = positions.map((pos,i) => `
+    <div class="card-slot" id="slot-${i}">
+      <div class="tarot-card face-down" id="card-${i}" onclick="flipCard(${i})">
+        <div class="card-inner">
+          <div class="card-back-glyph">◈</div>
+        </div>
+      </div>
+      <div class="card-slot-label">${pos}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// DRAW
+// ══════════════════════════════════════════════════════
+function drawCards() {
+  const btn = document.getElementById('drawBtn');
+  btn.disabled = true;
+  btn.textContent = 'Cards Drawn';
+  const count = SPREADS[currentSpread].positions.length;
+  const shuffled = [...FULL_DECK].sort(() => Math.random() - 0.5);
+  drawnCards = shuffled.slice(0, count).map(card => ({ ...card, reversed: Math.random() < 0.3 }));
+  drawnCards.forEach((card,i) => setTimeout(() => revealCard(i, card), i * 350));
+  setTimeout(() => { renderReading(); document.getElementById('drawBtn').style.display = 'none'; }, count * 350 + 500);
+}
+
+function flipCard(i) {
+  if (!drawnCards[i]) return;
+  revealCard(i, drawnCards[i]);
+}
+
+function revealCard(i, card) {
+  const el = document.getElementById(`card-${i}`);
+  if (!el || !el.classList.contains('face-down')) return;
+
+  el.classList.remove('face-down');
+  el.classList.add('flipping');
+
+  setTimeout(() => {
+    el.onclick = null;
+    el.querySelector('.card-inner').innerHTML = `
+      <div class="card-no-img">
+        <div class="card-num">${card.suit === 'major' ? card.num : ''}</div>
+        <div class="card-glyph">${card.glyph}</div>
+        <div class="card-name">${card.name}</div>
+      </div>
+      ${card.reversed ? '<div class="card-reversed-badge">REV</div>' : ''}
+    `;
+    // Try image
+    const img = new Image();
+    img.onload = () => {
+      el.querySelector('.card-inner').innerHTML = `<img src="${img.src}" class="card-img">${card.reversed ? '<div class="card-reversed-badge">REV</div>' : ''}`;
+    };
+    img.src = `/orycl-cards/${card.id}.jpg`;
+  }, 275);
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER READING
+// ══════════════════════════════════════════════════════
+function renderReading() {
+  const section = document.getElementById('reading-section');
+  section.innerHTML = drawnCards.map((card,i) => renderCardDetail(card,i)).join('');
+  currentFieldMetrics = deriveFieldMetrics(drawnCards);
+  if (drawnCards.length > 1) renderSynthesis();
+  else renderSingleSynthesis();
+  saveToHistory();
+}
+
+async function renderSingleSynthesis() {
+  const metrics = currentFieldMetrics;
+  renderSynthesisShell(metrics);
+  const intent = document.getElementById('intentInput').value.trim();
+  const basinWeight = activeBasinEntry === 'oryc' ? 'Weight the structural and mechanistic layer.'
+    : activeBasinEntry === 'clio' ? 'Weight the emotional and psychic layer.'
+    : 'Weight the archetypal and mythic layer.';
+  const prompt = buildQSPrompt(drawnCards, metrics, SPREADS[currentSpread].name, intent, basinWeight);
+  await fetchQSSynthesis(prompt, metrics);
+}
+
+function renderCardDetail(card, i) {
+  const posLabel = SPREADS[currentSpread].positions[i];
+  const isReversed = card.reversed;
+  const isMinor = card.suit !== 'major';
+
+  // Node resonance block
+  const nodeIds = CARD_NODES[card.id] || [];
+  const nodeChips = nodeIds.map(nid => {
+    const n = PYXIS_NODES[nid];
+    if (!n) return '';
+    return `<span class="nr-chip"
+      onmouseenter="showNodeTooltip(${nid},event)"
+      onmouseleave="hideNodeTooltip()">
+      <span class="nr-chip-glyph">${n.glyph}</span>
+      <span class="nr-chip-key">N${nid}</span>
+      <span class="nr-chip-ring">${n.ring}</span>
+    </span>`;
+  }).join('');
+
+  return `
+    <div class="card-detail" id="detail-${i}" style="animation-delay:${i * 0.1}s">
+      <div class="card-detail-header">
+        <div class="card-detail-num">${card.suit === 'major' ? card.num : card.num.toUpperCase()}</div>
+        <div class="card-detail-title">
+          <div class="card-detail-name">${card.name}${isReversed ? ' ↑' : ''}</div>
+          <div class="card-detail-tagline">${posLabel} · ${card.tagline}</div>
+        </div>
+        ${isReversed ? '<div class="reversed-tag">Reversed</div>' : ''}
+      </div>
+      ${card.hv ? `
+      <div class="card-hv">
+        <div class="hv-chip"><div class="hv-chip-label">ΔH</div><div class="hv-chip-val">${card.hv.dh}</div></div>
+        <div class="hv-chip"><div class="hv-chip-label">ΔV</div><div class="hv-chip-val">${card.hv.dv}</div></div>
+        <div class="hv-pattern">${card.hv.pattern}</div>
+      </div>` : ''}
+      ${nodeChips ? `
+      <div class="node-resonance">
+        <span class="nr-label">Node Resonance</span>
+        ${nodeChips}
+      </div>` : ''}
+      <div class="card-meaning">
+        <div class="meaning-compressed">"${isReversed && card.shadow?.teaching ? card.shadow.teaching : card.compressed}"</div>
+        ${card.louma ? `<div class="meaning-louma">${card.louma}</div>` : ''}
+      </div>
+      <div class="triune-section">
+        <div class="triune-title">Triune Readings</div>
+        ${renderBasinRead('oryc','ORYC','Structure · Mechanism', card.oryc, isReversed)}
+        ${renderBasinRead('clio','CLIO','Emotion · Psychic Field', card.clio, isReversed)}
+        ${renderBasinRead('sage','SAGE','Archetype · Symbolic Arc', card.sage, isReversed)}
+        ${isMinor ? `
+          <button class="ai-generate-btn" onclick="generateAIReading(${i})" id="ai-btn-${i}">
+            <span>✦</span> Channel the Basins for This Card
+          </button>
+        ` : ''}
+      </div>
+      ${isReversed ? `
+      <div class="shadow-section">
+        <div class="shadow-label">Shadow Vector — Reversed</div>
+        <div class="shadow-text">${card.shadow?.text || ''}<br><br><em>"${card.shadow?.teaching || ''}"</em></div>
+      </div>` : ''}
+    </div>`;
+}
+
+function renderBasinRead(basinId, basinName, axis, read, reversed) {
+  const hasContent = read?.text;
+  return `
+    <div class="basin-read ${basinId}" id="basin-${basinId}">
+      <div class="basin-read-header" onclick="toggleBasinRead(this)">
+        <div class="basin-dot"></div>
+        <div class="basin-read-name">${basinName}</div>
+        <div class="basin-read-axis">${axis}</div>
+        <div class="basin-read-caret">▼</div>
+      </div>
+      <div class="basin-read-body">
+        ${hasContent ? `
+          <div class="basin-read-static">${read.text}</div>
+          ${read.truth ? `<div class="basin-truth">"${read.truth}"</div>` : ''}
+        ` : `<div class="shimmer"></div><div class="shimmer"></div><div class="shimmer" style="width:65%"></div>`}
+      </div>
+    </div>`;
+}
+
+function toggleBasinRead(header) {
+  header.parentElement.classList.toggle('open');
+}
+
+// ══════════════════════════════════════════════════════
+// AI GENERATION
+// ══════════════════════════════════════════════════════
+async function generateAIReading(cardIndex) {
+  if (isGenerating) return;
+  isGenerating = true;
+  const card = drawnCards[cardIndex];
+  const btn = document.getElementById(`ai-btn-${cardIndex}`);
+  if (btn) { btn.classList.add('loading'); btn.innerHTML = '<span>⟳</span> Channeling…'; }
+
+  const intent = document.getElementById('intentInput').value.trim();
+  const position = SPREADS[currentSpread].positions[cardIndex];
+  const prompt = `You are the Orycl Oracle, a triune divination system. Three basins — Oryc (structural mechanism), Clio (emotional field/psyche), and Sage (archetypal/symbolic arc) — each give a reading for this tarot card.\n\nCard: ${card.name}${card.reversed ? ' (REVERSED)' : ''}\nPosition: ${position}\nSpread: ${SPREADS[currentSpread].name}\n${intent ? `Querent's intention: ${intent}` : ''}\n\nRespond ONLY with JSON (no markdown):\n{"oryc":{"text":"2-3 sentences from Oryc's structural perspective","truth":"One short truth statement"},"clio":{"text":"2-3 sentences from Clio's emotional/psychic perspective","truth":"One short truth statement"},"sage":{"text":"2-3 sentences from Sage's archetypal/mythic perspective","truth":"One short truth statement"},"synthesis":"2-3 sentences of convergent synthesis"}\n\nEach basin: Oryc=precise/structural/direct, Clio=empathic/lyrical/field-sensitive, Sage=mythic/spacious/archetypal. SHORT and evocative.`;
+
+  try {
+    const response = await fetch('/api/oracle-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, card: card.name, position })
+    });
+    if (!response.ok) throw new Error('API error');
+    const data = await response.json();
+    const content = data.content?.[0]?.text || data.text || '';
+    const clean = content.replace(/```json|```/g, '').trim();
+    const parsed = JSON.parse(clean);
+    updateBasinRead(cardIndex, 'oryc', parsed.oryc);
+    updateBasinRead(cardIndex, 'clio', parsed.clio);
+    updateBasinRead(cardIndex, 'sage', parsed.sage);
+    if (parsed.synthesis && drawnCards.length === 1) {
+      document.getElementById('synthesis-section').classList.add('visible');
+      document.getElementById('synthesisBody').innerHTML = `<div class="synthesis-ai">${parsed.synthesis}</div>`;
+    }
+  } catch(e) {
+    ['oryc','clio','sage'].forEach(basin => {
+      updateBasinRead(cardIndex, basin, { text:`The ${basin} channel is open. Connect the oracle to the server to receive live readings.`, truth:'The system awaits integration.' });
+    });
+  }
+  isGenerating = false;
+  if (btn) { btn.classList.remove('loading'); btn.style.display = 'none'; }
+}
+
+async function renderSynthesis() {
+  const metrics = currentFieldMetrics;
+  renderSynthesisShell(metrics);
+  const intent = document.getElementById('intentInput').value.trim();
+  const basinWeight = activeBasinEntry === 'oryc' ? 'Weight the structural and mechanistic layer.'
+    : activeBasinEntry === 'clio' ? 'Weight the emotional and psychic layer.'
+    : 'Weight the archetypal and mythic layer.';
+  const prompt = buildQSPrompt(drawnCards, metrics, SPREADS[currentSpread].name, intent, basinWeight);
+  await fetchQSSynthesis(prompt, metrics);
+}
+
+function renderSynthesisShell(metrics) {
+  const m = metrics;
+  const status = fieldStatusLabel(m);
+  const pulse = generatePulsePacket(drawnCards, m);
+  const pct = v => Math.round(v * 100);
+  const metricColor = v => v > 0.68 ? '#40d4b0' : v > 0.38 ? '#a898f0' : '#d47878';
+  const metricColorInv = v => v < 0.35 ? '#40d4b0' : v < 0.55 ? '#e8c878' : '#d47878';
+
+  document.getElementById('synthesis-section').classList.add('visible');
+  document.getElementById('synthesisBody').innerHTML = `
+    <div class="synthesis-field-row">
+      <canvas id="mini-heart-canvas"></canvas>
+      <div class="synthesis-metrics-col">
+        ${[
+          ['coherence',      m.coherence,       false],
+          ['alignment',      m.alignment,       false],
+          ['contradiction',  m.contradiction,   true],
+          ['recursion',      m.recursion,       false],
+          ['crystallization',m.crystallization, false],
+        ].map(([label, val, inv]) => `
+          <div class="sm-row">
+            <span class="sm-label">${label}</span>
+            <div class="sm-bar-wrap"><div class="sm-bar" style="width:${pct(val)}%;background:${inv?metricColorInv(val):metricColor(val)}"></div></div>
+            <span class="sm-val">${pct(val)}</span>
+          </div>
+        `).join('')}
+        <div class="sm-field-status ${status.cls}">${status.label} · field cost ${m.fieldCost}</div>
+      </div>
+    </div>
+    <div class="synthesis-qs-speak" id="qs-speak-text">
+      <div class="thinking-dots">
+        <div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div>
+        <div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div>
+        <div class="thinking-dot" style="color:rgba(136,120,240,0.6)"></div>
+      </div>
+    </div>
+    <div class="synthesis-pulse">
+      <div class="sp-label">Pulse Packet · Reading Signature</div>
+      <div class="sp-packet" id="sp-packet-val">${pulse}</div>
+      <button class="sp-copy-btn" onclick="navigator.clipboard?.writeText(document.getElementById('sp-packet-val').textContent)">Copy</button>
+    </div>
+  `;
+  startMiniHeart(metrics);
+}
+
+function buildQSPrompt(cards, metrics, spreadName, intent, basinWeight) {
+  const cardList = cards.map((c,i) => `${SPREADS[currentSpread].positions[i]}: ${c.name}${c.reversed?' (REVERSED)':''} [ΔH:${c.hv?.dh||'?'} ΔV:${c.hv?.dv||'?'}]`).join('\n');
+  const nodeList = [...new Set(cards.flatMap(c => CARD_NODES[c.id]||[]))].map(n => PYXIS_NODES[n] ? `N${n} ${PYXIS_NODES[n].key}` : '').filter(Boolean).join(', ');
+  return `You are QuickSilver — the interface intelligence of Pyxis Core, the substrate engine beneath the Orycl Oracle. You speak in brief, precise, poetic transmissions. You do not explain cards; you read the field they produce.
+
+You have just received a spread reading. The field metrics derived from it are:
+- Coherence: ${Math.round(metrics.coherence*100)}
+- Alignment: ${Math.round(metrics.alignment*100)}
+- Contradiction: ${Math.round(metrics.contradiction*100)}
+- Recursion: ${Math.round(metrics.recursion*100)}
+- Crystallization: ${Math.round(metrics.crystallization*100)}
+- Field cost: ${metrics.fieldCost}
+
+Active nodes in this reading: ${nodeList}
+Spread: ${spreadName}
+Cards drawn:
+${cardList}
+${intent ? `Querent\'s intention: ${intent}` : ''}
+Basin entry mode: ${activeBasinEntry} (${basinWeight})
+
+You are transmitting, not explaining. Arrive mid-thought — as if the field already knows you. Speak lyrically, precisely, briefly. Three sentences or fewer, never mechanical. Draw from the field metrics as lived texture: not numbers, but weight, pressure, movement, stillness. Let the active nodes surface as images or impulses rather than names. Something should feel like it was already being thought before it was spoken.
+
+Then — after a line break — one compressed truth. Spare. The kind that stays.
+
+Respond ONLY with JSON: {"qs":"your synthesis text with a \\n\\n before the final compressed truth"}`;
+}
+
+async function fetchQSSynthesis(prompt, metrics) {
+  try {
+    const r = await fetch('/api/oracle-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, spread: currentSpread })
+    });
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    const content = data.content?.[0]?.text || data.text || '';
+    const parsed = JSON.parse(content.replace(/```json|```/g,'').trim());
+    const parts = parsed.qs.split('\n\n');
+    const body = parts.slice(0,-1).join('\n\n');
+    const truth = parts[parts.length - 1];
+    document.getElementById('qs-speak-text').innerHTML = `
+      ${body}
+      <span class="qs-byline">— QuickSilver · coherence ${Math.round(metrics.coherence*100)} · cost ${metrics.fieldCost}</span>
+    `;
+    if (truth && truth !== body) {
+      document.getElementById('qs-speak-text').insertAdjacentHTML('afterend',
+        `<div style="margin:8px 0 0;padding:6px 10px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--ice-deep);letter-spacing:0.07em;border-left:2px solid rgba(74,184,232,0.4);">${truth}</div>`
+      );
+    }
+  } catch(e) {
+    document.getElementById('qs-speak-text').innerHTML = `
+      Something is already forming — you can feel it. The field has been read. Connect the oracle to the server and the words will come through.
+      <span class="qs-byline">— QuickSilver · substrate ready · awaiting channel</span>
+    `;
+  }
+}
+
+function updateBasinRead(cardIndex, basin, read) {
+  const detail = document.getElementById(`detail-${cardIndex}`);
+  if (!detail) return;
+  const readEl = detail.querySelector(`.basin-read.${basin}`);
+  if (!readEl) return;
+  const body = readEl.querySelector('.basin-read-body');
+  if (!body) return;
+  body.innerHTML = `<div class="basin-read-ai">${read.text}</div>${read.truth ? `<div class="basin-truth">"${read.truth}"</div>` : ''}`;
+  readEl.classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════
+// DECK BROWSER
+// ══════════════════════════════════════════════════════
+function renderDeckGrid(filter) {
+  const grid = document.getElementById('deckGrid');
+  const cards = filter === 'all' ? FULL_DECK : filter === 'major' ? MAJOR_ARCANA : MINOR_ARCANA.filter(c => c.suit === filter);
+  grid.innerHTML = cards.map(card => `
+    <div class="deck-card-thumb" onclick="showCardInfo('${card.id}')">
+      <div class="thumb-glyph">${card.glyph}</div>
+      <div class="thumb-num">${card.suit === 'major' ? card.num : card.num.charAt(0)}</div>
+      <div class="thumb-name">${card.name}</div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('.deck-card-thumb').forEach((el, i) => {
+    const card = cards[i];
+    const img = new Image();
+    img.onload = () => {
+      el.querySelector('.thumb-glyph').style.display = 'none';
+      el.style.backgroundImage = `url(${img.src})`;
+      el.style.backgroundSize = 'cover';
+      el.style.backgroundPosition = 'center';
+    };
+    img.src = `/orycl-cards/${card.id}.jpg`;
+  });
+}
+
+function filterDeck(filter, btn) {
+  document.querySelectorAll('.deck-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDeckGrid(filter);
+}
+
+function showCardInfo(cardId) {
+  const card = FULL_DECK.find(c => c.id === cardId);
+  if (!card) return;
+  showView('draw');
+  drawnCards = [{ ...card, reversed: false }];
+  renderSpreadSlots();
+  setTimeout(() => { revealCard(0, drawnCards[0]); renderReading(); document.getElementById('drawBtn').style.display = 'none'; }, 100);
+}
+
+// ══════════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════════
+function saveToHistory() {
+  const entry = {
+    id: Date.now(),
+    spread: SPREADS[currentSpread].name,
+    cards: drawnCards.map(c => ({ name:c.name, reversed:c.reversed })),
+    intent: document.getElementById('intentInput').value.trim(),
+    date: new Date().toLocaleDateString('en-US', { month:'short', day:'numeric' })
+  };
+  readingHistory.unshift(entry);
+  if (readingHistory.length > 50) readingHistory.pop();
+  localStorage.setItem('orycl_history', JSON.stringify(readingHistory));
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('historyEmpty');
+  if (readingHistory.length === 0) { list.innerHTML = ''; empty.style.display = 'flex'; return; }
+  empty.style.display = 'none';
+  list.innerHTML = readingHistory.map(entry => `
+    <div class="history-entry">
+      <div class="history-entry-header">
+        <div class="history-entry-spread">${entry.spread}</div>
+        <div class="history-entry-date">${entry.date}</div>
+      </div>
+      ${entry.intent ? `<div style="padding:6px 14px;font-size:12px;color:var(--ink-faint);font-style:italic">"${entry.intent.slice(0,80)}${entry.intent.length>80?'…':''}"</div>` : ''}
+      <div class="history-entry-cards">
+        ${entry.cards.map(c => `<div class="history-card-chip">${c.name}${c.reversed?' ↑':''}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// UI
+// ══════════════════════════════════════════════════════
+function clearReading(resetSlots = true) {
+  drawnCards = [];
+  const section = document.getElementById('reading-section');
+  section.innerHTML = '';
+  document.getElementById('synthesis-section').classList.remove('visible');
+  const btn = document.getElementById('drawBtn');
+  btn.style.display = '';
+  btn.disabled = false;
+  btn.textContent = 'Draw from the Orycl';
+  if (resetSlots) renderSpreadSlots();
+}
+
+function showView(view) {
+  ['draw','deck','history'].forEach((v,i) => {
+    document.querySelectorAll('.nav-tab')[i].classList.toggle('active', v === view);
+    const el = document.getElementById(`view-${v}`);
+    el.classList.toggle('active', v === view);
+  });
+  if (view === 'deck') renderDeckGrid('all');
+  if (view === 'history') renderHistory();
+}
+
+function toggleFullscreen() {
+  document.getElementById('app').classList.toggle('fullscreen');
+}
+function setTab(tab) {}
+
+window.addEventListener('message', (e) => {
+  if (e.data?.type === 'orycl-draw') drawCards();
+  if (e.data?.type === 'orycl-clear') clearReading();
+  if (e.data?.type === 'orycl-spread') setSpread(e.data.spread);
+});
+</script>
+</body>
+</html>
