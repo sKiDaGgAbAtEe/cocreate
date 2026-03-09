@@ -190,19 +190,27 @@
     .lobby-title .logo-sm { font-size: 22px; color: var(--gold); }
     .lobby-title h2 { font-family: 'Cinzel', serif; font-size: 16px; font-weight: 600; letter-spacing: 0.12em; color: var(--ink); }
     .player-pill { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; background: rgba(139,111,71,0.1); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; }
-    .lobby-layout { display: flex; flex: 1; overflow: hidden; min-height: 0; }
-    .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
-    .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
+    .lobby-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+    .lobby-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0; }
+    .lobby-top { display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 14px; flex-shrink: 0; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid {
+      flex: 1;
+      min-height: 0;
       display: flex;
       flex-direction: column;
       align-items: stretch;
       gap: 10px;
       width: 68%;
       margin-left: auto;
-      padding-bottom: 24px;
+      overflow-y: auto;
+      padding: 0 28px 28px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
     }
+    .rooms-grid::-webkit-scrollbar { width: 5px; }
+    .rooms-grid::-webkit-scrollbar-track { background: transparent; }
+    .rooms-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
     @keyframes card-drop {
       0%   { opacity: 0; transform: translateY(-22px) scale(0.96); }
       55%  { opacity: 1; transform: translateY(6px) scale(1.02); }
@@ -486,8 +494,8 @@
     body.dark .save-btn { border-color: #2a2830; }
 
     /* ── LOBBY CHAT ──────────────── */
-    .lobby-layout { display: flex; flex: 1; overflow: hidden; gap: 0; }
-    .lobby-main { flex: 1; padding: 24px 24px; overflow-y: auto; max-width: none; }
+    .lobby-layout { display: flex; flex: 1; min-height: 0; overflow: hidden; gap: 0; }
+    .lobby-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 0; max-width: none; }
     .lobby-chat-panel { width: 320px; flex-shrink: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: rgba(255,255,255,0.3); align-self: stretch; }
     .chat-panel-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .chat-panel-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
@@ -1686,7 +1694,6 @@
       border-radius: 50%;
       object-fit: cover;
       opacity: 0;
-      transition: opacity 0.22s ease;
       pointer-events: none;
     }
     #qs-corner-pfp img.qs-visible { opacity: 1; }
@@ -4694,7 +4701,6 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   }
   function _syncFrames() {
     _pushToFrame(document.getElementById('tarot-mini-frame'));
-    _pushToFrame(document.getElementById('tarot-full-frame'));
   }
 
   // Attach load listeners so iframes get correct state the moment they finish loading
@@ -4780,7 +4786,6 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   // Wire up load listeners once DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     _attachFrameListener('tarot-mini-frame');
-    _attachFrameListener('tarot-full-frame');
   });
 
 })();
@@ -4788,16 +4793,25 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
 // ── Tarot Widget ──────────────────────────────────────────────────
 var _tarotLoaded = false;
 
+function _tarotFrame() { return document.getElementById('tarot-mini-frame'); }
+function _miniBody()   { return document.querySelector('#tarot-widget .tarot-widget-body'); }
+function _fullBody()   { return document.getElementById('tarot-full-body'); }
+
 function openTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   var corner = document.getElementById('qs-corner');
   if (!widget) return;
+  // Load oracle once
   if (!_tarotLoaded) {
-    document.getElementById('tarot-mini-frame').src = '/orycl_v4.html';
+    _tarotFrame().src = '/orycl_v4.html';
     _tarotLoaded = true;
   }
+  // If frame is in fullscreen body, bring it back
+  var frame = _tarotFrame();
+  var mb = _miniBody();
+  if (frame && mb && frame.parentElement !== mb) mb.appendChild(frame);
   widget.classList.add('open');
-  if (corner) corner.classList.add('widget-open'); // fades corner pfp
+  if (corner) corner.classList.add('widget-open');
   qsWake();
 }
 
@@ -4805,32 +4819,28 @@ function minimizeTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   var full   = document.getElementById('tarot-fullscreen');
   var corner = document.getElementById('qs-corner');
+  // Return frame to mini body if it wandered
+  var frame = _tarotFrame();
+  var mb = _miniBody();
+  if (frame && mb && frame.parentElement !== mb) mb.appendChild(frame);
   if (widget) widget.classList.remove('open');
   if (full)   full.classList.remove('open');
   if (corner) corner.classList.remove('widget-open');
-  qsDown(); // plays down → sleep on all pfps
+  qsDown();
 }
 
 function refreshTarotWidget() {
-  var mini = document.getElementById('tarot-mini-frame');
-  var full = document.getElementById('tarot-full-frame');
-  var src = '/orycl_v4.html';
-  // reload whichever is currently visible
-  var fullOpen = document.getElementById('tarot-fullscreen').classList.contains('open');
-  if (fullOpen && full) { full.src = ''; full.src = src; }
-  else if (mini) { mini.src = ''; mini.src = src; }
+  var frame = _tarotFrame();
+  if (frame) { frame.src = ''; frame.src = '/orycl_v4.html'; }
 }
 
 function openTarotFullscreen() {
   var modal = document.getElementById('tarot-fullscreen');
   if (!modal) return;
-  // Reuse the already-loaded mini frame src to avoid black screen on reload
-  var miniFrame = document.getElementById('tarot-mini-frame');
-  var fullFrame = document.getElementById('tarot-full-frame');
-  if (fullFrame) {
-    var src = (miniFrame && miniFrame.src) ? miniFrame.src : '/orycl_v4.html';
-    fullFrame.src = src;
-  }
+  // Move the single iframe into the fullscreen body — no reload
+  var frame = _tarotFrame();
+  var fb = _fullBody();
+  if (frame && fb && frame.parentElement !== fb) fb.appendChild(frame);
   modal.classList.add('open');
   var widget = document.getElementById('tarot-widget');
   if (widget) widget.classList.remove('open');
@@ -5629,9 +5639,7 @@ document.addEventListener('keydown', (e) => {
       <button class="tarot-ctrl-btn" onclick="refreshTarotWidget()" title="Refresh oracle">↺</button>
       <button class="tarot-ctrl-btn" onclick="minimizeTarotWidget()" title="Minimize to corner">⊡</button>
     </div>
-    <div class="tarot-full-body">
-      <iframe id="tarot-full-frame" src="" title="Resonant Oracle — Full"></iframe>
-    </div>
+    <div class="tarot-full-body" id="tarot-full-body"></div>
   </div>
 </div>
 
