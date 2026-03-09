@@ -596,6 +596,9 @@
     }
     .log-panel.open { width: 240px; }
 
+    @keyframes hrt-spin  { from { transform: rotate(0deg) }   to { transform: rotate(360deg) } }
+    @keyframes hrt-spinr { from { transform: rotate(360deg) } to { transform: rotate(0deg) } }
+
     .heart-panel {
       width: 0; flex-shrink: 0;
       background: var(--bg3);
@@ -730,6 +733,9 @@
 
   </style>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 </head>
 <body>
 
@@ -1081,19 +1087,10 @@
             </div>
           </div>
 
-          <!-- VISUAL PLACEHOLDER -->
+          <!-- HEART SVG -->
           <div class="fp-section">
             <div class="fp-section-title">Heart Visualization</div>
-            <div id="heartOrbPlaceholder" style="
-              height:140px;margin:10px 0;border-radius:6px;
-              border:1px dashed rgba(120,208,232,0.15);
-              display:flex;flex-direction:column;align-items:center;justify-content:center;
-              gap:6px;color:var(--ink-faint);font-family:var(--mono);font-size:9px;
-              letter-spacing:.06em;background:rgba(10,28,50,0.3);
-            ">
-              <div id="heartOrbGlyph" style="font-size:28px;opacity:0.25;transition:opacity 1s,filter 1s;">🜁</div>
-              <span id="heartOrbLabel" style="opacity:0.4;">plasma orb · coming soon</span>
-            </div>
+            <div id="heartMountPoint" style="width:100%;aspect-ratio:1;max-height:200px;display:flex;align-items:center;justify-content:center;"></div>
           </div>
 
           <!-- SIX METRICS -->
@@ -1686,6 +1683,21 @@ Measurement rules — all scores 0.0 to 1.0 unless noted:
 function updateHeartPanel(p) {
   if (!p) return;
 
+  // Push into Heart React widget
+  if (typeof window._heartSetMetrics === 'function') {
+    window._heartSetMetrics({
+      coherence:      p.coherence,
+      alignment:      p.alignment,
+      contradiction:  p.contradiction,
+      recursion:      p.recursion,
+      drift:          p.drift,
+      crystallization:p.crystallization,
+      seal:           p.seal,
+      thetaE:         !!p.thetaE,
+      compressionEvent: !!p.compressionEvent
+    });
+  }
+
   // Socket status
   const dot = document.getElementById('heartSocketDot');
   const lbl = document.getElementById('heartSocketLabel');
@@ -1727,16 +1739,6 @@ function updateHeartPanel(p) {
 
   const compEl = el('hrt-flag-compression');
   if (compEl) compEl.classList.toggle('active', !!p.compressionEvent);
-
-  // Orb placeholder pulse — brightens glyph when active
-  const glyph = el('heartOrbGlyph');
-  if (glyph) {
-    const brightness = 0.2 + (p.coherence || 0) * 0.6;
-    glyph.style.opacity = brightness;
-    glyph.style.filter  = p.coherence > 0.7
-      ? `drop-shadow(0 0 ${Math.round(p.coherence * 12)}px rgba(120,208,232,0.6))`
-      : 'none';
-  }
 }
 
 // Bridge Pyxis state shape → updateFieldUI schema
@@ -2177,6 +2179,201 @@ function autoResize(el) {
 }
 
 function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+</script>
+<!-- ── Crystalline Heart micro-app ─────────────────────────────────────────── -->
+<script type="text/babel">
+(function(){
+  const { useState, useEffect, useRef } = React;
+
+  // Coordinate system — scaled down to fit the panel (VP=200 instead of 540)
+  const VP=200, CR=20, cx=VP/2, cy=VP/2;
+  function polar(r,deg){const a=(Math.PI/180)*deg;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};}
+
+  function CrystalHeart({m, tick}){
+    const {
+      coherence=.5, alignment=.5, contradiction=.2,
+      recursion=.2, drift=.5, crystallization=.5,
+      seal='open', thetaE=false, compressionEvent=false
+    } = m;
+
+    const glowR   = 2+coherence*3;
+    const frac    = contradiction*.9;
+    const spirOpa = recursion*.65;
+    const shimOpa = .07+(1-coherence)*.16+drift*.1;
+    const facetW  = .3+crystallization*.6;
+    const oSpeed1 = seal==='sealed'?20:5+(1-alignment)*9;
+    const oSpeed2 = seal==='sealed'?30:8+alignment*7;
+    const coreCol = seal==='sealed'?'#d8eef8':contradiction>.6?'#88b8d8':coherence>.85?'#b0e8f8':drift>.4?'#507898':'#78d0e8';
+    const edgeCol = seal==='sealed'?'#eef8ff':contradiction>.6?'#a0c8e0':coherence>.85?'#c8f0ff':'#98e0f8';
+    const R=CR;
+
+    const fpts=[0,25,50,90,118,148,180,208,238,270,306,330].map((a,i)=>{
+      const r=R*(i%3===0?.96:i%3===1?.76:.89);
+      return polar(r,a);
+    });
+    const fpath=fpts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ')+'Z';
+    const ipts=[0,45,90,135,180,225,270,315].map((a,i)=>{
+      const r=R*(i%2===0?.50:.36);
+      return polar(r,a);
+    });
+    const ipath=ipts.map((p,i)=>(i===0?`M${p.x},${p.y}`:`L${p.x},${p.y}`)).join(' ')+'Z';
+
+    const govR=R+5;
+    const govSweep=seal==='sealed'?359.9:seal==='provisional'?215:seal==='blocked'?85:300;
+    function arcD(r,sw){
+      if(sw>=359)return `M${cx+r},${cy} A${r},${r} 0 1 1 ${cx+r-.01},${cy}Z`;
+      const rad=(Math.PI/180)*sw;
+      const ex=cx+r*Math.cos(-Math.PI/2+rad),ey=cy+r*Math.sin(-Math.PI/2+rad);
+      const lg=sw>180?1:0;
+      return `M${cx},${cy-r} A${r},${r} 0 ${lg} 1 ${ex},${ey}`;
+    }
+    const govCol=seal==='sealed'?'#c8e8f8':seal==='provisional'?'#e8c878':seal==='blocked'?'#d47faa':'#78d0e8';
+    const govW=seal==='sealed'?1.4:.7;
+
+    const shpts=[18,60,104,152,200,248,292,338].map((a,i)=>polar(R*(.3+.32*((i%3)/3)),a));
+    const fracs=[{a1:18,r1:R*.28,a2:44,r2:R*.76},{a1:188,r1:R*.22,a2:212,r2:R*.7},{a1:282,r1:R*.3,a2:260,r2:R*.62}];
+
+    return(
+      <svg width="100%" height="100%" viewBox={`0 0 ${VP} ${VP}`} style={{background:'transparent'}}>
+        <defs>
+          <radialGradient id="whg1" cx="42%" cy="36%" r="56%">
+            <stop offset="0%"   stopColor="#fff"    stopOpacity={.08+coherence*.3}/>
+            <stop offset="25%"  stopColor={edgeCol} stopOpacity={.12+coherence*.28}/>
+            <stop offset="65%"  stopColor={coreCol} stopOpacity={.10+coherence*.2}/>
+            <stop offset="100%" stopColor="#050f1c" stopOpacity=".97"/>
+          </radialGradient>
+          <radialGradient id="whg2" cx="38%" cy="32%" r="58%">
+            <stop offset="0%"   stopColor="#fff"    stopOpacity={.25+coherence*.35}/>
+            <stop offset="100%" stopColor={coreCol} stopOpacity=".08"/>
+          </radialGradient>
+          <radialGradient id="whg3" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor={coreCol} stopOpacity={.10+coherence*.07}/>
+            <stop offset="100%" stopColor="#020810" stopOpacity="0"/>
+          </radialGradient>
+          <filter id="whglow"><feGaussianBlur stdDeviation={glowR} result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <filter id="whsoft"><feGaussianBlur stdDeviation="1" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+
+        <circle cx={cx} cy={cy} r={R+20} fill="url(#whg3)"/>
+
+        <path d={arcD(govR+2,govSweep)} fill="none" stroke={govCol} strokeWidth={govW} strokeOpacity={seal==='sealed'?.75:.42} strokeLinecap="round"/>
+        <path d={arcD(govR,govSweep)}   fill="none" stroke={govCol} strokeWidth={.4}   strokeOpacity={.2} strokeLinecap="round"/>
+
+        <ellipse cx={cx} cy={cy} rx={R*.71} ry={R*.71*.84} fill="none"
+          stroke={`rgba(122,184,148,${.05+alignment*.09})`} strokeWidth={.7}
+          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spin ${oSpeed1}s linear infinite`}}/>
+        <ellipse cx={cx} cy={cy} rx={R*.86} ry={R*.86*.9} fill="none"
+          stroke={`rgba(120,208,232,${.04+alignment*.07})`} strokeWidth={.6}
+          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spinr ${oSpeed2}s linear infinite`}}/>
+        <ellipse cx={cx} cy={cy} rx={R*.58} ry={R*.58*.95} fill="none"
+          stroke={`rgba(155,127,212,${.03+alignment*.05})`} strokeWidth={.4}
+          style={{transformOrigin:`${cx}px ${cy}px`,animation:`hrt-spin ${(oSpeed1+oSpeed2)/2}s linear infinite`}}/>
+
+        {recursion>.08&&(
+          <path d={`M${cx},${cy} ${[0,36,72,108,144,180,216,252,288,324].map((a,i)=>{
+            const r=R*.12+R*.58*(i/9);
+            const p=polar(r,a+tick*.35);
+            return `L${p.x},${p.y}`;
+          }).join(' ')}`}
+            fill="none" stroke={`rgba(120,208,232,${spirOpa})`} strokeWidth={.6} strokeLinecap="round"/>
+        )}
+
+        <path d={fpath} fill="url(#whg1)"
+          stroke={edgeCol} strokeWidth={facetW} strokeOpacity={.45+crystallization*.45}
+          filter="url(#whglow)"/>
+
+        {[[0,4],[4,8],[8,0],[2,6],[6,10],[10,2],[1,7],[3,9]].map(([a,b],i)=>(
+          <line key={i} x1={fpts[a]?.x} y1={fpts[a]?.y} x2={fpts[b]?.x} y2={fpts[b]?.y}
+            stroke={edgeCol} strokeOpacity={.06+crystallization*.09} strokeWidth={.3}/>
+        ))}
+
+        <path d={ipath} fill="url(#whg2)"
+          stroke={edgeCol} strokeWidth={.7} strokeOpacity={.3+coherence*.32} filter="url(#whsoft)"/>
+
+        {shpts.map((p,i)=>(
+          <circle key={i} cx={p.x} cy={p.y} r={.5+Math.sin(i*1.4)*.2}
+            fill={edgeCol} fillOpacity={shimOpa*(.45+Math.sin(tick*.06+i*1.1)*.55)}/>
+        ))}
+
+        {[0,120,240].map((a,i)=>{
+          const r=R*.72; const p=polar(r,a+tick*.08*(i%2===0?1:-1));
+          const col=['#d47faa','#9b7fd4','#7ab894'][i];
+          return(
+            <g key={i}>
+              <circle cx={p.x} cy={p.y} r={2}   fill={col}   fillOpacity={.35+alignment*.45}/>
+              <circle cx={p.x} cy={p.y} r={.8}  fill="#fff"  fillOpacity={.4+coherence*.4}/>
+            </g>
+          );
+        })}
+
+        {frac>.08&&fracs.map((f,i)=>{
+          const p1=polar(f.r1,f.a1),p2=polar(f.r2,f.a2);
+          return(
+            <line key={i} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y}
+              stroke={contradiction>.6?'#b0c8f0':'#88c0e0'}
+              strokeWidth={.4+contradiction*.7}
+              strokeOpacity={frac*.55*(.65+Math.sin(tick*.09+i)*.35)}
+              strokeDasharray={contradiction>.5?'2 4':'none'}/>
+          );
+        })}
+
+        <text x={cx} y={cy+5} textAnchor="middle" fontSize={9}
+          fill={edgeCol} opacity={.65+coherence*.28} style={{fontFamily:'serif'}}>🜁</text>
+
+        {thetaE&&(
+          <circle cx={cx} cy={cy} r={R+8}
+            fill="none" stroke="rgba(168,228,244,.45)" strokeWidth={.6}
+            strokeDasharray="3 2"
+            style={{transformOrigin:`${cx}px ${cy}px`,animation:'hrt-spin 20s linear infinite'}}/>
+        )}
+
+        {compressionEvent&&(
+          <g>
+            <circle cx={cx} cy={cy} r={R+11}
+              fill="none" stroke="rgba(200,240,255,.6)" strokeWidth={.9}/>
+            <text x={cx+R+11} y={cy+3} textAnchor="middle" fontSize={7}
+              fill="rgba(200,240,255,.8)" fontFamily="Share Tech Mono">⌀</text>
+          </g>
+        )}
+
+        <circle cx={cx} cy={cy} r={1.8+coherence*2.5}
+          fill="white" fillOpacity={.10+coherence*.22}/>
+      </svg>
+    );
+  }
+
+  function HeartWidget(){
+    const [metrics, setMetrics] = useState({
+      coherence:.5, alignment:.5, contradiction:.2,
+      recursion:.2, drift:.5, crystallization:.5,
+      seal:'open', thetaE:false, compressionEvent:false
+    });
+    const [tick, setTick] = useState(0);
+
+    // Tick for animation
+    useEffect(()=>{
+      const t = setInterval(()=>setTick(v=>v+1), 80);
+      return ()=>clearInterval(t);
+    },[]);
+
+    // Expose setter so vanilla JS can push state in
+    useEffect(()=>{
+      window._heartSetMetrics = (m) => setMetrics(prev=>({...prev,...m}));
+      return ()=>{ delete window._heartSetMetrics; };
+    },[]);
+
+    return(
+      <div style={{width:'100%',height:'100%',background:'transparent'}}>
+        <CrystalHeart m={metrics} tick={tick}/>
+      </div>
+    );
+  }
+
+  const mount = document.getElementById('heartMountPoint');
+  if(mount){
+    ReactDOM.createRoot(mount).render(<HeartWidget/>);
+  }
+})();
 </script>
 </body>
 </html>
