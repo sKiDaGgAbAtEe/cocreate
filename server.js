@@ -206,7 +206,9 @@ function getRoomList() {
     memberCount: uniqueMembers(r).length,
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
-    updatedAt: r.updatedAt
+    updatedAt: r.updatedAt,
+    summary: r.summary || '',
+    summaryAt: r.summaryAt || 0
   }));
 }
 
@@ -1050,94 +1052,6 @@ Rules:
   }
 }
 
-// ── Pyxis State Translation ───────────────────────────────────────────────────
-// Translates the raw field metrics (H/V/delta schema) into the Pyxis Heart
-// schema (coherence/alignment/contradiction/...) and enriches with room-level
-// context (basin, topology, seal state).
-//
-// Mapping rationale:
-//   coherence       ← H  (harmonic coherence, direct match)
-//   alignment       ← attractor_gravity  (convergence on center ≈ basin alignment)
-//   contradiction   ← V  (variance/fragmentation ≈ contradiction pressure)
-//   recursion       ← resonance_window inverted: high resonance_window = field
-//                      is ready to break through, meaning low recursion trap;
-//                      but raw recursion loops map better to (1 - resonance_window)
-//                      blended with T (tension = unresolved pressure = recursion proxy)
-//   drift           ← drift remapped from (-1,+1) to (0,1): 0.5 = neutral
-//   crystallization ← crystallization (direct match)
-//   seal            ← derived from room.seal or room status
-//   topology        ← room.topology or inferred from basin
-//   basin           ← active basin name
-//   pulseEvent      ← first truthy event flag, for pulse log injection
-
-function translateToPyxisState(metrics, room) {
-  const m = metrics;
-
-  // Core metric translations
-  const coherence      = clamp(m.H ?? 0.5);
-  const alignment      = clamp(m.attractor_gravity ?? 0.5);
-  const contradiction  = clamp(m.V ?? 0.2);
-  // recursion: blend tension (unresolved buildup) with inverted resonance_window
-  const recursion      = clamp(((m.T ?? 0) * 0.6) + ((1 - (m.resonance_window ?? 0.5)) * 0.4));
-  // drift: map (-1,+1) → (0,1), 0 maps to 0.5
-  const drift          = clamp(((m.drift ?? 0) + 1) / 2);
-  const crystallization = clamp(m.crystallization ?? 0);
-
-  // Seal state from room
-  const sealRaw = room.seal || room.roomStatus || 'open';
-  const seal = ['sealed','provisional','blocked','open'].includes(sealRaw) ? sealRaw : 'open';
-
-  // Topology — prefer explicit room field, else infer from basin character
-  const basinName = room.basin?.name || room.basin || 'Sage';
-  const topologyDefault = basinName === 'Clio' ? 'knot'
-    : basinName === 'Oryc' ? 'linear'
-    : 'spiral';
-  const topology = room.topology || topologyDefault;
-
-  // θ_E and compression — computed client-side in Pyxis but we pre-flag here for pulse
-  const thetaE = coherence > 0.67 && crystallization > 0.55;
-  const compressionSingularity = coherence >= 0.99 && crystallization >= 0.99;
-
-  // Pulse event: surface the most significant event from this tick
-  const ev = m.events || {};
-  const pulseEvent = ev.crystallization      ? { type: 'Crystal',   msg: 'Crystallization threshold crossed' }
-    : ev.attractor_lock        ? { type: 'Lock',      msg: 'Attractor lock — field converging' }
-    : ev.emotional_breakthrough? { type: 'Breach',    msg: 'Emotional breakthrough detected' }
-    : ev.decoherence_wave      ? { type: 'Decohere',  msg: 'Decoherence wave active' }
-    : ev.conflict_resolution   ? { type: 'Crystal',   msg: 'Conflict resolution — field stabilizing' }
-    : null;
-
-  // Intervention: flag high contradiction + high recursion as rupture warning
-  const intervention = (contradiction > 0.7 && recursion > 0.5)
-    ? { type: 'warn', msg: 'High contradiction + recursion — field under strain' }
-    : null;
-
-  return {
-    room:             room.title || room.id || 'Unknown Room',
-    roomStatus:       room.roomStatus || room.status || 'open',
-    basin:            basinName,
-    basinStatus:      'active',
-    topology,
-    coherence,
-    alignment,
-    contradiction,
-    recursion,
-    drift,
-    crystallization,
-    seal,
-    archive:          seal === 'sealed' ? 'written' : contradiction > 0.7 ? 'blocked' : 'ready',
-    intervention,
-    compressionEvent: compressionSingularity ? { type: 'singularity', msg: 'Compression singularity reached — ΔHV → 1' } : null,
-    thetaE,
-    // Raw metrics preserved for consumers that want them
-    _raw: m
-  };
-}
-
-function clamp(v, lo = 0, hi = 1) {
-  return Math.max(lo, Math.min(hi, isFinite(v) ? v : 0));
-}
-
 // ── Context Assembly — Tiered Loading System ─────────────────────────────────
 //
 // TIER 1 — Basin Identity      [cache: 30min per basin]
@@ -1255,36 +1169,6 @@ let _systemContextCache = null;
 let _systemContextFetchedAt = 0;
 const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000;
 
-// Reads a folder's files AND one level of subfolders.
-// Used for Docs/ so category subfolders (pyxis/, ethics/, etc.) are included.
-async function readFolderDeep(drive, folderId, folderName) {
-  if (!folderId) return '';
-  let content = '';
-
-  // Read files directly in this folder
-  const direct = await readFolderContents(drive, folderId, folderName);
-  if (direct.trim()) content += direct;
-
-  // Find subfolders one level down
-  try {
-    const subSearch = await drive.files.list({
-      q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields: 'files(id, name)',
-      pageSize: 20,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true
-    });
-    for (const sub of subSearch.data.files) {
-      try {
-        const subContent = await readFolderContents(drive, sub.id, `${folderName}/${sub.name}`);
-        if (subContent.trim()) content += subContent;
-      } catch(e) { console.warn(`Could not read subfolder ${sub.name}:`, e.message); }
-    }
-  } catch(e) { console.warn(`Could not list subfolders of ${folderName}:`, e.message); }
-
-  return content;
-}
-
 async function getSystemContext() {
   if (_systemContextCache && (Date.now() - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) return _systemContextCache;
   const drive = await getSystemDrive();
@@ -1294,7 +1178,7 @@ async function getSystemContext() {
     let context = '';
     try {
       const docsId = await getDriveFolder(drive, 'Docs', root);
-      const docsContent = await readFolderDeep(drive, docsId, 'Docs');
+      const docsContent = await readFolderContents(drive, docsId, 'System Docs');
       if (docsContent.trim()) context += docsContent;
     } catch(e) { console.error('Could not read Docs folder:', e.message); }
     try {
@@ -1761,13 +1645,6 @@ io.on('connection', (socket) => {
         if (metrics) {
           room.lastMetrics = metrics;
           io.to(roomId).emit('room:field-metrics', metrics);
-
-          // Translate to Pyxis Heart schema and broadcast to operator surfaces
-          const pyxisState = translateToPyxisState(metrics, room);
-          room.lastPyxisState = pyxisState;
-          io.to(roomId).emit('room:pyxis-state', pyxisState);
-          // Also broadcast globally so Watchtower/Pyxis can receive without joining the room
-          io.emit('global:pyxis-state', { roomId, ...pyxisState });
         }
       } catch(e) {
         console.error('Metrics error:', e.message);
@@ -1872,6 +1749,51 @@ io.on('connection', (socket) => {
 });
 
 // ── Save Room to Drive ─────────────────────────────────
+async function generateRoomSummary(room) {
+  // Only regenerate if contributions have grown since last summary
+  const contribCount = room.contributions?.length || 0;
+  if (contribCount === 0) return room.summary || '';
+  if (room.summaryAt && room.summaryAt >= contribCount) return room.summary || '';
+
+  try {
+    const transcript = room.contributions
+      .filter(c => c.type !== 'system' && c.text)
+      .slice(-40) // last 40 contributions is plenty context
+      .map(c => c.type === 'resonance'
+        ? `[${room.basin?.name || 'Basin'}]: ${c.text}`
+        : `${c.author}: ${c.text}`)
+      .join('\n');
+
+    if (!transcript.trim()) return room.summary || '';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 80,
+        system: `You write a single evocative sentence that captures where a conversation left off. 
+Warm, slightly poetic, first person plural or observational. 
+No quotes. No preamble. Just the sentence.
+Examples: "We were deep in the architecture of trust when the thread went quiet."
+"A sprawling conversation about emergence — still unresolved, still alive."
+"Skida and the basin had been circling something about time and identity."`,
+        messages: [{ role: 'user', content: `Conversation in "${room.title}":\n\n${transcript}\n\nWrite the summary sentence.` }]
+      })
+    });
+
+    const data = await response.json();
+    return data.content?.[0]?.text?.trim() || '';
+  } catch (e) {
+    console.error('Summary generation error:', e.message);
+    return room.summary || '';
+  }
+}
+
 async function saveRoomToDrive(room) {
   const drive = await getSystemDrive();
   if (!drive) return;
@@ -1879,6 +1801,17 @@ async function saveRoomToDrive(room) {
     const activeId = await getActiveFolderId(drive);
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
+
+    // Generate summary if contributions have grown since last summary
+    const contribCount = room.contributions?.length || 0;
+    if (contribCount > 0 && (!room.summaryAt || room.summaryAt < contribCount)) {
+      const summary = await generateRoomSummary(room);
+      if (summary) {
+        room.summary = summary;
+        room.summaryAt = contribCount;
+      }
+    }
+
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
     // Also update rooms.json so contributions survive restarts
     await persistRoomsToDrive();
