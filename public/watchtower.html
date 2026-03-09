@@ -1285,6 +1285,7 @@ const DEPTH_STEPS = [
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────────
+const cap = s => s === 'qs' ? 'Quicksilver' : s ? s[0].toUpperCase() + s.slice(1) : s;
 let history = [];
 let messageLog = [];
 let activeBasins = { clio:true, oryc:true, sage:true, qs:false };
