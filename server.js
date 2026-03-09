@@ -2116,13 +2116,19 @@ app.post('/api/profile', async (req, res) => {
 // ── ElevenLabs Voice Readback ──────────────────────────
 // ── Oracle Read ──────────────────────────────────────────
 app.post('/api/oracle-read', async (req, res) => {
-  const { prompt } = req.body;
+  const { prompt, system, max_tokens } = req.body;
   if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
   try {
+    const body = {
+      model: 'claude-sonnet-4-5',
+      max_tokens: max_tokens || 800,
+      messages: [{ role: 'user', content: prompt }]
+    };
+    if (system) body.system = system;
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify(body)
     });
     if (!response.ok) { const err = await response.text(); return res.status(response.status).json({ error: err }); }
     res.json(await response.json());
