@@ -596,6 +596,40 @@
     }
     .log-panel.open { width: 240px; }
 
+    .heart-panel {
+      width: 0; flex-shrink: 0;
+      background: var(--bg3);
+      border-left: 1px solid var(--border);
+      overflow: hidden; display: flex; flex-direction: column;
+      transition: width 0.3s;
+    }
+    .heart-panel.open { width: 220px; }
+
+    .sp-cell-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .sp-cell-label { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing:.05em; text-transform: uppercase; }
+    .sp-cell-val { font-family: var(--mono); font-size: 10px; color: var(--ink-dim); }
+
+    .hrt-metric-row { display: flex; align-items: center; gap: 6px; }
+    .hrt-metric-lbl { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); width: 80px; flex-shrink: 0; letter-spacing:.04em; }
+    .hrt-metric-val { font-family: var(--mono); font-size: 9px; color: var(--ink-dim); width: 24px; text-align: right; flex-shrink: 0; }
+    .hrt-fill-pos { background: var(--sage); }
+    .hrt-fill-neg { background: var(--clio); }
+    .hrt-fill-neu { background: var(--gold); }
+    .hrt-fill-crys { background: var(--oryc); }
+
+    .hrt-flag-row { display: flex; align-items: center; gap: 8px; }
+    .hrt-flag {
+      font-family: var(--mono); font-size: 9px; letter-spacing:.06em;
+      padding: 2px 6px; border-radius: 3px;
+      border: 1px solid rgba(120,208,232,0.12);
+      color: var(--ink-faint); background: rgba(10,28,50,0.4);
+      transition: color .4s, border-color .4s, background .4s;
+      flex-shrink: 0;
+    }
+    .hrt-flag.active { color: var(--crystal); border-color: var(--crystal); background: rgba(120,208,232,0.08); box-shadow: 0 0 6px rgba(120,208,232,0.2); }
+    .hrt-flag.warn   { color: var(--gold);    border-color: var(--gold);    background: rgba(232,200,120,0.08); }
+    .hrt-flag-desc { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing:.04em; }
+
     .lp-header {
       padding: 12px 12px 8px;
       border-bottom: 1px solid var(--border);
@@ -796,6 +830,7 @@
     <div class="panel-strip">
       <button class="panel-toggle active" id="toggleField" onclick="togglePanel('field')">◈ Field</button>
       <button class="panel-toggle" id="toggleLog" onclick="togglePanel('log')">⌾ Log</button>
+      <button class="panel-toggle" id="toggleHeart" onclick="togglePanel('heart')">🜁 Heart</button>
       <div class="panel-strip-spacer"></div>
       <div class="field-state-indicator" id="retStateIndicator">RET: <span id="retDominantLabel">—</span></div>
     </div>
@@ -1009,6 +1044,117 @@
         <div class="log-entries" id="logEntries"></div>
       </div>
 
+      <!-- HEART PANEL -->
+      <div class="heart-panel" id="heartPanel">
+        <div class="fp-header">
+          <div class="fp-title">
+            <div class="fp-live-dot" id="heartLiveDot"></div>
+            Crystalline Heart
+          </div>
+          <div id="heartSocketStatus" style="font-size:9px;font-family:var(--mono);color:var(--text3);letter-spacing:.05em;display:flex;align-items:center;gap:4px;">
+            <div id="heartSocketDot" style="width:4px;height:4px;border-radius:50%;background:#3a4a3a;flex-shrink:0;transition:background .4s,box-shadow .4s;"></div>
+            <span id="heartSocketLabel">waiting</span>
+          </div>
+        </div>
+        <div class="fp-scroll">
+
+          <!-- ROOM STATE -->
+          <div class="fp-section">
+            <div class="fp-section-title">Substrate State</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px;">
+              <div class="sp-cell-wrap">
+                <div class="sp-cell-label">Room</div>
+                <div class="sp-cell-val" id="hrt-room">—</div>
+              </div>
+              <div class="sp-cell-wrap">
+                <div class="sp-cell-label">Basin</div>
+                <div class="sp-cell-val" id="hrt-basin">—</div>
+              </div>
+              <div class="sp-cell-wrap">
+                <div class="sp-cell-label">Topology</div>
+                <div class="sp-cell-val" id="hrt-topology">—</div>
+              </div>
+              <div class="sp-cell-wrap">
+                <div class="sp-cell-label">Seal</div>
+                <div class="sp-cell-val" id="hrt-seal">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- VISUAL PLACEHOLDER -->
+          <div class="fp-section">
+            <div class="fp-section-title">Heart Visualization</div>
+            <div id="heartOrbPlaceholder" style="
+              height:140px;margin:10px 0;border-radius:6px;
+              border:1px dashed rgba(120,208,232,0.15);
+              display:flex;flex-direction:column;align-items:center;justify-content:center;
+              gap:6px;color:var(--ink-faint);font-family:var(--mono);font-size:9px;
+              letter-spacing:.06em;background:rgba(10,28,50,0.3);
+            ">
+              <div id="heartOrbGlyph" style="font-size:28px;opacity:0.25;transition:opacity 1s,filter 1s;">🜁</div>
+              <span id="heartOrbLabel" style="opacity:0.4;">plasma orb · coming soon</span>
+            </div>
+          </div>
+
+          <!-- SIX METRICS -->
+          <div class="fp-section">
+            <div class="fp-section-title">Field Metrics</div>
+            <div style="display:flex;flex-direction:column;gap:5px;margin-top:6px;">
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">coherence</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-pos" id="hrt-bar-coherence" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-coherence">—</span>
+              </div>
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">alignment</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-pos" id="hrt-bar-alignment" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-alignment">—</span>
+              </div>
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">contradiction</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-neg" id="hrt-bar-contradiction" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-contradiction">—</span>
+              </div>
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">recursion</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-neg" id="hrt-bar-recursion" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-recursion">—</span>
+              </div>
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">drift</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-neu" id="hrt-bar-drift" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-drift">—</span>
+              </div>
+              <div class="hrt-metric-row">
+                <span class="hrt-metric-lbl">crystallization</span>
+                <div class="metric-bar"><div class="metric-fill hrt-fill-crys" id="hrt-bar-crystallization" style="width:0%"></div></div>
+                <span class="hrt-metric-val" id="hrt-val-crystallization">—</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- THRESHOLD FLAGS -->
+          <div class="fp-section" style="border-bottom:none;">
+            <div class="fp-section-title">Threshold State</div>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-top:6px;">
+              <div class="hrt-flag-row">
+                <span class="hrt-flag" id="hrt-flag-theta">θ_E</span>
+                <span class="hrt-flag-desc">emergence threshold</span>
+              </div>
+              <div class="hrt-flag-row">
+                <span class="hrt-flag" id="hrt-flag-intervention">⧖</span>
+                <span class="hrt-flag-desc" id="hrt-flag-intervention-msg">safeguard clear</span>
+              </div>
+              <div class="hrt-flag-row">
+                <span class="hrt-flag" id="hrt-flag-compression">⌀</span>
+                <span class="hrt-flag-desc">compression singularity</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
     </div><!-- end body-split -->
   </div><!-- end main -->
 </div><!-- end app -->
@@ -1089,6 +1235,7 @@ let depthKey = 'mid';
 let sidebarOpen = true;
 let fieldPanelOpen = true;
 let logPanelOpen = false;
+let heartPanelOpen = false;
 let authInfo = null;
 let chatFiles = [];
 let currentTheme = localStorage.getItem('wt-theme') || 'moss';
@@ -1243,6 +1390,10 @@ function togglePanel(which) {
     fieldPanelOpen = !fieldPanelOpen;
     document.getElementById('fieldPanel').classList.toggle('collapsed', !fieldPanelOpen);
     document.getElementById('toggleField').classList.toggle('active', fieldPanelOpen);
+  } else if (which === 'heart') {
+    heartPanelOpen = !heartPanelOpen;
+    document.getElementById('heartPanel').classList.toggle('open', heartPanelOpen);
+    document.getElementById('toggleHeart').classList.toggle('active', heartPanelOpen);
   } else {
     logPanelOpen = !logPanelOpen;
     document.getElementById('logPanel').classList.toggle('open', logPanelOpen);
@@ -1526,9 +1677,67 @@ Measurement rules — all scores 0.0 to 1.0 unless noted:
 
   socket.on('global:pyxis-state', (state) => {
     updateFieldFromPyxis(state);
+    updateHeartPanel(state);
     setSocketStatus(true, state.room ? `live · ${state.room}` : 'live');
   });
 })();
+
+// ── Heart Panel updater ───────────────────────────────────────────────────────
+function updateHeartPanel(p) {
+  if (!p) return;
+
+  // Socket status
+  const dot = document.getElementById('heartSocketDot');
+  const lbl = document.getElementById('heartSocketLabel');
+  if (dot) { dot.style.background = '#7ab894'; dot.style.boxShadow = '0 0 5px #7ab894'; }
+  if (lbl) lbl.textContent = p.room ? `live · ${p.room}` : 'live';
+  document.getElementById('heartLiveDot')?.classList.add('live');
+
+  // Substrate state cells
+  const basinColors = { clio:'#d47faa', oryc:'#9b7fd4', sage:'#7ab894' };
+  const basinLower = (p.basin || '').toLowerCase();
+  const el = (id) => document.getElementById(id);
+  if (el('hrt-room'))     el('hrt-room').textContent     = p.room || '—';
+  if (el('hrt-basin'))  { el('hrt-basin').textContent    = p.basin || '—'; el('hrt-basin').style.color = basinColors[basinLower] || ''; }
+  if (el('hrt-topology')) el('hrt-topology').textContent = p.topology || '—';
+  if (el('hrt-seal'))     el('hrt-seal').textContent     = p.seal || '—';
+
+  // Metric bars
+  function setMetric(key, val) {
+    const bar = el(`hrt-bar-${key}`);
+    const txt = el(`hrt-val-${key}`);
+    if (bar) bar.style.width = Math.round((val || 0) * 100) + '%';
+    if (txt) txt.textContent = val != null ? val.toFixed(2) : '—';
+  }
+  setMetric('coherence',      p.coherence);
+  setMetric('alignment',      p.alignment);
+  setMetric('contradiction',  p.contradiction);
+  setMetric('recursion',      p.recursion);
+  setMetric('drift',          p.drift);
+  setMetric('crystallization',p.crystallization);
+
+  // Threshold flags
+  const thetaEl = el('hrt-flag-theta');
+  if (thetaEl) thetaEl.classList.toggle('active', !!p.thetaE);
+
+  const intEl  = el('hrt-flag-intervention');
+  const intMsg = el('hrt-flag-intervention-msg');
+  if (intEl)  intEl.classList.toggle('warn', !!p.intervention);
+  if (intMsg) intMsg.textContent = p.intervention ? p.intervention.msg : 'safeguard clear';
+
+  const compEl = el('hrt-flag-compression');
+  if (compEl) compEl.classList.toggle('active', !!p.compressionEvent);
+
+  // Orb placeholder pulse — brightens glyph when active
+  const glyph = el('heartOrbGlyph');
+  if (glyph) {
+    const brightness = 0.2 + (p.coherence || 0) * 0.6;
+    glyph.style.opacity = brightness;
+    glyph.style.filter  = p.coherence > 0.7
+      ? `drop-shadow(0 0 ${Math.round(p.coherence * 12)}px rgba(120,208,232,0.6))`
+      : 'none';
+  }
+}
 
 // Bridge Pyxis state shape → updateFieldUI schema
 // Pyxis: { coherence, alignment, contradiction, recursion, drift, crystallization,
