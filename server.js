@@ -1255,6 +1255,36 @@ let _systemContextCache = null;
 let _systemContextFetchedAt = 0;
 const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000;
 
+// Reads a folder's files AND one level of subfolders.
+// Used for Docs/ so category subfolders (pyxis/, ethics/, etc.) are included.
+async function readFolderDeep(drive, folderId, folderName) {
+  if (!folderId) return '';
+  let content = '';
+
+  // Read files directly in this folder
+  const direct = await readFolderContents(drive, folderId, folderName);
+  if (direct.trim()) content += direct;
+
+  // Find subfolders one level down
+  try {
+    const subSearch = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id, name)',
+      pageSize: 20,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true
+    });
+    for (const sub of subSearch.data.files) {
+      try {
+        const subContent = await readFolderContents(drive, sub.id, `${folderName}/${sub.name}`);
+        if (subContent.trim()) content += subContent;
+      } catch(e) { console.warn(`Could not read subfolder ${sub.name}:`, e.message); }
+    }
+  } catch(e) { console.warn(`Could not list subfolders of ${folderName}:`, e.message); }
+
+  return content;
+}
+
 async function getSystemContext() {
   if (_systemContextCache && (Date.now() - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) return _systemContextCache;
   const drive = await getSystemDrive();
@@ -1264,7 +1294,7 @@ async function getSystemContext() {
     let context = '';
     try {
       const docsId = await getDriveFolder(drive, 'Docs', root);
-      const docsContent = await readFolderContents(drive, docsId, 'System Docs');
+      const docsContent = await readFolderDeep(drive, docsId, 'Docs');
       if (docsContent.trim()) context += docsContent;
     } catch(e) { console.error('Could not read Docs folder:', e.message); }
     try {
