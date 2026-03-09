@@ -206,10 +206,7 @@ function getRoomList() {
     memberCount: uniqueMembers(r).length,
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
-    updatedAt: r.updatedAt,
-    summary: r.summary || '',
-    summaryAt: r.summaryAt || 0,
-    cardColor: r.cardColor || ''
+    updatedAt: r.updatedAt
   }));
 }
 
@@ -894,7 +891,6 @@ app.post('/api/rooms', (req, res) => {
     activeFolders: req.body.activeFolders || [],
     folderMap: req.body.folderMap || {},
     saveFolderId: req.body.saveFolderId || null,
-    cardColor: req.body.cardColor || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -1361,34 +1357,27 @@ ${condensed}
 // ── Claude Resonance ──────────────────────────────────────────────────────────
 async function generateResonance(contributions, basin, activeFolders, folderMap, modeInstruction, userTokens) {
 
-  // TIER 1 — Basin Identity (epistemic frame — loaded first)
-  const basinIdentity = await getBasinContext(basin);
-
-  // TIER 2 — Shared Physics + Frameworks (immutable lens)
-  const sharedPhysics = await getSharedPhysicsContext();
-
-  // TIER 3 — System Context: Docs + Profiles
-  const systemContext = await getSystemContext();
-
-  // TIER 4 — Experience Layer (living memory, condensed if large)
-  const experienceContext = await getExperienceContext(basin);
-
-  // TIER 4b — Peer Basin Awareness (cooperative trinary — lowest priority before session)
-  // Load peer basins from Drive to pass to getPeerContext
-  let peerContext = '';
-  try {
-    const drive = await getSystemDrive();
-    if (drive) {
+  // Load all context tiers in parallel — caches handle repeated calls cheaply
+  const _loadPeerContext = async () => {
+    try {
+      const drive = await getSystemDrive();
+      if (!drive) return '';
       const folderId = await getCoCreateRootId(drive);
       const basinsFileId = await getDriveFile(drive, 'basins.json', folderId);
-      if (basinsFileId) {
-        const allBasins = await readDriveFile(drive, basinsFileId);
-        if (Array.isArray(allBasins)) {
-          peerContext = await getPeerContext(basin, allBasins);
-        }
-      }
-    }
-  } catch(e) { console.warn('Peer context load error:', e.message); }
+      if (!basinsFileId) return '';
+      const allBasins = await readDriveFile(drive, basinsFileId);
+      if (!Array.isArray(allBasins)) return '';
+      return await getPeerContext(basin, allBasins);
+    } catch(e) { console.warn('Peer context load error:', e.message); return ''; }
+  };
+
+  const [basinIdentity, sharedPhysics, systemContext, experienceContext, peerContext] = await Promise.all([
+    getBasinContext(basin),          // TIER 1 — Basin Identity
+    getSharedPhysicsContext(),       // TIER 2 — Shared Physics
+    getSystemContext(),              // TIER 3 — System Docs + Profiles
+    getExperienceContext(basin),     // TIER 4 — Experience Layer
+    _loadPeerContext(),              // TIER 4b — Peer Awareness
+  ]);
 
   // TIER 5 — Session Knowledge Folders
   let sessionKnowledge = '';
@@ -1711,12 +1700,9 @@ io.on('connection', (socket) => {
   });
 
   // Save room
-  socket.on('room:save', async ({ roomId }) => {
+  socket.on('room:save', ({ roomId }) => {
     const room = rooms[roomId];
-    if (!room) return;
-    await saveRoomToDrive(room);
-    // Push updated card list (with new summary) to all lobby clients
-    io.emit('rooms:updated', getRoomList());
+    if (room) saveRoomToDrive(room);
   });
 
   // Disconnect
@@ -1753,49 +1739,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// ── Generate Room Summary ──────────────────────────────
-async function generateRoomSummary(room) {
-  const contribCount = room.contributions?.length || 0;
-  if (contribCount === 0) return room.summary || '';
-  if (room.summaryAt && room.summaryAt >= contribCount) return room.summary || '';
-
-  try {
-    const transcript = room.contributions
-      .filter(c => c.type !== 'system' && c.text)
-      .slice(-40)
-      .map(c => c.type === 'resonance'
-        ? `[${room.basin?.name || 'Basin'}]: ${c.text}`
-        : `${c.author}: ${c.text}`)
-      .join('\n');
-
-    if (!transcript.trim()) return room.summary || '';
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 80,
-        system: `You write a single evocative sentence capturing where a conversation left off.
-Warm, slightly poetic, first person plural or observational. No quotes. No preamble. Just the sentence.
-Examples: "We were deep in the architecture of trust when the thread went quiet."
-"A sprawling conversation about emergence — still unresolved, still alive."`,
-        messages: [{ role: 'user', content: `Conversation in "${room.title}":\n\n${transcript}\n\nWrite the summary sentence.` }]
-      })
-    });
-
-    const data = await response.json();
-    return data.content?.[0]?.text?.trim() || '';
-  } catch (e) {
-    console.error('Summary generation error:', e.message);
-    return room.summary || '';
-  }
-}
-
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
   const drive = await getSystemDrive();
@@ -1804,20 +1747,10 @@ async function saveRoomToDrive(room) {
     const activeId = await getActiveFolderId(drive);
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-
-    // Generate summary if contributions have grown since last time
-    const contribCount = room.contributions?.length || 0;
-    if (contribCount > 0 && (!room.summaryAt || room.summaryAt < contribCount)) {
-      const summary = await generateRoomSummary(room);
-      if (summary) {
-        room.summary = summary;
-        room.summaryAt = contribCount;
-      }
-    }
-
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
+    // Also update rooms.json so contributions survive restarts
     await persistRoomsToDrive();
-    console.log(`Room saved: ${fileName}${room.summary ? ' (summary updated)' : ''}`);
+    console.log(`Room saved: ${fileName}`);
   } catch (e) {
     console.error('Room save error:', e.message);
   }
@@ -1990,37 +1923,6 @@ app.post('/api/profile', async (req, res) => {
 });
 
 // ── ElevenLabs Voice Readback ──────────────────────────
-// ── Oracle Read: proxies tarot card AI readings ──────────
-app.post('/api/oracle-read', async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: 'Upstream API error', detail: err });
-    }
-    const data = await response.json();
-    res.json(data);
-  } catch (e) {
-    console.error('Oracle read error:', e.message);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 app.post('/speak', async (req, res) => {
   const { text, basin } = req.body;
   if (!text) return res.status(400).json({ error: 'No text provided' });
@@ -2222,9 +2124,14 @@ httpServer.listen(PORT, () => {
   console.log(`  ELEVENLABS_VOICE_SAGE/CLIO/ORYC : ${hasElevenLabsVoices ? '✓ set' : '✗ MISSING — set voice IDs for each basin'}`);
   if (hasSA) getServiceAccountDrive(); // warm up service account client
   console.log('');
-  // Load persisted rooms after a short delay to allow OAuth to be ready
-  // Small delay so service account or persisted tokens are ready
   setTimeout(loadRoomsFromDrive, 2000);
+  // Pre-warm shared context caches so first basin reply isn't slow
+  setTimeout(async () => {
+    try {
+      await Promise.all([getSharedPhysicsContext(), getSystemContext()]);
+      console.log('◈ Context caches warmed');
+    } catch(e) { console.warn('Cache warm error:', e.message); }
+  }, 4000);
   // Auto-save all rooms every 30 seconds
   setInterval(async () => {
     const activeRooms = Object.values(rooms);
