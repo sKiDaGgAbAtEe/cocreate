@@ -86,21 +86,23 @@ app.use(express.static('public'));
 const WT_COOKIE = 'wt_auth';
 const WT_COOKIE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
 
-function signWtCookie(email) {
+function signWtCookie(email, tokens) {
   const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
   const ts = Date.now();
+  const payload = { email, ts, tokens };
   const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex');
-  return Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64');
+  return Buffer.from(JSON.stringify({ ...payload, sig })).toString('base64');
 }
 
 function verifyWtCookie(raw) {
   try {
-    const { email, ts, sig } = JSON.parse(Buffer.from(raw, 'base64').toString());
+    const obj = JSON.parse(Buffer.from(raw, 'base64').toString());
+    const { email, ts, sig, tokens } = obj;
     if (Date.now() - ts > WT_COOKIE_TTL) return null;
     const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
     const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex');
     if (sig !== expected) return null;
-    return email;
+    return { email, tokens };
   } catch(e) { return null; }
 }
 
@@ -169,7 +171,7 @@ app.get('/auth/google/callback', async (req, res) => {
         if (!WATCHTOWER_EMAILS.includes(email.toLowerCase()))
           return res.redirect('/watchtower?auth=denied');
         // Set a long-lived signed cookie so auth survives session resets
-        const cookieVal = signWtCookie(email);
+        const cookieVal = signWtCookie(email, tokens);
         res.cookie(WT_COOKIE, cookieVal, {
           httpOnly: true,
           sameSite: 'lax',
@@ -221,10 +223,10 @@ app.get('/auth/status', (req, res) => {
   if (!email && req.cookies) {
     const raw = req.cookies[WT_COOKIE];
     if (raw) {
-      const cookieEmail = verifyWtCookie(raw);
-      if (cookieEmail && WATCHTOWER_EMAILS.includes(cookieEmail.toLowerCase())) {
-        email = cookieEmail.toLowerCase();
-        userInfo = userInfo || { email: cookieEmail };
+      const verified = verifyWtCookie(raw);
+      if (verified && WATCHTOWER_EMAILS.includes(verified.email.toLowerCase())) {
+        email = verified.email.toLowerCase();
+        userInfo = userInfo || { email: verified.email };
       }
     }
   }
@@ -616,7 +618,22 @@ async function getSystemDrive() {
 }
 
 async function getDrive(req) {
-  // tokens live in the browser's session — each user has their own
+  // If session has no tokens, try restoring from cookie (survives Railway restarts)
+  if (!req?.session?.userTokens) {
+    const raw = req.cookies?.[WT_COOKIE];
+    if (raw) {
+      const verified = verifyWtCookie(raw);
+      if (verified?.tokens) {
+        req.session.userTokens = verified.tokens;
+        if (!req.session.userInfo) req.session.userInfo = { email: verified.email };
+        _persistedTokens = verified.tokens;
+      }
+    }
+    // Final fallback: disk-persisted tokens
+    if (!req.session.userTokens && _persistedTokens) {
+      req.session.userTokens = _persistedTokens;
+    }
+  }
   if (!req?.session?.userTokens) return null;
   let tokens = req.session.userTokens;
 
