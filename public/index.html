@@ -4262,16 +4262,16 @@ function openDefinition() { document.getElementById('defTooltip').classList.add(
 function closeDefinition() { document.getElementById('defTooltip').classList.remove('open'); }
 
 // ── Quicksilver Portrait State Machine ──────────────────────────────────────
-// States: sleep → wake(once) → stand(loop) → down(once) → sleep(loop)
+// States: sleep → wake(once) → stand(loop) → [down reserved for later] → reset
 (function() {
-  const WAKE_MS = 2200;
-  const DOWN_MS = 2200;
+  const WAKE_MS = 2200;  // match your qs__wake.gif duration
   let _state = 'sleep';
   let _wakeTimer = null;
-  let _downTimer = null;
   let _wakeHolds = 0;
 
   function _layer(id) { return document.getElementById(id); }
+  function _show(id)  { var el = _layer(id); if (el) el.classList.add('qs-visible'); }
+  function _hide(id)  { var el = _layer(id); if (el) el.classList.remove('qs-visible'); }
   function _showOnly(id) {
     ['qs-sleep','qs-wake','qs-stand','qs-down'].forEach(function(lid) {
       var el = _layer(lid); if (el) el.classList.toggle('qs-visible', lid === id);
@@ -4285,36 +4285,31 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   window.qsWake = function() {
     _wakeHolds++;
     if (_state === 'stand' || _state === 'waking') return;
-    if (_downTimer) { clearTimeout(_downTimer); _downTimer = null; }
-    if (_state === 'sleeping') { _state = 'stand'; _showOnly('qs-stand'); return; }
     _state = 'waking';
     _reloadGif('qs-wake');
-    _showOnly('qs-wake');
+    _reloadGif('qs-stand');  // preload stand from frame 0
+    // Show wake on top, stand already underneath — no gap when wake ends
+    _hide('qs-sleep'); _hide('qs-down');
+    _show('qs-stand'); _show('qs-wake');
     _wakeTimer = setTimeout(function() {
-      _state = 'stand'; _showOnly('qs-stand'); _wakeTimer = null;
+      _hide('qs-wake');  // reveal stand already playing beneath
+      _state = 'stand';
+      _wakeTimer = null;
     }, WAKE_MS);
   };
 
   window.qsSleep = function() {
     if (_wakeHolds > 0) _wakeHolds--;
     if (_wakeHolds > 0) return;
-    if (_state === 'sleep' || _state === 'sleeping') return;
-    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
-    if (_state === 'waking') { _state = 'sleep'; _showOnly('qs-sleep'); return; }
-    _state = 'sleeping';
-    _reloadGif('qs-down');
-    _showOnly('qs-down');
-    _downTimer = setTimeout(function() {
-      _state = 'sleep'; _showOnly('qs-sleep'); _downTimer = null;
-    }, DOWN_MS);
+    // qsSleep on hover-out: same as reset for now (down reserved for later)
+    qsReset();
   };
 
   window.qsReset = function() {
     _wakeHolds = 0;
-    if (_wakeTimer) clearTimeout(_wakeTimer);
-    if (_downTimer) clearTimeout(_downTimer);
-    _wakeTimer = _downTimer = null;
-    _state = 'sleep'; _showOnly('qs-sleep');
+    if (_wakeTimer) { clearTimeout(_wakeTimer); _wakeTimer = null; }
+    _state = 'sleep';
+    _showOnly('qs-sleep');
   };
 })();
 
@@ -4518,7 +4513,7 @@ document.addEventListener('click', (e) => {
 });
 function closeAbout(e) {
   if (!e || e.target === document.getElementById('aboutOverlay') || e.currentTarget?.classList.contains('about-close')) {
-    document.getElementById('aboutOverlay').classList.remove('open'); qsSleep();
+    document.getElementById('aboutOverlay').classList.remove('open'); qsReset();
   }
 }
 
