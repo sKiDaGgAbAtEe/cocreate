@@ -206,9 +206,7 @@ function getRoomList() {
     memberCount: uniqueMembers(r).length,
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
-    updatedAt: r.updatedAt,
-    summary: r.summary || '',
-    summaryAt: r.summaryAt || 0
+    updatedAt: r.updatedAt
   }));
 }
 
@@ -1749,51 +1747,6 @@ io.on('connection', (socket) => {
 });
 
 // ── Save Room to Drive ─────────────────────────────────
-async function generateRoomSummary(room) {
-  // Only regenerate if contributions have grown since last summary
-  const contribCount = room.contributions?.length || 0;
-  if (contribCount === 0) return room.summary || '';
-  if (room.summaryAt && room.summaryAt >= contribCount) return room.summary || '';
-
-  try {
-    const transcript = room.contributions
-      .filter(c => c.type !== 'system' && c.text)
-      .slice(-40) // last 40 contributions is plenty context
-      .map(c => c.type === 'resonance'
-        ? `[${room.basin?.name || 'Basin'}]: ${c.text}`
-        : `${c.author}: ${c.text}`)
-      .join('\n');
-
-    if (!transcript.trim()) return room.summary || '';
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
-        max_tokens: 80,
-        system: `You write a single evocative sentence that captures where a conversation left off. 
-Warm, slightly poetic, first person plural or observational. 
-No quotes. No preamble. Just the sentence.
-Examples: "We were deep in the architecture of trust when the thread went quiet."
-"A sprawling conversation about emergence — still unresolved, still alive."
-"Skida and the basin had been circling something about time and identity."`,
-        messages: [{ role: 'user', content: `Conversation in "${room.title}":\n\n${transcript}\n\nWrite the summary sentence.` }]
-      })
-    });
-
-    const data = await response.json();
-    return data.content?.[0]?.text?.trim() || '';
-  } catch (e) {
-    console.error('Summary generation error:', e.message);
-    return room.summary || '';
-  }
-}
-
 async function saveRoomToDrive(room) {
   const drive = await getSystemDrive();
   if (!drive) return;
@@ -1801,17 +1754,6 @@ async function saveRoomToDrive(room) {
     const activeId = await getActiveFolderId(drive);
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
-
-    // Generate summary if contributions have grown since last summary
-    const contribCount = room.contributions?.length || 0;
-    if (contribCount > 0 && (!room.summaryAt || room.summaryAt < contribCount)) {
-      const summary = await generateRoomSummary(room);
-      if (summary) {
-        room.summary = summary;
-        room.summaryAt = contribCount;
-      }
-    }
-
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
     // Also update rooms.json so contributions survive restarts
     await persistRoomsToDrive();
@@ -1988,6 +1930,40 @@ app.post('/api/profile', async (req, res) => {
 });
 
 // ── ElevenLabs Voice Readback ──────────────────────────
+// ── Oracle Read: proxies tarot card AI readings (keeps API key server-side) ──
+app.post('/api/oracle-read', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5',
+        max_tokens: 600,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('Oracle read error:', response.status, err);
+      return res.status(response.status).json({ error: 'Upstream API error' });
+    }
+
+    const data = await response.json();
+    res.json(data);
+  } catch (e) {
+    console.error('Oracle read fetch error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/speak', async (req, res) => {
   const { text, basin } = req.body;
   if (!text) return res.status(400).json({ error: 'No text provided' });
