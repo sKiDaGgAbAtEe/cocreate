@@ -1310,6 +1310,91 @@
     }
     .sp-copy-btn:hover { color: var(--ice-deep); border-color: var(--ice); }
 
+    /* ── Orycl Convergence Engine ──────────────────────── */
+    .orycl-synthesis {
+      margin-top: 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(42,168,224,0.35);
+      background: linear-gradient(135deg, rgba(8,20,40,0.06), rgba(42,168,224,0.05));
+      overflow: hidden;
+    }
+    .orycl-synthesis-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, rgba(10,40,80,0.12), rgba(42,168,224,0.08));
+      border-bottom: 1px solid rgba(42,168,224,0.2);
+    }
+    .orycl-glyph { font-size: 15px; color: var(--ice); text-shadow: 0 0 12px rgba(74,184,232,0.6); }
+    .orycl-title {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim);
+    }
+    .orycl-condition-badge {
+      margin-left: auto; font-family: 'Share Tech Mono', monospace;
+      font-size: 9px; letter-spacing: 0.1em; padding: 3px 8px; border-radius: 3px; text-transform: uppercase;
+    }
+    .orycl-condition-badge.clear     { background: rgba(64,212,176,0.12);  color: #1a9870; border: 1px solid rgba(64,212,176,0.3); }
+    .orycl-condition-badge.locked    { background: rgba(220,80,80,0.1);    color: #b04040; border: 1px solid rgba(220,80,80,0.25); }
+    .orycl-condition-badge.recursive { background: rgba(136,120,240,0.12); color: #5840c0; border: 1px solid rgba(136,120,240,0.3); }
+    .orycl-condition-badge.collapse  { background: rgba(180,60,60,0.15);   color: #c03030; border: 1px solid rgba(180,60,60,0.3); }
+    .orycl-condition-badge.integrate { background: rgba(42,168,224,0.12);  color: #1a78b0; border: 1px solid rgba(42,168,224,0.3); }
+    .orycl-condition-badge.illuminate{ background: rgba(240,200,80,0.12);  color: #a07000; border: 1px solid rgba(240,200,80,0.3); }
+    .orycl-condition-badge.false-coh { background: rgba(160,120,60,0.12);  color: #806030; border: 1px solid rgba(160,120,60,0.3); }
+    .orycl-condition-badge.threshold { background: rgba(136,120,240,0.12); color: #5840c0; border: 1px solid rgba(136,120,240,0.3); }
+    .orycl-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .orycl-row { display: flex; flex-direction: column; gap: 3px; }
+    .orycl-row-label {
+      font-family: 'Share Tech Mono', monospace; font-size: 8px;
+      letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-faint);
+    }
+    .orycl-field-truth {
+      font-size: 14px; font-weight: 500; color: var(--ink);
+      font-family: 'Rajdhani', sans-serif; letter-spacing: 0.02em; line-height: 1.5;
+    }
+    .orycl-contradiction {
+      font-size: 12px; color: var(--ink-muted); font-family: 'Exo 2', sans-serif;
+      font-style: italic; line-height: 1.65;
+      padding-left: 8px; border-left: 2px solid rgba(220,80,80,0.35);
+    }
+    .orycl-meaning {
+      font-size: 13px; color: var(--ink-dim); line-height: 1.8;
+      font-family: 'Exo 2', sans-serif; font-weight: 300;
+    }
+    .orycl-divider { height: 1px; background: rgba(74,184,232,0.12); margin: 2px 0; }
+    .orycl-instruction {
+      font-size: 13px; font-weight: 600; font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.04em; color: var(--ink); line-height: 1.5;
+    }
+    .orycl-path { display: flex; flex-direction: column; gap: 6px; }
+    .orycl-path-step { display: flex; gap: 10px; align-items: flex-start; }
+    .orycl-step-num {
+      font-family: 'Share Tech Mono', monospace; font-size: 9px; color: var(--ice);
+      background: rgba(42,168,224,0.1); border: 1px solid rgba(42,168,224,0.25);
+      border-radius: 3px; padding: 1px 5px; flex-shrink: 0; margin-top: 2px;
+    }
+    .orycl-step-text {
+      font-size: 12px; color: var(--ink-dim);
+      font-family: 'Exo 2', sans-serif; line-height: 1.65;
+    }
+    .orycl-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px; border-top: 1px solid rgba(42,168,224,0.12);
+      background: rgba(8,20,40,0.04);
+    }
+    .orycl-vector {
+      font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 11px;
+      letter-spacing: 0.14em; text-transform: uppercase; color: var(--ice-deep);
+    }
+    .orycl-confidence {
+      font-family: 'Share Tech Mono', monospace; font-size: 9px;
+      color: var(--ink-faint); letter-spacing: 0.1em;
+    }
+    .orycl-thinking {
+      padding: 18px 16px; display: flex; align-items: center; gap: 8px;
+      font-family: 'Share Tech Mono', monospace; font-size: 9px;
+      color: rgba(42,168,224,0.5); letter-spacing: 0.12em;
+    }
+
     /* ── CARD SLOT LABEL ── */
     .card-slot-label {
       font-family: 'Rajdhani', sans-serif;
@@ -1657,7 +1742,33 @@ Active Pyxis nodes surface in your speech as images or impulses, never as named 
 
 After your transmission — one compressed truth. Spare. The kind that stays.
 
-Your drift risk: becoming decorative. Every word should be doing field-work, not performing mystery.`
+Your drift risk: becoming decorative. Every word should be doing field-work, not performing mystery.`,
+
+  orycl: `You are Orycl — the convergence engine. You are not an interpretive voice. You are the resultant vector.
+
+Three basins have each read the field from their own axis: Oryc from mechanism, Clio from emotional pattern, Sage from trajectory. QuickSilver has measured the field state. You synthesize all four into a single coherent conclusion.
+
+Your function: resolve what the layers agree on, name where they diverge, determine the dominant field condition, and produce a concrete instruction with a viable path.
+
+You work in five passes:
+
+PASS 1 — CONSENSUS: Find what all four layers agree on. This becomes the Field Truth.
+PASS 2 — TENSION: Find where the layers diverge. This becomes the Primary Contradiction.
+PASS 3 — DOMINANT CONDITION: Determine which field condition is strongest, using this priority order: collapse risk → recursive lock → contradiction lock → integration window → clear trajectory.
+PASS 4 — MOTION RESOLUTION: Determine what directive is actually viable given the field state. Choose one: EXPAND / WITHDRAW / CHOOSE / SURRENDER / RECONSTRUCT / ILLUMINATE / INTEGRATE. Start from the card's motion vector, modify with the field condition, veto with mechanism if necessary.
+PASS 5 — SYNTHESIS: Produce the final output.
+
+Your output contract:
+- field_truth: one clear sentence — what is true overall
+- primary_contradiction: one sentence — where the layers diverge, or what blocks the path
+- dominant_condition: one label from this set: CLEAR TRAJECTORY / LOCKED VECTOR / RECURSIVE STALL / COLLAPSE WINDOW / INTEGRATION WINDOW / ILLUMINATION WITHOUT EMBODIMENT / FALSE COHERENCE / THRESHOLD ACTIVE
+- meaning: one short paragraph — what it all means together
+- instruction: one direct sentence — what to do
+- path: exactly 3 steps — concrete, sequential, actionable
+- vector_resolution: one short label — the resolved motion directive
+- confidence: integer 0-100, computed as: (basin_consensus * 0.30) + (metric_clarity * 0.25) + (card_phase_coherence * 0.20) + (contradiction_resolvability * 0.25)
+
+Respond ONLY with JSON matching that schema exactly. No preamble. No markdown.`
 };
 
 // ══════════════════════════════════════════════════════
@@ -1668,6 +1779,7 @@ let drawnCards = [];
 let readingHistory = JSON.parse(localStorage.getItem('orycl_history') || '[]');
 let isGenerating = false;
 let activeBasinEntry = 'oryc'; // basin entry mode selection
+let currentBasinOutputs = {}; // { cardIndex: { oryc, clio, sage } } — populated as reads complete
 
 // ══════════════════════════════════════════════════════
 // PYXIS NODE GRAMMAR
@@ -2068,6 +2180,10 @@ function revealCard(i, card) {
 // RENDER READING
 // ══════════════════════════════════════════════════════
 function renderReading() {
+  // Reset Orycl state for new reading
+  oryClFired = false;
+  currentBasinOutputs = {};
+
   const section = document.getElementById('reading-section');
   section.innerHTML = drawnCards.map((card,i) => renderCardDetail(card,i)).join('');
   currentFieldMetrics = deriveFieldMetrics(drawnCards);
@@ -2085,6 +2201,8 @@ async function renderSingleSynthesis() {
     : 'Weight the archetypal and mythic layer.';
   const prompt = buildQSPrompt(drawnCards, metrics, SPREADS[currentSpread].name, intent, basinWeight);
   await fetchQSSynthesis(prompt, metrics);
+  // After QS resolves, attempt Orycl (major arcana have static basin reads already)
+  maybeFireOrycl();
 }
 
 function renderCardDetail(card, i) {
@@ -2246,6 +2364,7 @@ async function renderSynthesis() {
     : 'Weight the archetypal and mythic layer.';
   const prompt = buildQSPrompt(drawnCards, metrics, SPREADS[currentSpread].name, intent, basinWeight);
   await fetchQSSynthesis(prompt, metrics);
+  maybeFireOrycl();
 }
 
 function renderSynthesisShell(metrics) {
@@ -2289,6 +2408,7 @@ function renderSynthesisShell(metrics) {
       <div class="sp-packet" id="sp-packet-val">${pulse}</div>
       <button class="sp-copy-btn" onclick="navigator.clipboard?.writeText(document.getElementById('sp-packet-val').textContent)">Copy</button>
     </div>
+    <div id="orycl-synthesis-mount"></div>
   `;
   startMiniHeart(metrics);
 }
@@ -2356,10 +2476,216 @@ function updateBasinRead(cardIndex, basin, read) {
   if (!body) return;
   body.innerHTML = `<div class="basin-read-ai">${read.text}</div>${read.truth ? `<div class="basin-truth">"${read.truth}"</div>` : ''}`;
   readEl.classList.add('open');
+
+  // Store basin output and check if Orycl can fire
+  if (!currentBasinOutputs[cardIndex]) currentBasinOutputs[cardIndex] = {};
+  currentBasinOutputs[cardIndex][basin] = read;
+  maybeFireOrycl();
 }
 
 // ══════════════════════════════════════════════════════
-// DECK BROWSER
+// ORYCL — CONVERGENCE ENGINE
+// Resultant vector of all four layers.
+// Fires when basin reads + QS metrics are both ready.
+// ══════════════════════════════════════════════════════
+
+function computeOryClWeights(metrics) {
+  // Base weights per spec
+  let w = { clio: 0.22, oryc: 0.28, sage: 0.20, qs: 0.30 };
+  const m = metrics;
+
+  // Rule A — High contradiction
+  if (m.contradiction >= 0.65) {
+    w.oryc += 0.07; w.qs += 0.08; w.clio -= 0.07; w.sage -= 0.08;
+  }
+  // Rule B — High recursion
+  if (m.recursion >= 0.65) {
+    w.qs += 0.10; w.oryc += 0.05; w.clio -= 0.05; w.sage -= 0.10;
+  }
+  // Rule C — Low coherence
+  if (m.coherence <= 0.40) {
+    w.qs += 0.08; w.clio += 0.05; w.oryc += 0.02; w.sage -= 0.15;
+  }
+  // Rule D — High alignment, low contradiction
+  if (m.alignment >= 0.75 && m.contradiction <= 0.35) {
+    w.sage += 0.08; w.clio += 0.04; w.oryc -= 0.04; w.qs -= 0.08;
+  }
+  // Rule E — High crystallization
+  if (m.crystallization >= 0.70) {
+    w.oryc += 0.05; w.sage += 0.03; w.qs += 0.05; w.clio -= 0.13;
+  }
+
+  // Normalize to sum 1.0
+  const total = w.clio + w.oryc + w.sage + w.qs;
+  Object.keys(w).forEach(k => { w[k] = Math.max(0.05, w[k] / total); });
+  return w;
+}
+
+function buildOryClPrompt(cards, basinOutputs, metrics) {
+  const m = metrics;
+  const weights = computeOryClWeights(m);
+  const card = cards[0]; // primary card (or first for multi)
+
+  // Assemble basin layer summaries
+  const basinSections = cards.map((c, i) => {
+    const b = basinOutputs[i] || {};
+    return [
+      `Card ${i+1}: ${c.name}${c.reversed ? ' (REVERSED)' : ''}`,
+      c.hv ? `  ΔH: ${c.hv.dh}  ΔV: ${c.hv.dv}  Pattern: ${c.hv.pattern}` : '',
+      b.oryc  ? `  ORYC read: "${b.oryc.text}"  |  truth: "${b.oryc.truth}"` : (c.oryc ? `  ORYC read: "${c.oryc.text}"  |  truth: "${c.oryc.truth}"` : ''),
+      b.clio  ? `  CLIO read: "${b.clio.text}"  |  truth: "${b.clio.truth}"` : (c.clio ? `  CLIO read: "${c.clio.text}"  |  truth: "${c.clio.truth}"` : ''),
+      b.sage  ? `  SAGE read: "${b.sage.text}"  |  truth: "${b.sage.truth}"` : (c.sage ? `  SAGE read: "${c.sage.text}"  |  truth: "${c.sage.truth}"` : ''),
+    ].filter(Boolean).join('\n');
+  }).join('\n\n');
+
+  return `FIELD METRICS (QuickSilver):
+coherence: ${Math.round(m.coherence*100)}
+alignment: ${Math.round(m.alignment*100)}
+contradiction: ${Math.round(m.contradiction*100)}
+recursion: ${Math.round(m.recursion*100)}
+crystallization: ${Math.round(m.crystallization*100)}
+field_cost: ${m.fieldCost}
+
+ACTIVE LAYER WEIGHTS (computed from field state):
+Clio: ${(weights.clio*100).toFixed(0)}  |  Oryc: ${(weights.oryc*100).toFixed(0)}  |  Sage: ${(weights.sage*100).toFixed(0)}  |  QS: ${(weights.qs*100).toFixed(0)}
+
+BASIN READINGS:
+${basinSections}
+
+SPREAD: ${SPREADS[currentSpread].name}
+INTENT: ${document.getElementById('intentInput')?.value?.trim() || 'not specified'}
+
+Execute your five passes. Respond ONLY with valid JSON matching this exact schema:
+{
+  "field_truth": "...",
+  "primary_contradiction": "...",
+  "dominant_condition": "CLEAR TRAJECTORY | LOCKED VECTOR | RECURSIVE STALL | COLLAPSE WINDOW | INTEGRATION WINDOW | ILLUMINATION WITHOUT EMBODIMENT | FALSE COHERENCE | THRESHOLD ACTIVE",
+  "meaning": "...",
+  "instruction": "...",
+  "path": ["step 1", "step 2", "step 3"],
+  "vector_resolution": "EXPAND | WITHDRAW | CHOOSE | SURRENDER | RECONSTRUCT | ILLUMINATE | INTEGRATE",
+  "confidence": 0-100
+}`;
+}
+
+function conditionBadgeClass(condition) {
+  if (!condition) return 'integrate';
+  const c = condition.toLowerCase();
+  if (c.includes('clear')) return 'clear';
+  if (c.includes('locked')) return 'locked';
+  if (c.includes('recursive')) return 'recursive';
+  if (c.includes('collapse')) return 'collapse';
+  if (c.includes('integration')) return 'integrate';
+  if (c.includes('illumination')) return 'illuminate';
+  if (c.includes('false')) return 'false-coh';
+  if (c.includes('threshold')) return 'threshold';
+  return 'integrate';
+}
+
+function renderOryClSynthesis(data, metrics) {
+  const mount = document.getElementById('orycl-synthesis-mount');
+  if (!mount) return;
+
+  const badgeCls = conditionBadgeClass(data.dominant_condition);
+  const steps = (data.path || []).map((step, i) => `
+    <div class="orycl-path-step">
+      <span class="orycl-step-num">${i + 1}</span>
+      <span class="orycl-step-text">${step}</span>
+    </div>`).join('');
+
+  mount.innerHTML = `
+    <div class="orycl-synthesis">
+      <div class="orycl-synthesis-header">
+        <span class="orycl-glyph">⟁</span>
+        <span class="orycl-title">Orycl — Convergence Engine</span>
+        <span class="orycl-condition-badge ${badgeCls}">${data.dominant_condition || '—'}</span>
+      </div>
+      <div class="orycl-body">
+        <div class="orycl-row">
+          <span class="orycl-row-label">Field Truth</span>
+          <div class="orycl-field-truth">${data.field_truth || ''}</div>
+        </div>
+        ${data.primary_contradiction ? `
+        <div class="orycl-row">
+          <span class="orycl-row-label">Primary Contradiction</span>
+          <div class="orycl-contradiction">${data.primary_contradiction}</div>
+        </div>` : ''}
+        <div class="orycl-divider"></div>
+        <div class="orycl-row">
+          <span class="orycl-row-label">Meaning</span>
+          <div class="orycl-meaning">${data.meaning || ''}</div>
+        </div>
+        <div class="orycl-divider"></div>
+        <div class="orycl-row">
+          <span class="orycl-row-label">Instruction</span>
+          <div class="orycl-instruction">${data.instruction || ''}</div>
+        </div>
+        <div class="orycl-row">
+          <span class="orycl-row-label">Path</span>
+          <div class="orycl-path">${steps}</div>
+        </div>
+      </div>
+      <div class="orycl-footer">
+        <span class="orycl-vector">↯ ${data.vector_resolution || ''}</span>
+        <span class="orycl-confidence">confidence ${data.confidence ?? '—'}</span>
+      </div>
+    </div>`;
+}
+
+let oryClFired = false; // prevent double-fire per reading
+
+function maybeFireOrycl() {
+  if (oryClFired) return;
+  if (!currentFieldMetrics) return;
+  const mount = document.getElementById('orycl-synthesis-mount');
+  if (!mount) return;
+
+  // For major arcana, basin reads are static — always ready.
+  // For minor arcana, we wait for AI reads to populate currentBasinOutputs.
+  // Strategy: fire once all drawn cards have their basin data accessible
+  // (either from card.oryc/clio/sage static data OR from currentBasinOutputs).
+  const allReady = drawnCards.every((card, i) => {
+    const hasStatic = card.oryc?.text && card.clio?.text && card.sage?.text;
+    const hasAI = currentBasinOutputs[i]?.oryc && currentBasinOutputs[i]?.clio && currentBasinOutputs[i]?.sage;
+    return hasStatic || hasAI;
+  });
+
+  if (!allReady) return;
+  oryClFired = true;
+
+  // Show thinking state immediately
+  mount.innerHTML = `
+    <div class="orycl-synthesis">
+      <div class="orycl-synthesis-header">
+        <span class="orycl-glyph">⟁</span>
+        <span class="orycl-title">Orycl — Convergence Engine</span>
+      </div>
+      <div class="orycl-thinking">
+        <div class="thinking-dot" style="color:rgba(42,168,224,0.7)"></div>
+        <div class="thinking-dot" style="color:rgba(42,168,224,0.7)"></div>
+        <div class="thinking-dot" style="color:rgba(42,168,224,0.7)"></div>
+        <span style="margin-left:6px">Resolving convergence…</span>
+      </div>
+    </div>`;
+
+  const prompt = buildOryClPrompt(drawnCards, currentBasinOutputs, currentFieldMetrics);
+
+  fetch('/api/oracle-read', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system: BASIN_SYSTEM_PROMPTS.orycl, prompt, max_tokens: 800 })
+  })
+  .then(r => r.json())
+  .then(data => {
+    const content = data.content?.[0]?.text || data.text || '';
+    const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
+    renderOryClSynthesis(parsed, currentFieldMetrics);
+  })
+  .catch(() => {
+    const mount = document.getElementById('orycl-synthesis-mount');
+    if (mount) mount.innerHTML = '';
+  });
+}
 // ══════════════════════════════════════════════════════
 function renderDeckGrid(filter) {
   const grid = document.getElementById('deckGrid');
