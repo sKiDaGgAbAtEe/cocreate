@@ -1477,44 +1477,23 @@ const DIAG_CHECKS = [
         id: 'basin_reply',
         label: 'Basin can generate reply',
         run: async () => {
-          // Create a temp room, send a message, check for resonance
-          const cr = await fetch('/api/rooms', {
+          const start = Date.now();
+          const res = await fetch('/api/basin-dialog', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: '__diag__', creator: 'watchtower' }),
-            signal: AbortSignal.timeout(5000)
+            body: JSON.stringify({
+              basinId: 'oryc',
+              system: 'You are a test. Reply with exactly two words: system ok.',
+              messages: [{ role: 'user', content: 'ping' }],
+              max_tokens: 20
+            }),
+            signal: AbortSignal.timeout(20000)
           });
-          if (!cr.ok) throw new Error('Could not create test room');
-          const { id } = await cr.json();
-
-          // Use socket to contribute and wait for resonance
-          return await new Promise((resolve, reject) => {
-            const testSocket = io({ transports: ['websocket'] });
-            let responded = false;
-            const timeout = setTimeout(() => {
-              testSocket.disconnect();
-              if (!responded) reject(new Error('No basin reply within 20s — likely Drive timeout or API key missing'));
-            }, 20000);
-
-            testSocket.on('connect', () => {
-              testSocket.emit('room:join', { roomId: id, playerName: 'diag' });
-            });
-            testSocket.on('room:state', () => {
-              testSocket.emit('room:contribute', { roomId: id, playerName: 'diag', text: 'test', modeInstruction: '' });
-            });
-            testSocket.on('room:contribution', (c) => {
-              if (c.type === 'resonance') {
-                responded = true;
-                clearTimeout(timeout);
-                testSocket.disconnect();
-                // Clean up test room
-                fetch(`/api/rooms/${id}`, { method: 'DELETE' }).catch(() => {});
-                resolve({ value: `${c.text.length} chars in ${((Date.now() - startMs) / 1000).toFixed(1)}s` });
-              }
-            });
-            testSocket.on('connect_error', (e) => { clearTimeout(timeout); reject(new Error('Socket error: ' + e.message)); });
-            const startMs = Date.now();
-          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const d = await res.json();
+          if (d.error) throw new Error(d.error);
+          if (!d.text) throw new Error('Empty response');
+          return { value: `${d.text.length} chars in ${((Date.now() - start) / 1000).toFixed(1)}s` };
         },
         fix: 'Basin not replying. Common causes:\n1. ANTHROPIC_API_KEY not set in Railway vars\n2. Drive context loaders timing out (getDriveFolder creating folders on every call)\n3. server.js is outdated — deploy latest version\n\nCheck Railway Deploy Logs for "Resonance error:" lines.'
       },
