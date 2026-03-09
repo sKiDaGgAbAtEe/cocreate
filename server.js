@@ -30,6 +30,17 @@ const sessionMiddleware = session({
 app.set('trust proxy', 1); // trust Railway's reverse proxy
 app.use(sessionMiddleware);
 
+// Lightweight cookie reader (no package needed)
+app.use((req, _res, next) => {
+  req.cookies = {};
+  const header = req.headers.cookie || '';
+  header.split(';').forEach(part => {
+    const [k, ...v] = part.trim().split('=');
+    if (k) req.cookies[k.trim()] = decodeURIComponent(v.join('=').trim());
+  });
+  next();
+});
+
 
 // ── Token persistence (survives Railway restarts) ─────────────────────────────
 const TOKEN_PATH = path.join(__dirname, '.tokens.json');
@@ -70,6 +81,28 @@ app.get('/watchtower', (req, res) => {
 });
 
 app.use(express.static('public'));
+
+// ── Watchtower auth cookie (survives session resets) ──────────────────────────
+const WT_COOKIE = 'wt_auth';
+const WT_COOKIE_TTL = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function signWtCookie(email) {
+  const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+  const ts = Date.now();
+  const sig = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex');
+  return Buffer.from(JSON.stringify({ email, ts, sig })).toString('base64');
+}
+
+function verifyWtCookie(raw) {
+  try {
+    const { email, ts, sig } = JSON.parse(Buffer.from(raw, 'base64').toString());
+    if (Date.now() - ts > WT_COOKIE_TTL) return null;
+    const secret = process.env.SESSION_SECRET || 'entriference-secret-change-me';
+    const expected = crypto.createHmac('sha256', secret).update(email + ':' + ts).digest('hex');
+    if (sig !== expected) return null;
+    return email;
+  } catch(e) { return null; }
+}
 
 // ── Google OAuth ───────────────────────────────────────
 const BASE_URL = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
@@ -135,6 +168,14 @@ app.get('/auth/google/callback', async (req, res) => {
       if (nextPath.startsWith('/watchtower')) {
         if (!WATCHTOWER_EMAILS.includes(email.toLowerCase()))
           return res.redirect('/watchtower?auth=denied');
+        // Set a long-lived signed cookie so auth survives session resets
+        const cookieVal = signWtCookie(email);
+        res.cookie(WT_COOKIE, cookieVal, {
+          httpOnly: true,
+          sameSite: 'lax',
+          maxAge: WT_COOKIE_TTL,
+          secure: process.env.NODE_ENV === 'production'
+        });
         return res.redirect('/watchtower?auth=success&wt=' + wt);
       }
       res.redirect(nextPath + '?auth=success');
@@ -159,24 +200,41 @@ app.get('/auth/wt-verify', (req, res) => {
 app.get('/auth/logout', (req, res) => {
   const tokens = req.session.userTokens;
   req.session.destroy(() => {});
+  res.clearCookie(WT_COOKIE);
   if (tokens) {
     const client = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
     client.setCredentials(tokens);
     client.revokeCredentials().catch(() => {});
   }
-  res.redirect('/?auth=logout');
+  res.redirect('/watchtower');
 });
 
 app.get('/auth/status', (req, res) => {
   const hasUserOAuth = !!req.session.userTokens;
   const hasServiceAccount = !!getServiceAccountDrive();
-  const email = req.session.userInfo?.email?.toLowerCase() || '';
+
+  // Primary: session has user info
+  let email = req.session.userInfo?.email?.toLowerCase() || '';
+  let userInfo = req.session.userInfo || null;
+
+  // Fallback: long-lived wt_auth cookie (survives Railway restarts)
+  if (!email && req.cookies) {
+    const raw = req.cookies[WT_COOKIE];
+    if (raw) {
+      const cookieEmail = verifyWtCookie(raw);
+      if (cookieEmail && WATCHTOWER_EMAILS.includes(cookieEmail.toLowerCase())) {
+        email = cookieEmail.toLowerCase();
+        userInfo = userInfo || { email: cookieEmail };
+      }
+    }
+  }
+
   res.json({
     connected: hasUserOAuth || hasServiceAccount,
     serviceAccount: hasServiceAccount,
     userOAuth: hasUserOAuth,
-    userInfo: req.session.userInfo || null,
-    watchtowerAllowed: hasUserOAuth && WATCHTOWER_EMAILS.includes(email)
+    userInfo,
+    watchtowerAllowed: !!email && WATCHTOWER_EMAILS.includes(email)
   });
 });
 
