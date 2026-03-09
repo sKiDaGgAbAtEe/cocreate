@@ -194,14 +194,51 @@
     .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
     .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
-    .rooms-grid { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border2); border-radius: 8px; overflow: hidden; }
-    .room-card { display: flex; align-items: center; gap: 0; padding: 0; cursor: pointer; transition: background 0.15s; position: relative; background: rgba(255,252,244,0.92); border-bottom: 1px solid var(--border); }
-    .room-card:last-child { border-bottom: none; }
+    .rooms-grid {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 6px;
+      padding: 4px 0;
+    }
+    @keyframes card-drop {
+      0%   { opacity: 0; transform: translateY(-18px) scale(0.97); }
+      60%  { opacity: 1; transform: translateY(5px) scale(1.01); }
+      80%  { transform: translateY(-3px) scale(0.995); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .room-card {
+      display: inline-flex;
+      align-items: center;
+      gap: 0;
+      padding: 0;
+      cursor: pointer;
+      position: relative;
+      background: rgba(255,252,244,0.92);
+      border: 1px solid var(--border2);
+      border-radius: 7px;
+      box-shadow: 0 1px 4px rgba(42,37,32,0.08);
+      opacity: 0;
+      animation: card-drop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      transition: transform 0.22s cubic-bezier(0.34, 1.7, 0.64, 1),
+                  box-shadow 0.22s ease,
+                  background 0.15s;
+      will-change: transform;
+    }
+    .room-card:hover {
+      transform: translateY(-3px) scale(1.025);
+      box-shadow: 0 6px 20px rgba(42,37,32,0.14);
+      background: rgba(255,252,244,1);
+    }
+    .room-card:not(:hover) {
+      transition: transform 0.35s cubic-bezier(0.25, 2.2, 0.5, 0.85),
+                  box-shadow 0.28s ease,
+                  background 0.15s;
+    }
     .room-card::before { display: none; }
-    .room-card:hover { background: rgba(255,252,244,1); transform: none; box-shadow: none; border-color: var(--border); }
-    .room-card-inner { display: flex; align-items: center; gap: 10px; flex: 1; padding: 9px 14px; min-width: 0; }
-    .room-card-title { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 1; min-width: 0; }
-    .room-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); flex-shrink: 0; margin-left: auto; padding-left: 10px; }
+    .room-card-inner { display: flex; align-items: center; gap: 10px; padding: 9px 14px; min-width: 0; }
+    .room-card-title { font-family: 'Cinzel', serif; font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--ink); white-space: nowrap; }
+    .room-card-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-faint); padding-left: 6px; white-space: nowrap; }
     .basin-badge { display: flex; align-items: center; gap: 5px; }
     .basin-badge-dot { width: 6px; height: 6px; border-radius: 50%; }
     .room-card-footer { display: none; }
@@ -352,8 +389,7 @@
     }
     body.dark .lobby-header { background: rgba(13,13,20,0.8); border-color: #1e1c28; }
     body.dark .player-pill { background: rgba(196,168,130,0.1); border-color: #2a2830; }
-    body.dark .room-card { background: #13131a; border-color: #1e1c28; }
-    body.dark .room-card:hover { background: #17171f; box-shadow: none; transform: none; }
+    body.dark .room-card { background: #13131a; border-color: #1e1c28; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }
     body.dark .modal-overlay { background: rgba(0,0,0,0.7); }
     body.dark .modal-card { background: #13131a; border-color: #2a2830; }
     body.dark .modal-box { background: #13131a; border-color: #2a2830; }
@@ -578,12 +614,12 @@
     body.dark .about-panel { background: #13131a; border-color: #2a2830; }
 
     /* ── ROOM CARD EXPANDED ──────── */
-    .room-card-subject { font-size: 11px; color: var(--ink-faint); font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 2; min-width: 0; }
+    .room-card-subject { font-size: 11px; color: var(--ink-faint); font-style: italic; white-space: nowrap; }
     .room-card-creator { display: none; }
     .room-card-notes { display: none; }
-    .room-card-delete { opacity: 0; transition: opacity 0.15s; padding: 9px 12px; color: var(--ink-faint); font-size: 13px; flex-shrink: 0; border-left: 1px solid var(--border); }
-    .room-card:hover .room-card-delete { opacity: 1; }
-    .room-card-delete:hover { color: #c0392b; }
+    .room-card-delete { opacity: 0; transition: opacity 0.12s; padding: 7px 10px; color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
+    .room-card:hover .room-card-delete { opacity: 0.5; }
+    .room-card-delete:hover { opacity: 1 !important; color: #c0392b; }
 
     /* ── BASIN SWITCHER (SESSION) ─── */
     .basin-switch-btn { background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--ink-faint); font-size: 9px; font-family: 'Cinzel', serif; letter-spacing: 0.08em; padding: 3px 7px; cursor: pointer; margin-top: 6px; transition: all 0.2s; }
@@ -3781,15 +3817,15 @@ function renderRooms(rooms) {
     grid.innerHTML = '<div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>';
     return;
   }
-  grid.innerHTML = rooms.map(r => `
-    <div class="room-card" onclick="joinRoom('${r.id}')">
+  grid.innerHTML = rooms.map((r, i) => `
+    <div class="room-card" onclick="joinRoom('${r.id}')" style="animation-delay:${i * 55}ms">
       <div class="room-card-inner">
-        <div class="basin-badge-dot" style="background:${r.basinColor};width:8px;height:8px;border-radius:50%;flex-shrink:0"></div>
+        <div style="width:8px;height:8px;border-radius:50%;flex-shrink:0;background:${r.basinColor}"></div>
         <div class="room-card-title">${esc(r.title)}</div>
-        ${r.subject ? `<span class="room-card-subject">— ${esc(r.subject)}</span>` : ''}
+        ${r.subject ? `<span class="room-card-subject"> — ${esc(r.subject)}</span>` : ''}
         <div class="room-card-meta">
           ${r.memberCount > 0 ? `<span style="color:var(--accent);font-weight:600">${r.memberCount} ◈</span>` : ''}
-          <span style="font-family:'Cinzel',serif;letter-spacing:0.1em;opacity:0.5">${r.id}</span>
+          <span style="font-family:'Cinzel',serif;letter-spacing:0.1em;opacity:0.45">${r.id}</span>
         </div>
       </div>
       <span class="room-card-delete" onclick="event.stopPropagation();deleteRoom('${r.id}')" title="Delete">✕</span>
