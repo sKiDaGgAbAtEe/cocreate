@@ -223,7 +223,6 @@
       cursor: pointer;
       position: relative;
       border-radius: 10px;
-      overflow: hidden;
       border: 1px solid var(--border2);
       box-shadow: 0 2px 8px rgba(42,37,32,0.09);
       opacity: 0;
@@ -248,9 +247,8 @@
     .room-card-inner-wrap {
       display: flex;
       flex-direction: column;
-      padding: 14px 16px 15px;
-      gap: 6px;
-      flex: 1;
+      padding: 14px 16px 16px;
+      gap: 7px;
       position: relative;
     }
     .room-card-title-row {
@@ -266,7 +264,7 @@
     }
     .room-card-title {
       font-family: 'Cinzel', serif;
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
       letter-spacing: 0.06em;
       color: rgba(255,255,255,0.97);
@@ -291,7 +289,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-size: 10px;
+      font-size: 11px;
       color: rgba(255,255,255,0.6);
       font-family: 'Cinzel', serif;
       letter-spacing: 0.07em;
@@ -305,10 +303,10 @@
       margin-left: auto;
     }
     .room-card-summary {
-      font-size: 11px;
-      color: rgba(255,255,255,0.72);
+      font-size: 12px;
+      color: rgba(255,255,255,0.75);
       font-style: italic;
-      line-height: 1.55;
+      line-height: 1.6;
       padding-left: 15px;
     }
     .room-card-summary.empty { opacity: 0.35; }
@@ -1799,6 +1797,29 @@
       border: none;
     }
 
+    /* Tarot fullscreen mode — expands widget to cover viewport */
+    #tarot-widget.tarot-fullscreen-mode {
+      position: fixed !important;
+      inset: 0 !important;
+      bottom: 0 !important;
+      left: 0 !important;
+      z-index: 300 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      transform: none !important;
+      border-radius: 0 !important;
+      background: rgba(0,0,0,0.85);
+      display: flex !important;
+      align-items: center;
+      justify-content: center;
+    }
+    #tarot-widget.tarot-fullscreen-mode .tarot-widget-shell {
+      width: min(92vw, 1100px);
+      height: min(90vh, 820px);
+      border-radius: 16px;
+      transform: none !important;
+      opacity: 1 !important;
+    }
     /* corner pfp fades when open */
     #qs-corner.widget-open #qs-corner-pfp {
       opacity: 0 !important;
@@ -4794,23 +4815,19 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
 var _tarotLoaded = false;
 
 function _tarotFrame() { return document.getElementById('tarot-mini-frame'); }
-function _miniBody()   { return document.querySelector('#tarot-widget .tarot-widget-body'); }
-function _fullBody()   { return document.getElementById('tarot-full-body'); }
 
 function openTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   var corner = document.getElementById('qs-corner');
   if (!widget) return;
-  // Load oracle once
   if (!_tarotLoaded) {
     _tarotFrame().src = '/orycl_v4.html';
     _tarotLoaded = true;
   }
-  // If frame is in fullscreen body, bring it back
-  var frame = _tarotFrame();
-  var mb = _miniBody();
-  if (frame && mb && frame.parentElement !== mb) mb.appendChild(frame);
+  // Exit fullscreen if open, back to mini
+  document.getElementById('tarot-fullscreen').classList.remove('open');
   widget.classList.add('open');
+  widget.classList.remove('tarot-fullscreen-mode');
   if (corner) corner.classList.add('widget-open');
   qsWake();
 }
@@ -4819,11 +4836,7 @@ function minimizeTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   var full   = document.getElementById('tarot-fullscreen');
   var corner = document.getElementById('qs-corner');
-  // Return frame to mini body if it wandered
-  var frame = _tarotFrame();
-  var mb = _miniBody();
-  if (frame && mb && frame.parentElement !== mb) mb.appendChild(frame);
-  if (widget) widget.classList.remove('open');
+  if (widget) { widget.classList.remove('open'); widget.classList.remove('tarot-fullscreen-mode'); }
   if (full)   full.classList.remove('open');
   if (corner) corner.classList.remove('widget-open');
   qsDown();
@@ -4835,15 +4848,17 @@ function refreshTarotWidget() {
 }
 
 function openTarotFullscreen() {
-  var modal = document.getElementById('tarot-fullscreen');
-  if (!modal) return;
-  // Move the single iframe into the fullscreen body — no reload
-  var frame = _tarotFrame();
-  var fb = _fullBody();
-  if (frame && fb && frame.parentElement !== fb) fb.appendChild(frame);
-  modal.classList.add('open');
+  // Instead of moving the iframe, expand the widget itself to fullscreen
   var widget = document.getElementById('tarot-widget');
-  if (widget) widget.classList.remove('open');
+  if (!widget) return;
+  if (!_tarotLoaded) {
+    _tarotFrame().src = '/orycl_v4.html';
+    _tarotLoaded = true;
+  }
+  widget.classList.add('open');
+  widget.classList.add('tarot-fullscreen-mode');
+  var corner = document.getElementById('qs-corner');
+  if (corner) corner.classList.add('widget-open');
   qsWake();
 }
 
