@@ -192,16 +192,24 @@
     .player-pill { font-family: 'Cinzel', serif; font-size: 10px; color: var(--accent); letter-spacing: 0.1em; background: rgba(139,111,71,0.1); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 12px; }
     .lobby-layout { display: flex; flex: 1; overflow: hidden; }
     .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; }
-    .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .lobby-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
     .lobby-top h3 { font-family: 'Cinzel', serif; font-size: 12px; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); }
     .rooms-grid {
       display: flex;
       flex-direction: column;
       align-items: stretch;
-      gap: 10px;
+      gap: 6px;
       width: 68%;
       margin-left: auto;
+      overflow-y: auto;
+      max-height: calc(100vh - 180px);
+      padding-bottom: 8px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border2) transparent;
     }
+    .rooms-grid::-webkit-scrollbar { width: 4px; }
+    .rooms-grid::-webkit-scrollbar-track { background: transparent; }
+    .rooms-grid::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
     @keyframes card-drop {
       0%   { opacity: 0; transform: translateY(-22px) scale(0.96); }
       55%  { opacity: 1; transform: translateY(6px) scale(1.02); }
@@ -235,12 +243,12 @@
     .room-card::before { display: none; }
     /* color band — top portion, basin color tinted */
     .room-card-band {
-      height: 64px;
+      height: 46px;
       flex-shrink: 0;
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      padding: 0 14px 9px;
+      padding: 0 12px 7px;
       position: relative;
       gap: 2px;
     }
@@ -257,9 +265,9 @@
     }
     .room-card-title {
       font-family: 'Cinzel', serif;
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.07em;
+      letter-spacing: 0.06em;
       color: rgba(255,255,255,0.97);
       text-shadow: 0 1px 4px rgba(0,0,0,0.35);
       white-space: nowrap;
@@ -277,17 +285,17 @@
     /* body — standard bg */
     .room-card-body {
       background: var(--parchment);
-      padding: 10px 13px 11px;
+      padding: 7px 12px 8px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       flex: 1;
     }
     .room-card-stats {
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 11px;
+      font-size: 10px;
       color: var(--ink-faint);
       font-family: 'Cinzel', serif;
       letter-spacing: 0.07em;
@@ -300,12 +308,12 @@
       margin-left: auto;
     }
     .room-card-summary {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--ink-muted);
       font-style: italic;
-      line-height: 1.55;
+      line-height: 1.45;
       display: -webkit-box;
-      -webkit-line-clamp: 2;
+      -webkit-line-clamp: 1;
       -webkit-box-orient: vertical;
       overflow: hidden;
       min-height: 18px;
@@ -487,7 +495,7 @@
 
     /* ── LOBBY CHAT ──────────────── */
     .lobby-layout { display: flex; flex: 1; overflow: hidden; gap: 0; }
-    .lobby-main { flex: 1; padding: 32px 28px; overflow-y: auto; max-width: none; }
+    .lobby-main { flex: 1; padding: 24px 24px; overflow: hidden; max-width: none; display: flex; flex-direction: column; }
     .lobby-chat-panel { width: 320px; flex-shrink: 0; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: rgba(255,255,255,0.3); align-self: stretch; }
     .chat-panel-header { padding: 14px 16px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .chat-panel-title { font-family: 'Cinzel', serif; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); display: flex; align-items: center; justify-content: space-between; }
