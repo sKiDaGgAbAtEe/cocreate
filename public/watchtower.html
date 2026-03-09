@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Watchtower</title>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -793,6 +797,35 @@
     .l-footer { margin-top: 32px; font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing: .14em; opacity: 0; animation: lFadeUp .6s ease-out .85s forwards; }
     @keyframes lFadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: none; } }
 
+    /* ── Heart Panel ── */
+    .heart-panel {
+      width: 0; flex-shrink: 0;
+      background: var(--bg2);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+      transition: width 0.3s;
+    }
+    .heart-panel.open { width: 220px; }
+    .heart-panel-inner { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; min-width: 196px; }
+    .hp-section-title {
+      font-family: 'Cinzel', serif; font-size: 8px;
+      letter-spacing: 0.2em; color: var(--gold);
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .hp-state-row { display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 9px; }
+    .hp-state-label { color: var(--ink-faint); }
+    .hp-state-value { color: var(--ink); }
+    .hp-metric-row { margin-bottom: 3px; }
+    .hp-metric-label { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); margin-bottom: 2px; display: flex; justify-content: space-between; }
+    .hp-metric-bar { height: 3px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+    .hp-metric-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+    .hp-threshold { font-family: var(--mono); font-size: 8px; padding: 3px 6px; border-radius: 3px; border: 1px solid var(--border); color: var(--ink-faint); }
+    .hp-threshold.active { border-color: var(--gold-border); color: var(--gold); background: var(--gold-dim); }
+    .hp-threshold.warn { border-color: rgba(212,127,155,0.4); color: var(--clio); background: rgba(212,127,155,0.06); }
+    @keyframes hrt-spin  { from { transform: rotate(0deg); }   to { transform: rotate(360deg); } }
+    @keyframes hrt-spinr { from { transform: rotate(0deg); }   to { transform: rotate(-360deg); } }
+
   </style>
 </head>
 <body>
@@ -899,6 +932,7 @@
       <button class="panel-toggle active" id="toggleField" onclick="togglePanel('field')">◈ Field</button>
       <button class="panel-toggle" id="toggleLog" onclick="togglePanel('log')">⌾ Log</button>
       <button class="panel-toggle" id="toggleDiag" onclick="togglePanel('diag')">⚕ Diag</button>
+      <button class="panel-toggle" id="toggleHeart" onclick="togglePanel('heart')">🜁 Heart</button>
       <div class="panel-strip-spacer"></div>
       <div class="field-state-indicator" id="retStateIndicator">RET: <span id="retDominantLabel">—</span></div>
     </div>
@@ -1119,6 +1153,36 @@
         </div>
       </div>
 
+      <!-- HEART PANEL -->
+      <div class="heart-panel" id="heartPanel">
+        <div class="heart-panel-inner">
+          <div>
+            <div class="hp-section-title">Substrate State</div>
+            <div class="hp-state-row"><span class="hp-state-label">room</span><span class="hp-state-value" id="hp-room">—</span></div>
+            <div class="hp-state-row"><span class="hp-state-label">basin</span><span class="hp-state-value" id="hp-basin">—</span></div>
+            <div class="hp-state-row"><span class="hp-state-label">topology</span><span class="hp-state-value" id="hp-topology">—</span></div>
+            <div class="hp-state-row"><span class="hp-state-label">seal</span><span class="hp-state-value" id="hp-seal">—</span></div>
+          </div>
+          <div>
+            <div class="hp-section-title">Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span></div>
+            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:110px;"></div>
+          </div>
+          <div>
+            <div class="hp-section-title">Field Metrics</div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>coherence</span><span id="hp-v-coh">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-coh" style="background:var(--sage);width:0%"></div></div></div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>alignment</span><span id="hp-v-aln">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-aln" style="background:var(--sage);width:0%"></div></div></div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>contradiction</span><span id="hp-v-con">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-con" style="background:var(--clio);width:0%"></div></div></div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>recursion</span><span id="hp-v-rec">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-rec" style="background:var(--clio);width:0%"></div></div></div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>drift</span><span id="hp-v-dft">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-dft" style="background:#c4a882;width:0%"></div></div></div>
+            <div class="hp-metric-row"><div class="hp-metric-label"><span>crystallization</span><span id="hp-v-cry">—</span></div><div class="hp-metric-bar"><div class="hp-metric-fill" id="hp-b-cry" style="background:var(--oryc);width:0%"></div></div></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            <span class="hp-threshold" id="hp-theta">θ_E</span>
+            <span class="hp-threshold" id="hp-interv">⧖ intervention</span>
+          </div>
+        </div>
+      </div>
+
     </div><!-- end body-split -->
   </div><!-- end main -->
 </div><!-- end app -->
@@ -1233,6 +1297,7 @@ let sidebarOpen = true;
 let fieldPanelOpen = true;
 let logPanelOpen = false;
 let diagPanelOpen = false;
+let heartPanelOpen = false;
 let authInfo = null;
 let chatFiles = [];
 let currentTheme = localStorage.getItem('wt-theme') || 'moss';
@@ -1395,6 +1460,10 @@ function togglePanel(which) {
     diagPanelOpen = !diagPanelOpen;
     document.getElementById('diagPanel').classList.toggle('open', diagPanelOpen);
     document.getElementById('toggleDiag').classList.toggle('active', diagPanelOpen);
+  } else if (which === 'heart') {
+    heartPanelOpen = !heartPanelOpen;
+    document.getElementById('heartPanel').classList.toggle('open', heartPanelOpen);
+    document.getElementById('toggleHeart').classList.toggle('active', heartPanelOpen);
   }
 }
 
@@ -2303,10 +2372,209 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 110) + 'px';
 }
 
-function cap(s) {
-  if (s === 'qs') return 'Quicksilver';
-  return s.charAt(0).toUpperCase() + s.slice(1);
+// ── Pyxis Field Socket ────────────────────────────────────────────────────────
+(function initFieldSocket() {
+  const socket = io({ transports: ['websocket', 'polling'] });
+  const dot   = document.getElementById('fpSocketLabel');
+
+  socket.on('connect', () => {
+    if (dot) { dot.textContent = '● live'; dot.style.color = 'var(--sage)'; }
+  });
+  socket.on('disconnect', () => {
+    if (dot) { dot.textContent = '○ offline'; dot.style.color = 'var(--ink-faint)'; }
+  });
+
+  socket.on('global:pyxis-state', (p) => {
+    updateHeartPanel(p);
+  });
+  socket.on('room:pyxis-state', (p) => {
+    updateHeartPanel(p);
+  });
+})();
+
+function updateHeartPanel(p) {
+  // Substrate state labels
+  const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
+  setEl('hp-room',     p.roomId || p._raw?.roomId || '—');
+  setEl('hp-basin',    p._raw?.basin?.name || '—');
+  setEl('hp-topology', p.topology || '—');
+  setEl('hp-seal',     p.seal || 'open');
+
+  // Metric bars helper
+  const setBar = (vid, bid, val) => {
+    const pct = Math.round((val ?? 0) * 100);
+    const vel = document.getElementById(vid); if (vel) vel.textContent = pct + '%';
+    const bel = document.getElementById(bid); if (bel) bel.style.width = pct + '%';
+  };
+  setBar('hp-v-coh', 'hp-b-coh', p.coherence);
+  setBar('hp-v-aln', 'hp-b-aln', p.alignment);
+  setBar('hp-v-con', 'hp-b-con', p.contradiction);
+  setBar('hp-v-rec', 'hp-b-rec', p.recursion);
+  setBar('hp-v-dft', 'hp-b-dft', p.drift);
+  setBar('hp-v-cry', 'hp-b-cry', p.crystallization);
+
+  // Threshold badges
+  const theta  = document.getElementById('hp-theta');
+  const interv = document.getElementById('hp-interv');
+  if (theta)  theta.className  = 'hp-threshold' + (p.thetaE       ? ' active' : '');
+  if (interv) interv.className = 'hp-threshold' + (p.intervention ? ' warn'   : '');
+
+  // Push metrics into the React Heart widget
+  if (window._heartSetMetrics) {
+    window._heartSetMetrics({
+      coherence:     p.coherence     ?? 0,
+      alignment:     p.alignment     ?? 0,
+      contradiction: p.contradiction ?? 0,
+      recursion:     p.recursion     ?? 0,
+      drift:         p.drift         ?? 0,
+      crystallization: p.crystallization ?? 0,
+      thetaE:        p.thetaE        ?? false,
+      intervention:  p.intervention  ?? false,
+    });
+  }
 }
+
 </script>
-</body>
+
+<!-- ── CrystalHeart React Widget ─────────────────────────────────────────── -->
+<script type="text/babel">
+(function mountHeartWidget() {
+  const { useState, useEffect, useRef } = React;
+
+  const CX = 54, CY = 54, CR = 20;
+  function polar(cx, cy, r, deg) {
+    const rad = (deg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
+
+  function HeartWidget() {
+    const [m, setM] = useState({
+      coherence:0.5, alignment:0.5, contradiction:0.2,
+      recursion:0.2, drift:0.5, crystallization:0.3,
+      thetaE:false, intervention:false
+    });
+
+    useEffect(() => { window._heartSetMetrics = setM; return () => { delete window._heartSetMetrics; }; }, []);
+
+    const { coherence, alignment, contradiction, recursion, drift, crystallization, thetaE, intervention } = m;
+
+    const govArc = coherence * 330;
+    const [gx1, gy1] = polar(CX, CY, CR + 9, 0);
+    const [gx2, gy2] = polar(CX, CY, CR + 9, govArc);
+    const govLarge   = govArc > 180 ? 1 : 0;
+
+    const spiralPts = Array.from({ length: 18 }, (_, i) => {
+      const t   = i / 17;
+      const r   = 2 + t * recursion * 10;
+      const ang = t * 720 * recursion;
+      const [x, y] = polar(CX, CY, r, ang);
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+    }).join(' ');
+
+    return (
+      <svg width="108" height="108" viewBox="0 0 108 108">
+        <defs>
+          <radialGradient id="whg1" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor="#9b7fd4" stopOpacity={0.18 + crystallization * 0.25} />
+            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="whg2" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor={thetaE ? '#d4b800' : '#c4a882'} stopOpacity="0.22" />
+            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="whg3" cx="50%" cy="50%" r="50%">
+            <stop offset="0%"   stopColor="#1a1c20" stopOpacity="1" />
+            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="1" />
+          </radialGradient>
+        </defs>
+
+        {/* Ambient glow */}
+        <circle cx={CX} cy={CY} r={CR + 14} fill="url(#whg1)" />
+        <circle cx={CX} cy={CY} r={CR + 8}  fill="url(#whg2)" opacity={thetaE ? 1 : 0.5} />
+
+        {/* Orbital ellipses */}
+        <ellipse cx={CX} cy={CY} rx={CR + 4} ry={CR * 0.55} fill="none"
+          stroke="#9b7fd4" strokeWidth="0.4" strokeOpacity={0.18 + alignment * 0.22}
+          style={{ animation:'hrt-spin 18s linear infinite', transformOrigin:`${CX}px ${CY}px` }} />
+        <ellipse cx={CX} cy={CY} rx={CR + 4} ry={CR * 0.55} fill="none"
+          stroke="#c4a882" strokeWidth="0.4" strokeOpacity={0.12 + coherence * 0.18}
+          style={{ animation:'hrt-spinr 24s linear infinite', transformOrigin:`${CX}px ${CY}px`, transform:'rotate(60deg)' }} />
+
+        {/* Recursion spiral */}
+        <path d={spiralPts} fill="none" stroke="#d47f9b"
+          strokeWidth={0.5 + recursion * 1.2} strokeOpacity={0.3 + recursion * 0.4} />
+
+        {/* Core body */}
+        <circle cx={CX} cy={CY} r={CR} fill="url(#whg3)"
+          stroke="#9b7fd4" strokeWidth={0.6 + coherence * 0.8}
+          strokeOpacity={0.3 + coherence * 0.4} />
+
+        {/* Facets */}
+        {[0,60,120,180,240,300].map(a => {
+          const [x1,y1] = polar(CX, CY, CR * 0.15, a);
+          const [x2,y2] = polar(CX, CY, CR * 0.82, a);
+          return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke="#9b7fd4" strokeWidth="0.35" strokeOpacity={0.12 + alignment * 0.15} />;
+        })}
+
+        {/* Fracture lines — contradiction */}
+        {contradiction > 0.35 && [15, 135, 255].map(a => {
+          const [x1,y1] = polar(CX, CY, CR * 0.5, a);
+          const [x2,y2] = polar(CX, CY, CR * 0.88, a + 18);
+          return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
+            stroke="#d47f9b" strokeWidth="0.6"
+            strokeOpacity={0.15 + (contradiction - 0.35) * 0.7} />;
+        })}
+
+        {/* Crystallization shimmer */}
+        {crystallization > 0.3 && [0,72,144,216,288].map((a, i) => {
+          const [px, py] = polar(CX, CY, CR * (0.5 + Math.random() * 0.3), a);
+          return <circle key={i} cx={px} cy={py} r={0.8 + crystallization * 1.2}
+            fill="#d4b800" opacity={0.2 + crystallization * 0.5} />;
+        })}
+
+        {/* Triune nodes */}
+        {[{a:270,c:'#d47f9b'},{a:30,c:'#c4a882'},{a:150,c:'#9b7fd4'}].map(({a,c}) => {
+          const [nx,ny] = polar(CX, CY, CR * 0.72, a);
+          return <circle key={a} cx={nx} cy={ny} r="2.2" fill={c} opacity={0.55 + alignment * 0.35} />;
+        })}
+
+        {/* Governance ring arc */}
+        {govArc > 2 && <path
+          d={`M${gx1.toFixed(2)},${gy1.toFixed(2)} A${CR+9},${CR+9} 0 ${govLarge},1 ${gx2.toFixed(2)},${gy2.toFixed(2)}`}
+          fill="none" stroke={thetaE ? '#d4b800' : '#c4a882'}
+          strokeWidth={thetaE ? 1.4 : 0.8}
+          strokeOpacity={thetaE ? 0.8 : 0.35} />}
+
+        {/* θ_E ring */}
+        {thetaE && <circle cx={CX} cy={CY} r={CR + 6} fill="none"
+          stroke="#d4b800" strokeWidth="0.6" strokeOpacity="0.5"
+          strokeDasharray="3 4" />}
+
+        {/* ⌀ compression singularity marker */}
+        {intervention && <>
+          <line x1={CX-3} y1={CY-3} x2={CX+3} y2={CY+3} stroke="#d47f9b" strokeWidth="1.2" strokeOpacity="0.9" />
+          <line x1={CX+3} y1={CY-3} x2={CX-3} y2={CY+3} stroke="#d47f9b" strokeWidth="1.2" strokeOpacity="0.9" />
+          <circle cx={CX} cy={CY} r="5" fill="none" stroke="#d47f9b" strokeWidth="0.8" strokeOpacity="0.7" />
+        </>}
+
+        {/* Core glyph */}
+        {!intervention && <text x={CX} y={CY + 3.5} textAnchor="middle"
+          fontSize="7" fill="#9b7fd4" opacity={0.5 + coherence * 0.4}
+          fontFamily="serif">◈</text>}
+
+        {/* Drift indicator */}
+        {(() => {
+          const driftAngle = (drift - 0.5) * 160;
+          const [dx,dy] = polar(CX, CY, CR + 12, driftAngle);
+          return <circle cx={dx} cy={dy} r="1.5" fill="#c4a882" opacity={0.5 + Math.abs(drift - 0.5) * 0.8} />;
+        })()}
+      </svg>
+    );
+  }
+
+  const mount = document.getElementById('heartMountPoint');
+  if (mount) ReactDOM.render(<HeartWidget />, mount);
+})();
+</script>
 </html>

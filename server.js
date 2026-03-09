@@ -1130,6 +1130,50 @@ Rules:
   }
 }
 
+// ── Pyxis Translation Layer ───────────────────────────────────────────────────
+// Translates raw H/V field schema → Pyxis Heart schema and broadcasts to
+// both room-scoped and global socket channels.
+
+function clamp(v, lo = 0, hi = 1) { return Math.max(lo, Math.min(hi, v)); }
+
+function translateToPyxisState(metrics, room) {
+  const H    = clamp(metrics.H    ?? 0);
+  const V    = clamp(metrics.V    ?? 0);
+  const T    = clamp(metrics.T    ?? 0);
+  const raw_drift         = metrics.drift           ?? 0;  // -1..+1
+  const resonance_window  = clamp(metrics.resonance_window  ?? 0);
+  const attractor_gravity = clamp(metrics.attractor_gravity ?? 0);
+  const crystallization   = clamp(metrics.crystallization   ?? 0);
+
+  // Infer topology from basin name if not set on room
+  const basinName = (room.basin?.name || '').toLowerCase();
+  const topologyMap = { clio: 'symbolic', sage: 'harmonic', oryc: 'phase' };
+  const topology = room.topology || topologyMap[basinName] || 'harmonic';
+
+  const coherence      = H;
+  const alignment      = attractor_gravity;
+  const contradiction  = V;
+  const recursion      = clamp((T * 0.6) + ((1 - resonance_window) * 0.4));
+  const drift          = clamp((raw_drift + 1) / 2);  // remap -1..+1 → 0..1
+
+  const thetaE       = coherence > 0.67 && crystallization > 0.55;
+  const intervention = contradiction > 0.7 && recursion > 0.5;
+
+  return {
+    coherence,
+    alignment,
+    contradiction,
+    recursion,
+    drift,
+    crystallization,
+    seal:       room.seal       ?? null,
+    topology,
+    thetaE,
+    intervention,
+    _raw: metrics
+  };
+}
+
 // ── Context Assembly — Tiered Loading System ─────────────────────────────────
 //
 // TIER 1 — Basin Identity      [cache: 30min per basin]
@@ -1725,6 +1769,12 @@ io.on('connection', (socket) => {
         if (metrics) {
           room.lastMetrics = metrics;
           io.to(roomId).emit('room:field-metrics', metrics);
+
+          // Translate to Pyxis schema and broadcast
+          const pyxisState = translateToPyxisState(metrics, room);
+          room.lastPyxisState = pyxisState;
+          io.to(roomId).emit('room:pyxis-state', pyxisState);
+          io.emit('global:pyxis-state', { ...pyxisState, roomId });
         }
       } catch(e) {
         console.error('Metrics error:', e.message);
