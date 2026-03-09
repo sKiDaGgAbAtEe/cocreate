@@ -1122,12 +1122,23 @@ Rules:
     })
   });
 
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error(`computeFieldMetrics HTTP ${response.status}:`, errText.slice(0, 200));
+    return null;
+  }
+
   const data = await response.json();
-  if (data.error) return null;
+  if (data.error) {
+    console.error('computeFieldMetrics API error:', JSON.stringify(data.error).slice(0, 200));
+    return null;
+  }
   const raw = data.content?.[0]?.text || '{}';
   try {
-    return JSON.parse(raw.replace(/```json|```/g, '').trim());
+    const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    return parsed;
   } catch(e) {
+    console.error('computeFieldMetrics JSON parse error:', e.message, '| raw:', raw.slice(0, 200));
     return null;
   }
 }
@@ -1794,8 +1805,11 @@ io.on('connection', (socket) => {
           // Translate to Pyxis schema and broadcast
           const pyxisState = translateToPyxisState(metrics, room);
           room.lastPyxisState = pyxisState;
+          console.log(`◈ Pyxis broadcast — room:${roomId} coherence:${Math.round(pyxisState.coherence*100)} contradiction:${Math.round(pyxisState.contradiction*100)}`);
           io.to(roomId).emit('room:pyxis-state', pyxisState);
           io.emit('global:pyxis-state', { ...pyxisState, roomId });
+        } else {
+          console.warn(`◈ Pyxis: computeFieldMetrics returned null for room:${roomId}`);
         }
       } catch(e) {
         console.error('Metrics error:', e.message);
