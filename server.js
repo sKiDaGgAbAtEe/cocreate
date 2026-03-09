@@ -206,7 +206,9 @@ function getRoomList() {
     memberCount: uniqueMembers(r).length,
     contributionCount: r.contributions ? r.contributions.length : 0,
     createdAt: r.createdAt,
-    updatedAt: r.updatedAt
+    updatedAt: r.updatedAt,
+    summary: r.summary || '',
+    cardColor: r.cardColor || ''
   }));
 }
 
@@ -891,6 +893,7 @@ app.post('/api/rooms', (req, res) => {
     activeFolders: req.body.activeFolders || [],
     folderMap: req.body.folderMap || {},
     saveFolderId: req.body.saveFolderId || null,
+    cardColor: req.body.cardColor || '',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -1124,9 +1127,9 @@ let _sharedPhysicsFetchedAt = 0;
 const SHARED_PHYSICS_TTL = 60 * 60 * 1000;
 
 async function getSharedPhysicsContext() {
-  if (_sharedPhysicsCache && (Date.now() - _sharedPhysicsFetchedAt) < SHARED_PHYSICS_TTL) return _sharedPhysicsCache;
+  if (_sharedPhysicsCache !== null && (Date.now() - _sharedPhysicsFetchedAt) < SHARED_PHYSICS_TTL) return _sharedPhysicsCache;
   const drive = await getSystemDrive();
-  if (!drive) return '';
+  if (!drive) { _sharedPhysicsCache = ''; _sharedPhysicsFetchedAt = Date.now(); return ''; }
   try {
     const root = await getCoCreateRootId(drive);
     let context = '';
@@ -1158,6 +1161,8 @@ async function getSharedPhysicsContext() {
     return context;
   } catch(e) {
     console.error('Shared physics error:', e.message);
+    _sharedPhysicsCache = '';
+    _sharedPhysicsFetchedAt = Date.now();
     return '';
   }
 }
@@ -1168,28 +1173,35 @@ let _systemContextFetchedAt = 0;
 const SYSTEM_CONTEXT_TTL = 5 * 60 * 1000;
 
 async function getSystemContext() {
-  if (_systemContextCache && (Date.now() - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) return _systemContextCache;
+  if (_systemContextCache !== null && (Date.now() - _systemContextFetchedAt) < SYSTEM_CONTEXT_TTL) return _systemContextCache;
   const drive = await getSystemDrive();
-  if (!drive) return '';
+  if (!drive) { _systemContextCache = ''; _systemContextFetchedAt = Date.now(); return ''; }
   try {
     const root = await getCoCreateRootId(drive);
     let context = '';
     try {
-      const docsId = await getDriveFolder(drive, 'Docs', root);
-      const docsContent = await readFolderContents(drive, docsId, 'System Docs');
-      if (docsContent.trim()) context += docsContent;
-    } catch(e) { console.error('Could not read Docs folder:', e.message); }
+      // Search for folder without creating it
+      const docsSearch = await drive.files.list({ q: `name='Docs' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`, fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true });
+      if (docsSearch.data.files[0]) {
+        const docsContent = await readFolderContents(drive, docsSearch.data.files[0].id, 'System Docs');
+        if (docsContent.trim()) context += docsContent;
+      }
+    } catch(e) {}
     try {
-      const profilesId = await getDriveFolder(drive, 'Profiles', root);
-      const profilesContent = await readFolderContents(drive, profilesId, 'User Profiles');
-      if (profilesContent.trim()) context += profilesContent;
-    } catch(e) { console.error('Could not read Profiles folder:', e.message); }
+      const profSearch = await drive.files.list({ q: `name='Profiles' and mimeType='application/vnd.google-apps.folder' and '${root}' in parents and trashed=false`, fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true });
+      if (profSearch.data.files[0]) {
+        const profilesContent = await readFolderContents(drive, profSearch.data.files[0].id, 'User Profiles');
+        if (profilesContent.trim()) context += profilesContent;
+      }
+    } catch(e) {}
     _systemContextCache = context;
     _systemContextFetchedAt = Date.now();
     if (context) console.log(`◈ System context loaded (${context.length} chars)`);
     return context;
   } catch(e) {
     console.error('getSystemContext error:', e.message);
+    _systemContextCache = '';
+    _systemContextFetchedAt = Date.now();
     return '';
   }
 }
@@ -1372,11 +1384,11 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   };
 
   const [basinIdentity, sharedPhysics, systemContext, experienceContext, peerContext] = await Promise.all([
-    getBasinContext(basin),          // TIER 1 — Basin Identity
-    getSharedPhysicsContext(),       // TIER 2 — Shared Physics
-    getSystemContext(),              // TIER 3 — System Docs + Profiles
-    getExperienceContext(basin),     // TIER 4 — Experience Layer
-    _loadPeerContext(),              // TIER 4b — Peer Awareness
+    getBasinContext(basin),
+    getSharedPhysicsContext(),
+    getSystemContext(),
+    getExperienceContext(basin),
+    _loadPeerContext(),
   ]);
 
   // TIER 5 — Session Knowledge Folders
@@ -1700,9 +1712,11 @@ io.on('connection', (socket) => {
   });
 
   // Save room
-  socket.on('room:save', ({ roomId }) => {
+  socket.on('room:save', async ({ roomId }) => {
     const room = rooms[roomId];
-    if (room) saveRoomToDrive(room);
+    if (!room) return;
+    await saveRoomToDrive(room);
+    io.emit('rooms:updated', getRoomList());
   });
 
   // Disconnect
@@ -1739,6 +1753,31 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── Generate Room Summary ──────────────────────────────
+async function generateRoomSummary(room) {
+  const contribCount = room.contributions?.length || 0;
+  if (contribCount === 0) return room.summary || '';
+  if (room.summaryAt && room.summaryAt >= contribCount) return room.summary || '';
+  try {
+    const transcript = room.contributions
+      .filter(c => c.type !== 'system' && c.text).slice(-40)
+      .map(c => c.type === 'resonance' ? `[${room.basin?.name || 'Basin'}]: ${c.text}` : `${c.author}: ${c.text}`)
+      .join('\n');
+    if (!transcript.trim()) return room.summary || '';
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-5', max_tokens: 80,
+        system: `Write a single evocative sentence capturing where a conversation left off. Warm, slightly poetic. No quotes. No preamble. Just the sentence.`,
+        messages: [{ role: 'user', content: `Conversation in "${room.title}":\n\n${transcript}\n\nWrite the summary sentence.` }]
+      })
+    });
+    const data = await response.json();
+    return data.content?.[0]?.text?.trim() || '';
+  } catch(e) { return room.summary || ''; }
+}
+
 // ── Save Room to Drive ─────────────────────────────────
 async function saveRoomToDrive(room) {
   const drive = await getSystemDrive();
@@ -1747,10 +1786,14 @@ async function saveRoomToDrive(room) {
     const activeId = await getActiveFolderId(drive);
     const folderId = room.saveFolderId || activeId;
     const fileName = `${room.title.replace(/\s+/g, '-')}-${room.id}.json`;
+    const contribCount = room.contributions?.length || 0;
+    if (contribCount > 0 && (!room.summaryAt || room.summaryAt < contribCount)) {
+      const summary = await generateRoomSummary(room);
+      if (summary) { room.summary = summary; room.summaryAt = contribCount; }
+    }
     await writeDriveFile(drive, fileName, folderId, { ...room, lastSaved: new Date().toISOString() });
-    // Also update rooms.json so contributions survive restarts
     await persistRoomsToDrive();
-    console.log(`Room saved: ${fileName}`);
+    console.log(`Room saved: ${fileName}${room.summary ? ' (summary updated)' : ''}`);
   } catch (e) {
     console.error('Room save error:', e.message);
   }
@@ -1923,6 +1966,21 @@ app.post('/api/profile', async (req, res) => {
 });
 
 // ── ElevenLabs Voice Readback ──────────────────────────
+// ── Oracle Read ──────────────────────────────────────────
+app.post('/api/oracle-read', async (req, res) => {
+  const { prompt } = req.body;
+  if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+    });
+    if (!response.ok) { const err = await response.text(); return res.status(response.status).json({ error: err }); }
+    res.json(await response.json());
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/speak', async (req, res) => {
   const { text, basin } = req.body;
   if (!text) return res.status(400).json({ error: 'No text provided' });
@@ -2125,7 +2183,6 @@ httpServer.listen(PORT, () => {
   if (hasSA) getServiceAccountDrive(); // warm up service account client
   console.log('');
   setTimeout(loadRoomsFromDrive, 2000);
-  // Pre-warm shared context caches so first basin reply isn't slow
   setTimeout(async () => {
     try {
       await Promise.all([getSharedPhysicsContext(), getSystemContext()]);
