@@ -2316,18 +2316,17 @@ httpServer.listen(PORT, () => {
       console.log('◈ Context caches warmed');
     } catch(e) { console.warn('Cache warm error:', e.message); }
   }, 4000);
-  // Auto-save all rooms every 30 seconds
+  // Auto-save rooms with recent activity every 30 seconds
   setInterval(async () => {
     const activeRooms = Object.values(rooms);
     if (!activeRooms.length) return;
-    await persistRoomsToDrive();
-    // Also write individual room files for any room with recent activity (updated in last 2 min)
     const cutoff = Date.now() - 2 * 60 * 1000;
-    for (const room of activeRooms) {
-      if (room.updatedAt && new Date(room.updatedAt).getTime() > cutoff) {
-        await saveRoomToDrive(room).catch(e => console.error('Auto-save room error:', e.message));
-      }
+    const recentRooms = activeRooms.filter(r => r.updatedAt && new Date(r.updatedAt).getTime() > cutoff);
+    if (!recentRooms.length) return;
+    await persistRoomsToDrive();
+    for (const room of recentRooms) {
+      await saveRoomToDrive(room).catch(e => console.error('Auto-save room error:', e.message));
     }
-    console.log(`◈ Auto-saved ${activeRooms.length} room(s)`);
+    console.log(`◈ Auto-saved ${recentRooms.length} room(s)`);
   }, 30 * 1000);
 });
