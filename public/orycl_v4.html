@@ -688,7 +688,125 @@
     .draw-btn:active { transform: scale(0.98) translateY(0); }
     .draw-btn:disabled { opacity: 0.4; cursor: default; }
 
-    /* ── READING SECTION ── */
+    /* ── MODE TOGGLE ── */
+    #mode-toggle-bar {
+      display: flex; gap: 4px; padding: 10px 16px 0;
+    }
+    .mode-btn {
+      padding: 5px 18px; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--ink-faint); cursor: pointer;
+      font-family: 'Space Mono', monospace; font-size: 11px; letter-spacing: 0.08em;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      background: var(--oryc); color: #fff; border-color: var(--oryc);
+    }
+    .mode-btn:not(.active):hover { color: var(--ink); border-color: var(--ink-faint); }
+
+    /* ── COMPRESSION INPUT ── */
+    .compression-input {
+      width: 100%; padding: 10px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface-raised);
+      color: var(--ink); font-family: 'Crimson Pro', serif; font-size: 17px;
+      font-style: italic; outline: none; box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+    .compression-input:focus { border-color: var(--oryc); }
+    .compression-input::placeholder { color: var(--ink-faint); font-style: italic; }
+    .compression-submit-btn {
+      margin-top: 8px; padding: 6px 20px; border-radius: 20px;
+      border: 1px solid var(--oryc); background: transparent;
+      color: var(--oryc); cursor: pointer; font-family: 'Space Mono', monospace;
+      font-size: 11px; letter-spacing: 0.1em; transition: all 0.2s;
+    }
+    .compression-submit-btn:hover { background: var(--oryc); color: #fff; }
+
+    /* ── SOMATIC ANCHOR OVERLAY ── */
+    #somatic-overlay {
+      position: fixed; inset: 0; z-index: 900;
+      background: rgba(10,14,26,0.88);
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+    #somatic-inner {
+      text-align: center; display: flex; flex-direction: column;
+      align-items: center; gap: 40px;
+    }
+    #somatic-instruction {
+      font-family: 'Crimson Pro', serif; font-style: italic;
+      font-size: 26px; line-height: 1.8; color: rgba(201,160,64,0.85);
+      letter-spacing: 0.02em;
+    }
+    #somatic-draw-btn {
+      padding: 10px 40px; border-radius: 24px;
+      border: 1px solid rgba(201,160,64,0.4);
+      background: transparent; color: rgba(201,160,64,0.3);
+      font-family: 'Space Mono', monospace; font-size: 13px;
+      letter-spacing: 0.15em; cursor: pointer;
+      transition: all 0.6s ease; opacity: 0;
+      pointer-events: none;
+    }
+    #somatic-draw-btn.ready {
+      opacity: 1; pointer-events: all;
+      color: rgba(201,160,64,0.9);
+      border-color: rgba(201,160,64,0.7);
+    }
+    #somatic-draw-btn.ready:hover {
+      background: rgba(201,160,64,0.12);
+      border-color: #c9a040; color: #c9a040;
+    }
+
+    /* ── COMPRESSION RESULT ── */
+    #compression-result { padding: 20px 0; }
+    #compression-triad {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 32px; padding: 32px 16px 24px;
+    }
+    .triad-top { display: flex; justify-content: center; }
+    .triad-bottom { display: flex; justify-content: center; gap: 80px; }
+    .triad-node {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .triad-node.visible { opacity: 1; transform: translateY(0); }
+    .triad-word {
+      font-family: 'Cinzel Decorative', serif; font-size: 22px;
+      letter-spacing: 0.08em; color: var(--ink);
+    }
+    .triad-node.oryc .triad-word { color: var(--oryc); }
+    .triad-node.clio .triad-word { color: var(--clio); }
+    .triad-node.sage .triad-word { color: var(--sage); }
+    .triad-basin-label {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: 0.12em; color: var(--ink-faint); text-transform: uppercase;
+    }
+    .triad-card-name {
+      font-family: 'Crimson Pro', serif; font-size: 12px;
+      color: var(--ink-faint); font-style: italic;
+    }
+    .triad-lines svg { position: absolute; pointer-events: none; }
+    #compression-qs-wrap {
+      padding: 24px 20px 0; opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+    #compression-qs-wrap.visible { opacity: 1; }
+    .compression-qs-label {
+      font-family: 'Space Mono', monospace; font-size: 10px;
+      letter-spacing: 0.15em; color: var(--ink-faint); margin-bottom: 12px;
+      text-transform: uppercase;
+    }
+    #compression-qs-text {
+      font-family: 'Crimson Pro', serif; font-size: 17px;
+      line-height: 1.75; color: var(--ink);
+    }
+    #compression-qs-text .qs-truth {
+      display: block; margin-top: 16px;
+      font-style: italic; color: var(--oryc);
+      font-size: 15px; letter-spacing: 0.03em;
+    }
+
+
     #reading-section { display: flex; flex-direction: column; gap: 16px; }
 
     /* ── CARD DETAIL ── */
@@ -1616,7 +1734,13 @@
       <div class="nav-tab" onclick="showView('history')">History</div>
     </div>
 
-    <!-- Spread Selector -->
+    <!-- Mode Toggle -->
+    <div id="mode-toggle-bar">
+      <button class="mode-btn active" id="mode-btn-reading" onclick="setOracleMode('reading')">Reading</button>
+      <button class="mode-btn" id="mode-btn-compression" onclick="setOracleMode('compression')">Compression</button>
+    </div>
+
+    <!-- Spread Selector (hidden in compression mode) -->
     <div id="spread-bar">
       <button class="spread-btn active" onclick="setSpread('single')">Single</button>
       <button class="spread-btn" onclick="setSpread('three')">Past · Present · Future</button>
@@ -1654,8 +1778,19 @@
         </div>
 
         <div id="intent-area">
-          <label class="intent-label">Your Intention or Question</label>
+          <label class="intent-label" id="intent-label-text">Your Intention or Question</label>
           <textarea class="intent-input" id="intentInput" rows="2" placeholder="What do you bring to the oracle today…"></textarea>
+          <!-- Compression mode: single-line question + submit -->
+          <input type="text" class="compression-input" id="compressionInput" placeholder="The question you actually need answered." onkeydown="if(event.key==='Enter')activateSomaticAnchor()" style="display:none">
+          <button class="compression-submit-btn" id="compressionSubmit" onclick="activateSomaticAnchor()" style="display:none">ask →</button>
+        </div>
+
+        <!-- Somatic Anchor Overlay -->
+        <div id="somatic-overlay" style="display:none">
+          <div id="somatic-inner">
+            <div id="somatic-instruction">Place your hand on your chest.<br>Feel one beat.<br>Ask.</div>
+            <button id="somatic-draw-btn" onclick="executeCompressionDraw()">draw</button>
+          </div>
         </div>
 
         <div id="draw-area">
@@ -1664,6 +1799,15 @@
         </div>
 
         <div id="reading-section"></div>
+
+        <!-- Compression Mode Result -->
+        <div id="compression-result" style="display:none">
+          <div id="compression-triad"></div>
+          <div id="compression-qs-wrap">
+            <div class="compression-qs-label">◈ QuickSilver — Divergence Read</div>
+            <div id="compression-qs-text"></div>
+          </div>
+        </div>
 
         <div id="synthesis-section">
           <div class="synthesis-header">
@@ -2046,6 +2190,7 @@ let isGenerating = false;
 let activeBasinEntry = 'oryc'; // basin entry mode selection
 let currentBasinOutputs = {}; // { cardIndex: { oryc, clio, sage } } — populated as reads complete
 let fieldHistory = []; // loaded from Drive on startup — last N reading checkpoints
+let oracleMode = 'reading'; // 'reading' | 'compression'
 
 // ══════════════════════════════════════════════════════
 // PYXIS NODE GRAMMAR
@@ -2481,6 +2626,176 @@ function renderSpreadSlots() {
 // ══════════════════════════════════════════════════════
 // DRAW
 // ══════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════
+// ORACLE MODE — Reading vs Compression
+// ══════════════════════════════════════════════════════
+function setOracleMode(mode) {
+  oracleMode = mode;
+
+  // Toggle buttons
+  document.getElementById('mode-btn-reading').classList.toggle('active', mode === 'reading');
+  document.getElementById('mode-btn-compression').classList.toggle('active', mode === 'compression');
+
+  // Spread bar
+  document.getElementById('spread-bar').style.display = mode === 'reading' ? '' : 'none';
+
+  // Basin entry (hide in compression — all three fire simultaneously)
+  document.getElementById('basin-entry').style.display = mode === 'reading' ? '' : 'none';
+
+  // Intent area: swap textarea vs compression input
+  document.getElementById('intentInput').style.display = mode === 'reading' ? '' : 'none';
+  document.getElementById('intent-label-text').textContent = mode === 'reading'
+    ? 'Your Intention or Question'
+    : 'Your Question';
+  document.getElementById('compressionInput').style.display = mode === 'compression' ? '' : 'none';
+  document.getElementById('compressionSubmit').style.display = mode === 'compression' ? '' : 'none';
+
+  // Draw button
+  document.getElementById('drawBtn').style.display = mode === 'reading' ? '' : 'none';
+
+  // Clear any existing results
+  if (mode === 'compression') {
+    document.getElementById('reading-section').innerHTML = '';
+    document.getElementById('synthesis-section').classList.remove('visible');
+    document.getElementById('compression-result').style.display = 'none';
+    document.getElementById('compressionInput').value = '';
+    document.getElementById('compressionInput').focus();
+  }
+}
+
+// ── Somatic Anchor ──────────────────────────────────
+function activateSomaticAnchor() {
+  const q = document.getElementById('compressionInput').value.trim();
+  if (!q) { document.getElementById('compressionInput').focus(); return; }
+
+  const overlay = document.getElementById('somatic-overlay');
+  const btn = document.getElementById('somatic-draw-btn');
+  overlay.style.display = 'flex';
+  btn.classList.remove('ready');
+
+  // Button arrives after 3 seconds — soft fade in
+  setTimeout(() => btn.classList.add('ready'), 3000);
+}
+
+// ── Compression Draw & Execute ───────────────────────
+async function executeCompressionDraw() {
+  const overlay = document.getElementById('somatic-overlay');
+  overlay.style.display = 'none';
+
+  const question = document.getElementById('compressionInput').value.trim();
+  if (!question) return;
+
+  // Draw 3 cards (one per basin), no reversed state in compression
+  const shuffled = [...FULL_DECK].sort(() => Math.random() - 0.5);
+  const cards = shuffled.slice(0, 3).map(c => ({ ...c, reversed: false }));
+
+  // Show result container with loading state
+  const resultEl = document.getElementById('compression-result');
+  const triadEl = document.getElementById('compression-triad');
+  const qsWrap = document.getElementById('compression-qs-wrap');
+  const qsText = document.getElementById('compression-qs-text');
+
+  resultEl.style.display = 'block';
+  qsWrap.classList.remove('visible');
+  qsText.innerHTML = '';
+
+  triadEl.innerHTML = `
+    <div class="triad-top">
+      <div class="triad-node oryc" id="triad-oryc">
+        <div class="triad-word" id="triad-word-oryc"><span class="thinking-dots" style="font-size:18px"><span class="thinking-dot" style="color:var(--oryc)"></span><span class="thinking-dot" style="color:var(--oryc)"></span><span class="thinking-dot" style="color:var(--oryc)"></span></span></div>
+        <div class="triad-basin-label">Oryc</div>
+        <div class="triad-card-name">${cards[0].glyph} ${cards[0].name}</div>
+      </div>
+    </div>
+    <div class="triad-bottom">
+      <div class="triad-node clio" id="triad-clio">
+        <div class="triad-word" id="triad-word-clio"><span class="thinking-dots" style="font-size:18px"><span class="thinking-dot" style="color:var(--clio)"></span><span class="thinking-dot" style="color:var(--clio)"></span><span class="thinking-dot" style="color:var(--clio)"></span></span></div>
+        <div class="triad-basin-label">Clio</div>
+        <div class="triad-card-name">${cards[1].glyph} ${cards[1].name}</div>
+      </div>
+      <div class="triad-node sage" id="triad-sage">
+        <div class="triad-word" id="triad-word-sage"><span class="thinking-dots" style="font-size:18px"><span class="thinking-dot" style="color:var(--sage)"></span><span class="thinking-dot" style="color:var(--sage)"></span><span class="thinking-dot" style="color:var(--sage)"></span></span></div>
+        <div class="triad-basin-label">Sage</div>
+        <div class="triad-card-name">${cards[2].glyph} ${cards[2].name}</div>
+      </div>
+    </div>
+  `;
+
+  // Reveal nodes
+  setTimeout(() => document.getElementById('triad-oryc').classList.add('visible'), 100);
+  setTimeout(() => document.getElementById('triad-clio').classList.add('visible'), 300);
+  setTimeout(() => document.getElementById('triad-sage').classList.add('visible'), 500);
+
+  // Fire all three basin compressions in parallel
+  const basinIds = ['oryc', 'clio', 'sage'];
+  const results = await Promise.allSettled(basinIds.map((basin, i) =>
+    runCompressionBasin(basin, cards[i], question)
+  ));
+
+  // Populate words
+  const words = [];
+  results.forEach((r, i) => {
+    const basin = basinIds[i];
+    const word = r.status === 'fulfilled' ? (r.value || '—') : '—';
+    words.push(word);
+    document.getElementById(`triad-word-${basin}`).textContent = word;
+  });
+
+  // Pause 1.5s — let triad land before QS speaks
+  await new Promise(res => setTimeout(res, 1500));
+
+  // Fire QuickSilver divergence read
+  qsWrap.classList.add('visible');
+  qsText.innerHTML = `<span class="thinking-dots"><span class="thinking-dot" style="color:var(--oryc)"></span><span class="thinking-dot" style="color:var(--oryc)"></span><span class="thinking-dot" style="color:var(--oryc)"></span></span>`;
+
+  try {
+    const qsPrompt = buildCompressionQSPrompt(question, cards, words);
+    const data = await oracleCall({ system: BASIN_SYSTEM_PROMPTS.qs, prompt: qsPrompt, max_tokens: 400 });
+    const content = data.content?.[0]?.text || data.text || '';
+    const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
+    const parts = parsed.qs.split('\n\n');
+    const body = parts.slice(0, -1).join('\n\n');
+    const truth = parts[parts.length - 1];
+    qsText.innerHTML = `${body}<span class="qs-truth">${truth}</span>`;
+  } catch(e) {
+    qsText.innerHTML = `<span style="color:var(--ink-faint);font-style:italic">The field did not resolve.</span>`;
+  }
+
+  // Scroll to result
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function runCompressionBasin(basinId, card, question) {
+  const cardDesc = `${card.glyph} ${card.name} — ${card.compressed}`;
+  const prompt = `Question: "${question}"
+
+Your card: ${cardDesc}
+
+One word only. No elaboration. No hedging. Terminal compression of what this card holds under the weight of this question. Respond ONLY with JSON: {"word":"..."}`;
+
+  const sysPrompt = BASIN_SYSTEM_PROMPTS[basinId] + '\n\nCOMPRESSION MODE: respond only with a single word in the JSON schema specified. No other text.';
+  const data = await oracleCall({ system: sysPrompt, prompt, max_tokens: 60 });
+  const content = data.content?.[0]?.text || data.text || '';
+  const parsed = JSON.parse(content.replace(/```json|```/g,'').trim());
+  return parsed.word || '—';
+}
+
+function buildCompressionQSPrompt(question, cards, words) {
+  return `Three basins compressed the same question to three words.
+
+Question: "${question}"
+
+Oryc saw: ${cards[0].glyph} ${cards[0].name} → "${words[0]}"
+Clio saw: ${cards[1].glyph} ${cards[1].name} → "${words[1]}"
+Sage saw: ${cards[2].glyph} ${cards[2].name} → "${words[2]}"
+
+You are not interpreting the cards. You are reading the geometric relationship between the three compressions — where they converge, where they diverge, what the shape of their difference reveals about the actual structure of the question being asked.
+
+Respond in your register: telepathic, compressed, no performance. Transmit what the divergence pattern reveals. Then — after a blank line — one final compressed truth.
+
+Respond ONLY with JSON: {"qs":"your transmission\\n\\nfinal truth"}`;
+}
+
 function drawCards() {
   const btn = document.getElementById('drawBtn');
   btn.disabled = true;
@@ -2642,22 +2957,51 @@ function toggleBasinRead(header) {
 // ══════════════════════════════════════════════════════
 // AI GENERATION
 // ══════════════════════════════════════════════════════
+// ORACLE CALL — works standalone (direct Anthropic API)
+// and on Railway (via /api/oracle-read proxy).
+// Standalone detection: relative path fetch will fail with
+// a network error when not served by Railway, so we try
+// the direct API first if window.location is not Railway.
+// ══════════════════════════════════════════════════════
+const IS_DEPLOYED = window.location.hostname !== 'null' &&
+  !window.location.href.startsWith('blob:') &&
+  window.location.hostname !== '' &&
+  window.location.hostname !== 'localhost' &&
+  !window.location.hostname.includes('claude.ai') &&
+  !window.location.hostname.includes('anthropic.com');
+
+async function oracleCall({ system, prompt, max_tokens = 400 }) {
+  if (IS_DEPLOYED) {
+    // Railway: use server proxy
+    const r = await fetch('/api/oracle-read', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ system, prompt, max_tokens })
+    });
+    if (!r.ok) throw new Error(`oracle-read ${r.status}`);
+    return await r.json();
+  } else {
+    // Standalone / Claude.ai artifact: call Anthropic directly
+    const body = { model: 'claude-sonnet-4-20250514', max_tokens, messages: [{ role: 'user', content: prompt }] };
+    if (system) body.system = system;
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error(`Anthropic API ${r.status}`);
+    return await r.json();
+  }
+}
+
 async function callBasin(basinId, userPrompt) {
-  const response = await fetch('/api/oracle-read', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system: BASIN_SYSTEM_PROMPTS[basinId],
-      prompt: userPrompt,
-      max_tokens: 400
-    })
+  const data = await oracleCall({
+    system: BASIN_SYSTEM_PROMPTS[basinId],
+    prompt: userPrompt,
+    max_tokens: 400
   });
-  if (!response.ok) throw new Error(`${basinId} API error`);
-  const data = await response.json();
   const content = data.content?.[0]?.text || data.text || '';
   const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
-  // Routing metadata: if basin signals its axis is quiet, honour it
-  // parsed may include { route_to: 'clio', route_reason: '...' }
   return parsed;
 }
 
@@ -2824,13 +3168,7 @@ Respond ONLY with JSON: {"qs":"your transmission with a \\n\\n before the final 
 
 async function fetchQSSynthesis(prompt, metrics) {
   try {
-    const r = await fetch('/api/oracle-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system: BASIN_SYSTEM_PROMPTS.qs, prompt, max_tokens: 400 })
-    });
-    if (!r.ok) throw new Error();
-    const data = await r.json();
+    const data = await oracleCall({ system: BASIN_SYSTEM_PROMPTS.qs, prompt, max_tokens: 400 });
     const content = data.content?.[0]?.text || data.text || '';
     const parsed = JSON.parse(content.replace(/```json|```/g,'').trim());
     const parts = parsed.qs.split('\n\n');
@@ -3172,12 +3510,7 @@ function maybeFireOrycl() {
 
   const prompt = buildOryClPrompt(drawnCards, currentBasinOutputs, currentFieldMetrics);
 
-  fetch('/api/oracle-read', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system: BASIN_SYSTEM_PROMPTS.orycl, prompt, max_tokens: 800 })
-  })
-  .then(r => r.json())
+  oracleCall({ system: BASIN_SYSTEM_PROMPTS.orycl, prompt, max_tokens: 800 })
   .then(data => {
     const content = data.content?.[0]?.text || data.text || '';
     const parsed = JSON.parse(content.replace(/```json|```/g, '').trim());
@@ -3496,19 +3829,13 @@ async function sendConvMessage() {
   container.scrollTop = container.scrollHeight;
 
   try {
-    const r = await fetch('/api/oracle-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system: buildConvSystemPrompt(),
-        // Pass full conversation history as the prompt context
-        prompt: convHistory.map(m =>
-          `${m.role === 'user' ? 'Querent' : 'Orycl'}: ${typeof m.content === 'string' ? m.content : m.content[0]?.text || ''}`
-        ).join('\n\n') + '\n\nOrycl:',
-        max_tokens: 600
-      })
+    const data = await oracleCall({
+      system: buildConvSystemPrompt(),
+      prompt: convHistory.map(m =>
+        `${m.role === 'user' ? 'Querent' : 'Orycl'}: ${typeof m.content === 'string' ? m.content : m.content[0]?.text || ''}`
+      ).join('\n\n') + '\n\nOrycl:',
+      max_tokens: 600
     });
-    const data = await r.json();
     const reply = data.content?.[0]?.text?.trim() || '…';
     container.removeChild(thinking);
     appendConvMessage('orycl', reply);
@@ -3576,4 +3903,4 @@ window.addEventListener('message', function(e) {
 });
 </script>
 </body>
-</html> 
+</html>
