@@ -1169,7 +1169,8 @@
               Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span>
               <button id="pyxisExpandBtn" onclick="togglePyxisPanel()" style="font-family:var(--mono);font-size:8px;letter-spacing:.08em;padding:2px 8px;border-radius:3px;border:1px solid rgba(148,184,122,0.2);background:transparent;color:var(--ink-dim);cursor:pointer;">expand</button>
             </div>
-            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:120px;position:relative;"></div>
+            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:flex-start;padding-top:12px;height:100px;overflow:visible;position:relative;"></div>
+            <div id="heartWaitingMsg" style="font-family:var(--mono);font-size:8px;color:var(--ink-faint);text-align:center;margin-top:4px;letter-spacing:0.05em;">waiting for room activity</div>
             <!-- Pyxis Full Panel operator overlay -->
             <div id="pyxisFullPanel" style="display:none;position:fixed;inset:0;z-index:9900;background:rgba(2,6,12,0.92);backdrop-filter:blur(6px);">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(148,184,122,0.15);background:rgba(5,12,8,0.95);">
@@ -1974,16 +1975,9 @@ Measurement rules — all scores 0.0 to 1.0 unless noted:
       })
     });
     const data = await res.json();
-    if (data.error) { addLog('system','error',`field-metrics API: ${data.error}`); return null; }
     const raw = data.text || '{}';
-    try {
-      return JSON.parse(raw.replace(/```json|```/g,'').trim());
-    } catch(parseErr) {
-      addLog('system','error',`field-metrics parse: ${parseErr.message} | raw: ${raw.slice(0,80)}`);
-      return null;
-    }
+    return JSON.parse(raw.replace(/```json|```/g,'').trim());
   } catch(e) {
-    addLog('system','error',`field-metrics fetch: ${e.message}`);
     return null;
   }
 }
@@ -2168,14 +2162,8 @@ async function send() {
 
     // Field metrics only for main basins
     if (active.length > 0) {
-      const nonQS = messageLog.filter(m => m.role !== 'qs');
-      addLog('system','field-debug',`computing metrics — ${nonQS.length} msgs`);
-      const metrics = await computeFieldMetrics(nonQS);
-      if (metrics) {
-        updateFieldUI(metrics);
-      } else {
-        addLog('system','error','field-metrics returned null — check system log');
-      }
+      const metrics = await computeFieldMetrics(messageLog.filter(m => m.role !== 'qs'));
+      if (metrics) updateFieldUI(metrics);
     }
 
   } catch(e) {
@@ -2419,6 +2407,9 @@ function autoResize(el) {
 })();
 
 function updateHeartPanel(p) {
+  // Hide waiting message on first data
+  const wm = document.getElementById('heartWaitingMsg');
+  if (wm) wm.style.display = 'none';
   // Substrate state labels
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
   setEl('hp-room',     p.roomId || p._raw?.roomId || '—');
@@ -2466,7 +2457,7 @@ function updateHeartPanel(p) {
     // Create a properly-sized inner container for the micro heart
     const inner = document.createElement('div');
     inner.id = 'pyxisMicroMount';
-    inner.style.cssText = 'width:88px;height:88px;position:relative;';
+    inner.style.cssText = 'width:80px;height:80px;position:relative;flex-shrink:0;';
     mountEl.appendChild(inner);
 
     if (typeof PyxisCore !== 'undefined') {
