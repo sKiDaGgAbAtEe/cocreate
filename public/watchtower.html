@@ -809,6 +809,20 @@
     }
     .heart-panel.open { width: 220px; }
     .heart-panel-inner { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; min-width: 196px; }
+    /* Override PyxisCore micro fixed positioning inside the heart panel */
+    #heartMountPoint .pyxis-micro {
+      position: relative !important;
+      bottom: auto !important;
+      right: auto !important;
+      width: 80px !important;
+      height: 80px !important;
+      z-index: auto !important;
+      display: block !important;
+    }
+    #heartMountPoint .pyxis-root {
+      position: relative !important;
+    }
+
     .hp-section-title {
       font-family: 'Cinzel', serif; font-size: 8px;
       letter-spacing: 0.2em; color: var(--gold);
@@ -1169,8 +1183,7 @@
               Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span>
               <button id="pyxisExpandBtn" onclick="togglePyxisPanel()" style="font-family:var(--mono);font-size:8px;letter-spacing:.08em;padding:2px 8px;border-radius:3px;border:1px solid rgba(148,184,122,0.2);background:transparent;color:var(--ink-dim);cursor:pointer;">expand</button>
             </div>
-            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:flex-start;padding-top:12px;height:100px;overflow:visible;position:relative;"></div>
-            <div id="heartWaitingMsg" style="font-family:var(--mono);font-size:8px;color:var(--ink-faint);text-align:center;margin-top:4px;letter-spacing:0.05em;">waiting for room activity</div>
+            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;padding:8px 0 4px 0;"></div>
             <!-- Pyxis Full Panel operator overlay -->
             <div id="pyxisFullPanel" style="display:none;position:fixed;inset:0;z-index:9900;background:rgba(2,6,12,0.92);backdrop-filter:blur(6px);">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(148,184,122,0.15);background:rgba(5,12,8,0.95);">
@@ -2407,9 +2420,6 @@ function autoResize(el) {
 })();
 
 function updateHeartPanel(p) {
-  // Hide waiting message on first data
-  const wm = document.getElementById('heartWaitingMsg');
-  if (wm) wm.style.display = 'none';
   // Substrate state labels
   const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '—'; };
   setEl('hp-room',     p.roomId || p._raw?.roomId || '—');
@@ -2457,7 +2467,7 @@ function updateHeartPanel(p) {
     // Create a properly-sized inner container for the micro heart
     const inner = document.createElement('div');
     inner.id = 'pyxisMicroMount';
-    inner.style.cssText = 'width:80px;height:80px;position:relative;flex-shrink:0;';
+    inner.style.cssText = 'width:88px;height:88px;position:relative;';
     mountEl.appendChild(inner);
 
     if (typeof PyxisCore !== 'undefined') {
