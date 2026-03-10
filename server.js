@@ -1615,9 +1615,20 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   return data.content?.[0]?.text || '';
 }
 // ── Socket.io ──────────────────────────────────────────
+// ── Global Pyxis state — last known, for late-joining Watchtower clients ──────
+let _lastGlobalPyxisState = null;
+
 io.on('connection', (socket) => {
   let currentRoom = null;
   let currentPlayer = null;
+
+  // ── Watchtower subscribe — sends last known state immediately on connect ──
+  socket.on('watchtower:subscribe', () => {
+    socket.join('__watchtower__');
+    if (_lastGlobalPyxisState) {
+      socket.emit('global:pyxis-state', _lastGlobalPyxisState);
+    }
+  });
 
   // ── Lobby presence ──────────────────────────────────
   socket.on('lobby:join', ({ playerName: pName }) => {
@@ -1805,9 +1816,11 @@ io.on('connection', (socket) => {
           // Translate to Pyxis schema and broadcast
           const pyxisState = translateToPyxisState(metrics, room);
           room.lastPyxisState = pyxisState;
+          const globalPyxis = { ...pyxisState, roomId };
+          _lastGlobalPyxisState = globalPyxis;
           console.log(`◈ Pyxis broadcast — room:${roomId} coherence:${Math.round(pyxisState.coherence*100)} contradiction:${Math.round(pyxisState.contradiction*100)}`);
           io.to(roomId).emit('room:pyxis-state', pyxisState);
-          io.emit('global:pyxis-state', { ...pyxisState, roomId });
+          io.emit('global:pyxis-state', globalPyxis);
         } else {
           console.warn(`◈ Pyxis: computeFieldMetrics returned null for room:${roomId}`);
         }
@@ -2519,4 +2532,4 @@ httpServer.listen(PORT, () => {
     }
     console.log(`◈ Auto-saved ${recentRooms.length} room(s)`);
   }, 30 * 1000);
-});  
+});

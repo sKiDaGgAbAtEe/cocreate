@@ -1169,7 +1169,7 @@
               Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span>
               <button id="pyxisExpandBtn" onclick="togglePyxisPanel()" style="font-family:var(--mono);font-size:8px;letter-spacing:.08em;padding:2px 8px;border-radius:3px;border:1px solid rgba(148,184,122,0.2);background:transparent;color:var(--ink-dim);cursor:pointer;">expand</button>
             </div>
-            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:120px;position:relative;"></div>
+            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:120px;padding-top:16px;overflow:hidden;position:relative;"></div>
             <!-- Pyxis Full Panel operator overlay -->
             <div id="pyxisFullPanel" style="display:none;position:fixed;inset:0;z-index:9900;background:rgba(2,6,12,0.92);backdrop-filter:blur(6px);">
               <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(148,184,122,0.15);background:rgba(5,12,8,0.95);">
@@ -2392,6 +2392,7 @@ function autoResize(el) {
 
   socket.on('connect', () => {
     if (dot) { dot.textContent = '● live'; dot.style.color = 'var(--sage)'; }
+    socket.emit('watchtower:subscribe');
   });
   socket.on('disconnect', () => {
     if (dot) { dot.textContent = '○ offline'; dot.style.color = 'var(--ink-faint)'; }
@@ -2453,7 +2454,7 @@ function updateHeartPanel(p) {
     // Create a properly-sized inner container for the micro heart
     const inner = document.createElement('div');
     inner.id = 'pyxisMicroMount';
-    inner.style.cssText = 'width:88px;height:88px;position:relative;';
+    inner.style.cssText = 'width:80px;height:80px;position:relative;';
     mountEl.appendChild(inner);
 
     if (typeof PyxisCore !== 'undefined') {
