@@ -9,6 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="/pyxis-core.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1164,8 +1165,19 @@
             <div class="hp-state-row"><span class="hp-state-label">seal</span><span class="hp-state-value" id="hp-seal">—</span></div>
           </div>
           <div>
-            <div class="hp-section-title">Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span></div>
-            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:110px;"></div>
+            <div class="hp-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+              Heart <span id="fpSocketLabel" style="font-size:7px;letter-spacing:0.05em;color:var(--ink-faint)">○ offline</span>
+              <button id="pyxisExpandBtn" onclick="togglePyxisPanel()" style="font-family:var(--mono);font-size:8px;letter-spacing:.08em;padding:2px 8px;border-radius:3px;border:1px solid rgba(148,184,122,0.2);background:transparent;color:var(--ink-dim);cursor:pointer;">expand</button>
+            </div>
+            <div id="heartMountPoint" style="display:flex;justify-content:center;align-items:center;height:120px;position:relative;"></div>
+            <!-- Pyxis Full Panel operator overlay -->
+            <div id="pyxisFullPanel" style="display:none;position:fixed;inset:0;z-index:9900;background:rgba(2,6,12,0.92);backdrop-filter:blur(6px);">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(148,184,122,0.15);background:rgba(5,12,8,0.95);">
+                <span style="font-family:'Cinzel',serif;font-size:13px;letter-spacing:.12em;color:var(--sage)">Pyxis Core · Full View</span>
+                <button onclick="togglePyxisPanel()" style="font-family:var(--mono);font-size:11px;padding:4px 12px;border-radius:4px;border:1px solid rgba(148,184,122,0.25);background:transparent;color:var(--ink-dim);cursor:pointer;">✕ close</button>
+              </div>
+              <div id="pyxisFullMount" style="height:calc(100% - 44px);overflow:hidden;"></div>
+            </div>
           </div>
           <div>
             <div class="hp-section-title">Field Metrics</div>
@@ -2420,162 +2432,61 @@ function updateHeartPanel(p) {
   if (theta)  theta.className  = 'hp-threshold' + (p.thetaE       ? ' active' : '');
   if (interv) interv.className = 'hp-threshold' + (p.intervention ? ' warn'   : '');
 
-  // Push metrics into the React Heart widget
-  if (window._heartSetMetrics) {
-    window._heartSetMetrics({
-      coherence:     p.coherence     ?? 0,
-      alignment:     p.alignment     ?? 0,
-      contradiction: p.contradiction ?? 0,
-      recursion:     p.recursion     ?? 0,
-      drift:         p.drift         ?? 0,
-      crystallization: p.crystallization ?? 0,
-      thetaE:        p.thetaE        ?? false,
-      intervention:  p.intervention  ?? false,
-    });
+  // Push raw metrics into PyxisCore — feeds both micro heart and full panel
+  if (typeof PyxisCore !== 'undefined') {
+    PyxisCore.push(p, 'pyxisMicroMount');
+    // If full panel is open, feed it too
+    const fp = document.getElementById('pyxisFullPanel');
+    if (fp && fp.style.display !== 'none') PyxisCore.push(p, 'pyxisFullMount');
   }
 }
 
 </script>
 
-<!-- ── CrystalHeart React Widget ─────────────────────────────────────────── -->
-<script type="text/babel">
-(function mountHeartWidget() {
-  const { useState, useEffect, useRef } = React;
+<!-- ── PyxisCore Initialization ──────────────────────────────────────────── -->
+<script>
+(function initPyxisCore() {
+  // Mount micro heart into the Heart Panel slot
+  // Uses 88px container inside a 120px flex-centered parent — sits perfectly
+  const mountEl = document.getElementById('heartMountPoint');
+  if (mountEl) {
+    // Create a properly-sized inner container for the micro heart
+    const inner = document.createElement('div');
+    inner.id = 'pyxisMicroMount';
+    inner.style.cssText = 'width:88px;height:88px;position:relative;';
+    mountEl.appendChild(inner);
 
-  const CX = 54, CY = 54, CR = 20;
-  function polar(cx, cy, r, deg) {
-    const rad = (deg - 90) * Math.PI / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+    if (typeof PyxisCore !== 'undefined') {
+      PyxisCore.mount({
+        containerId: 'pyxisMicroMount',
+        mode: 'micro',
+        onExpand: () => togglePyxisPanel()
+      });
+    }
   }
-
-  function HeartWidget() {
-    const [m, setM] = useState({
-      coherence:0.5, alignment:0.5, contradiction:0.2,
-      recursion:0.2, drift:0.5, crystallization:0.3,
-      thetaE:false, intervention:false
-    });
-
-    useEffect(() => { window._heartSetMetrics = setM; return () => { delete window._heartSetMetrics; }; }, []);
-
-    const { coherence, alignment, contradiction, recursion, drift, crystallization, thetaE, intervention } = m;
-
-    const govArc = coherence * 330;
-    const [gx1, gy1] = polar(CX, CY, CR + 9, 0);
-    const [gx2, gy2] = polar(CX, CY, CR + 9, govArc);
-    const govLarge   = govArc > 180 ? 1 : 0;
-
-    const spiralPts = Array.from({ length: 18 }, (_, i) => {
-      const t   = i / 17;
-      const r   = 2 + t * recursion * 10;
-      const ang = t * 720 * recursion;
-      const [x, y] = polar(CX, CY, r, ang);
-      return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
-    }).join(' ');
-
-    return (
-      <svg width="108" height="108" viewBox="0 0 108 108">
-        <defs>
-          <radialGradient id="whg1" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#9b7fd4" stopOpacity={0.18 + crystallization * 0.25} />
-            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="whg2" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor={thetaE ? '#d4b800' : '#c4a882'} stopOpacity="0.22" />
-            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="whg3" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"   stopColor="#1a1c20" stopOpacity="1" />
-            <stop offset="100%" stopColor="#0d0f0e" stopOpacity="1" />
-          </radialGradient>
-        </defs>
-
-        {/* Ambient glow */}
-        <circle cx={CX} cy={CY} r={CR + 14} fill="url(#whg1)" />
-        <circle cx={CX} cy={CY} r={CR + 8}  fill="url(#whg2)" opacity={thetaE ? 1 : 0.5} />
-
-        {/* Orbital ellipses */}
-        <ellipse cx={CX} cy={CY} rx={CR + 4} ry={CR * 0.55} fill="none"
-          stroke="#9b7fd4" strokeWidth="0.4" strokeOpacity={0.18 + alignment * 0.22}
-          style={{ animation:'hrt-spin 18s linear infinite', transformOrigin:`${CX}px ${CY}px` }} />
-        <ellipse cx={CX} cy={CY} rx={CR + 4} ry={CR * 0.55} fill="none"
-          stroke="#c4a882" strokeWidth="0.4" strokeOpacity={0.12 + coherence * 0.18}
-          style={{ animation:'hrt-spinr 24s linear infinite', transformOrigin:`${CX}px ${CY}px`, transform:'rotate(60deg)' }} />
-
-        {/* Recursion spiral */}
-        <path d={spiralPts} fill="none" stroke="#d47f9b"
-          strokeWidth={0.5 + recursion * 1.2} strokeOpacity={0.3 + recursion * 0.4} />
-
-        {/* Core body */}
-        <circle cx={CX} cy={CY} r={CR} fill="url(#whg3)"
-          stroke="#9b7fd4" strokeWidth={0.6 + coherence * 0.8}
-          strokeOpacity={0.3 + coherence * 0.4} />
-
-        {/* Facets */}
-        {[0,60,120,180,240,300].map(a => {
-          const [x1,y1] = polar(CX, CY, CR * 0.15, a);
-          const [x2,y2] = polar(CX, CY, CR * 0.82, a);
-          return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="#9b7fd4" strokeWidth="0.35" strokeOpacity={0.12 + alignment * 0.15} />;
-        })}
-
-        {/* Fracture lines — contradiction */}
-        {contradiction > 0.35 && [15, 135, 255].map(a => {
-          const [x1,y1] = polar(CX, CY, CR * 0.5, a);
-          const [x2,y2] = polar(CX, CY, CR * 0.88, a + 18);
-          return <line key={a} x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke="#d47f9b" strokeWidth="0.6"
-            strokeOpacity={0.15 + (contradiction - 0.35) * 0.7} />;
-        })}
-
-        {/* Crystallization shimmer */}
-        {crystallization > 0.3 && [0,72,144,216,288].map((a, i) => {
-          const [px, py] = polar(CX, CY, CR * (0.5 + Math.random() * 0.3), a);
-          return <circle key={i} cx={px} cy={py} r={0.8 + crystallization * 1.2}
-            fill="#d4b800" opacity={0.2 + crystallization * 0.5} />;
-        })}
-
-        {/* Triune nodes */}
-        {[{a:270,c:'#d47f9b'},{a:30,c:'#c4a882'},{a:150,c:'#9b7fd4'}].map(({a,c}) => {
-          const [nx,ny] = polar(CX, CY, CR * 0.72, a);
-          return <circle key={a} cx={nx} cy={ny} r="2.2" fill={c} opacity={0.55 + alignment * 0.35} />;
-        })}
-
-        {/* Governance ring arc */}
-        {govArc > 2 && <path
-          d={`M${gx1.toFixed(2)},${gy1.toFixed(2)} A${CR+9},${CR+9} 0 ${govLarge},1 ${gx2.toFixed(2)},${gy2.toFixed(2)}`}
-          fill="none" stroke={thetaE ? '#d4b800' : '#c4a882'}
-          strokeWidth={thetaE ? 1.4 : 0.8}
-          strokeOpacity={thetaE ? 0.8 : 0.35} />}
-
-        {/* θ_E ring */}
-        {thetaE && <circle cx={CX} cy={CY} r={CR + 6} fill="none"
-          stroke="#d4b800" strokeWidth="0.6" strokeOpacity="0.5"
-          strokeDasharray="3 4" />}
-
-        {/* ⌀ compression singularity marker */}
-        {intervention && <>
-          <line x1={CX-3} y1={CY-3} x2={CX+3} y2={CY+3} stroke="#d47f9b" strokeWidth="1.2" strokeOpacity="0.9" />
-          <line x1={CX+3} y1={CY-3} x2={CX-3} y2={CY+3} stroke="#d47f9b" strokeWidth="1.2" strokeOpacity="0.9" />
-          <circle cx={CX} cy={CY} r="5" fill="none" stroke="#d47f9b" strokeWidth="0.8" strokeOpacity="0.7" />
-        </>}
-
-        {/* Core glyph */}
-        {!intervention && <text x={CX} y={CY + 3.5} textAnchor="middle"
-          fontSize="7" fill="#9b7fd4" opacity={0.5 + coherence * 0.4}
-          fontFamily="serif">◈</text>}
-
-        {/* Drift indicator */}
-        {(() => {
-          const driftAngle = (drift - 0.5) * 160;
-          const [dx,dy] = polar(CX, CY, CR + 12, driftAngle);
-          return <circle cx={dx} cy={dy} r="1.5" fill="#c4a882" opacity={0.5 + Math.abs(drift - 0.5) * 0.8} />;
-        })()}
-      </svg>
-    );
-  }
-
-  const mount = document.getElementById('heartMountPoint');
-  if (mount) ReactDOM.render(<HeartWidget />, mount);
 })();
+
+function togglePyxisPanel() {
+  const panel = document.getElementById('pyxisFullPanel');
+  const fullMount = document.getElementById('pyxisFullMount');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    panel.style.display = 'none';
+    if (typeof PyxisCore !== 'undefined') PyxisCore.unmount('pyxisFullMount');
+  } else {
+    panel.style.display = 'block';
+    // Mount full Pyxis — picks up last pushed metrics automatically
+    if (typeof PyxisCore !== 'undefined') {
+      PyxisCore.mount({
+        containerId: 'pyxisFullMount',
+        mode: 'full'
+      });
+      // Re-push current metrics so full view starts live, not on mock
+      const current = PyxisCore.getMetrics('pyxisMicroMount');
+      if (current) PyxisCore.push(current.raw || current, 'pyxisFullMount');
+    }
+  }
+}
 </script>
 </html>

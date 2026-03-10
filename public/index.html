@@ -26,7 +26,7 @@
       --border2: rgba(100,78,45,0.45);
       --shadow: rgba(30,26,22,0.12);
       --green: #2d5016;
-      --resonance-bg: rgba(255,255,255,0.6); 
+      --resonance-bg: rgba(255,255,255,0.6);
       --basin-color: #b8922a;
     }
     html, body { height: 100%; overflow: hidden; background: var(--parchment); color: var(--ink); font-family: 'Crimson Pro', serif; font-size: 16px; }
@@ -3293,6 +3293,8 @@ async function init() {
   socket.on('room:field-metrics', (metrics) => {
     fieldMetrics = metrics;
     updateFieldMetrics(metrics);
+    // Feed PyxisCore arc reactor
+    if (typeof PyxisCore !== 'undefined') PyxisCore.push(metrics, 'pyxisMicroRoot');
   });
 
   socket.on('room:basin-switched', ({ basin, sysMsg }) => {
@@ -5657,5 +5659,24 @@ document.addEventListener('keydown', (e) => {
     <div class="tarot-full-body" id="tarot-full-body"></div>
   </div>
 </div>
+
+<!-- ── Pyxis Core — arc reactor (micro, floating bottom-right) ─────────────── -->
+<script src="/pyxis-core.js"></script>
+<div id="pyxisMicroRoot" style="position:fixed;bottom:84px;right:20px;width:88px;height:88px;z-index:9000;"></div>
+<script>
+(function() {
+  if (typeof PyxisCore === 'undefined') return;
+  PyxisCore.mount({
+    containerId: 'pyxisMicroRoot',
+    mode: 'micro',
+    onExpand: function() {
+      // Future: open a field-detail flyout
+      // For now, a subtle pulse — the heart acknowledges the touch
+      const el = document.getElementById('pyxisMicroRoot');
+      if (el) { el.style.transform = 'scale(1.15)'; setTimeout(()=>{ el.style.transform=''; }, 300); }
+    }
+  });
+})();
+</script>
 
 </body>
