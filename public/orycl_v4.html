@@ -3914,183 +3914,63 @@ window.addEventListener('message', (e) => {
 });
 
 // ══════════════════════════════════════════════════════
-// QUICKSILVER — ANIMATION ENGINE  v2
+// QUICKSILVER — ANIMATION ENGINE
 //
-// Two stable states:  sleep (∞ loop)  ←→  stand (∞ loop)
-// Two transitions:    wake  (×1, sleep→stand)
-//                     down  (×1, stand→sleep)
-//
-// open()  — call when the mini-window opens  → wake→stand
-// close() — call when the mini-window closes → down→sleep
-// The pfp <img> click also calls open/close automatically.
-//
-// Uses ImageDecoder API for frame-precise canvas playback.
-// Falls back to <img> src-swap on older browsers.
+// sleep(∞) → open()  → wake(×1, 3320ms) → stand(∞)
+// stand(∞) → close() → down(×1, 3200ms) → sleep(∞)
 // ══════════════════════════════════════════════════════
 const QSAnimEngine = (() => {
 
-  // ── clip registry ────────────────────────────────────
-  const CLIPS = {
-    sleep: { src: 'qs__sleep.gif', finite: false },
-    wake:  { src: 'qs__wake.gif',  finite: true,  then: 'stand' },
-    stand: { src: 'qs__stand.gif', finite: false },
-    down:  { src: 'qs__down.gif',  finite: true,  then: 'sleep' },
+  const SRCS = {
+    sleep: 'qs__sleep.gif',
+    wake:  'qs__wake.gif',
+    stand: 'qs__stand.gif',
+    down:  'qs__down.gif',
   };
+  const DURATION = { wake: 3320, down: 3200 };
+  const NEXT     = { wake: 'stand', down: 'sleep' };
 
-  // ── state ─────────────────────────────────────────────
-  let canvas, ctx, imgEl;
-  let state     = 'sleep';   // which clip is currently running
-  let isOpen    = false;     // window open/closed
-  let frameData = {};        // decoded frames per clip
-  let raf       = null;      // current animation frame handle
-  let cur       = { clip: null, frame: 0, loops: 0, last: 0, acc: 0 };
+  let state  = 'sleep';
+  let isOpen = false;
+  let timer  = null;
+  let imgEl  = null;
 
-  // ── GIF decoder (ImageDecoder API) ────────────────────
-  async function loadGif(name) {
-    if (typeof ImageDecoder === 'undefined') return null;
-    try {
-      const blob = await (await fetch(CLIPS[name].src)).blob();
-      const dec  = new ImageDecoder({ data: blob.stream(), type: 'image/gif' });
-      await dec.tracks.ready;
-      const n      = dec.tracks.selectedTrack.frameCount;
-      const frames = [];
-      for (let i = 0; i < n; i++) {
-        const res   = await dec.decode({ frameIndex: i });
-        const bm    = res.image;
-        const delay = bm.duration != null ? bm.duration / 1000 : 100; // µs → ms
-        frames.push({ bitmap: bm, delay: Math.max(delay, 16) });
-      }
-      dec.close();
-      return frames;
-    } catch (e) {
-      console.warn('QS: decode failed for', name, e);
-      return null;
+  function getImg() {
+    return imgEl || (imgEl = document.getElementById('oracle-qs-img'));
+  }
+
+  function play(name) {
+    if (timer) { clearTimeout(timer); timer = null; }
+    state = name;
+    const img = getImg();
+    if (img) {
+      img.src = '';               // force reload from frame 0
+      img.src = SRCS[name];
+    }
+    if (DURATION[name]) {
+      timer = setTimeout(() => play(NEXT[name]), DURATION[name]);
     }
   }
 
-  // ── canvas init ───────────────────────────────────────
-  function buildCanvas() {
-    imgEl = document.getElementById('oracle-qs-img');
-    if (!imgEl) return;
-
-    canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 64;
-    canvas.style.cssText =
-      'width:64px;height:64px;border-radius:50%;display:none;cursor:pointer;';
-    imgEl.insertAdjacentElement('afterend', canvas);
-    ctx = canvas.getContext('2d');
-
-    // Both elements share the same click handler
-    [canvas, imgEl].forEach(el => el.addEventListener('click', onPfpClick));
-  }
-
-  // ── paint one frame ───────────────────────────────────
-  function paint(name, idx) {
-    const frames = frameData[name];
-    if (!frames || !frames[idx]) return;
-    ctx.clearRect(0, 0, 64, 64);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(32, 32, 32, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(frames[idx].bitmap, 0, 0, 64, 64);
-    ctx.restore();
-  }
-
-  // ── fallback: swap <img> src ──────────────────────────
-  function imgSwap(name) {
-    imgEl.style.display = 'block';
-    if (canvas) canvas.style.display = 'none';
-    imgEl.src = CLIPS[name].src;
-    state = name;
-  }
-
-  // ── start playing a clip ──────────────────────────────
-  function play(name) {
-    if (raf) { cancelAnimationFrame(raf); raf = null; }
-
-    // Fallback path — no decoded frames
-    if (!frameData[name]) { imgSwap(name); return; }
-
-    // Switch to canvas
-    canvas.style.display = 'block';
-    imgEl.style.display  = 'none';
-
-    state = name;
-    cur   = { clip: name, frame: 0, loops: 0, last: performance.now(), acc: 0 };
-
-    const tick = (now) => {
-      cur.acc += now - cur.last;
-      cur.last = now;
-
-      const frames = frameData[cur.clip];
-      const delay  = frames[cur.frame]?.delay ?? 100;
-
-      if (cur.acc >= delay) {
-        cur.acc -= delay;
-        paint(cur.clip, cur.frame);
-        cur.frame++;
-
-        if (cur.frame >= frames.length) {
-          cur.frame = 0;
-          cur.loops++;
-
-          // Finite clip completed one full play — chain to next
-          if (CLIPS[cur.clip].finite) {
-            const next = CLIPS[cur.clip].then;
-            requestAnimationFrame(() => play(next));
-            return;
-          }
-        }
-      }
-      raf = requestAnimationFrame(tick);
-    };
-
-    // Paint first frame immediately so there's no blank flash
-    paint(name, 0);
-    raf = requestAnimationFrame(tick);
-  }
-
-  // ── public triggers ───────────────────────────────────
   function open() {
     if (isOpen) return;
     isOpen = true;
-    // From sleep (or mid-down), always start from wake
-    // If down is currently playing, let it finish — it'll land on sleep,
-    // then we need to catch that. Simplest: just interrupt and play wake.
-    play('wake');  // wake (×1) → stand (∞)
+    play('wake');
   }
 
   function close() {
     if (!isOpen) return;
     isOpen = false;
-    play('down');  // down (×1) → sleep (∞)
+    play('down');
   }
 
-  function onPfpClick() {
-    isOpen ? close() : open();
-  }
-
-  // ── init ──────────────────────────────────────────────
-  async function init() {
-    buildCanvas();
-
-    // Show sleep gif immediately while frames decode
-    if (imgEl) imgEl.src = CLIPS.sleep.src;
-
-    // Decode all clips in parallel
-    const names   = Object.keys(CLIPS);
-    const results = await Promise.all(names.map(loadGif));
-    names.forEach((n, i) => { if (results[i]) frameData[n] = results[i]; });
-
-    // Start looping sleep on canvas (or img fallback)
+  function init() {
     play('sleep');
   }
 
   return { init, open, close };
 })();
 
-// ── boot ──────────────────────────────────────────────
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => QSAnimEngine.init());
 } else {

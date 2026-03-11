@@ -4673,196 +4673,88 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
 // Sequence: sleep(loop) → wake(once) → stand(loop) → down(once) → sleep(loop)
 //
 // ══════════════════════════════════════════════════════════════════
-// QUICKSILVER CORNER PFP — frame-accurate GIF sequencer
+// QUICKSILVER — animation engine
 //
-// Corner pfp: canvas layered over the stacked <img> elements.
-// Uses ImageDecoder API (Chrome 94+) for exact frame timing.
-// Falls back to the original img-swap + measured-duration approach
-// on browsers that don't support ImageDecoder.
+// One <img> visible at a time. Finite clips (wake, down) play for
+// their exact measured duration then hand off to the next clip.
+// Infinite clips (sleep, stand) loop until interrupted.
 //
-// State machine:
-//   sleep (∞) → qsWake() → wake (×1) → stand (∞)
-//   stand (∞) → qsDown() → down (×1) → sleep (∞)
-//
-// iframe sync: sends postMessage 'qs-open' / 'qs-close' instead of
-// src swaps — the iframe engine handles its own animation internally.
+// sleep(∞) → qsWake() → wake(×1, 3320ms) → stand(∞)
+// stand(∞) → qsDown() → down(×1, 3200ms) → sleep(∞)
 // ══════════════════════════════════════════════════════════════════
 (function () {
 
-  // ── clip definitions ────────────────────────────────────────────
-  var CLIPS = {
-    sleep: { src: '/qs__sleep.gif', finite: false },
-    wake:  { src: '/qs__wake.gif',  finite: true,  then: 'stand' },
-    stand: { src: '/qs__stand.gif', finite: false },
-    down:  { src: '/qs__down.gif',  finite: true,  then: 'sleep'  },
+  var SRCS = {
+    sleep: '/qs__sleep.gif',
+    wake:  '/qs__wake.gif',
+    stand: '/qs__stand.gif',
+    down:  '/qs__down.gif'
   };
+  // Exact durations: frames × 40ms per frame
+  var DURATION = { wake: 3320, down: 3200 };
+  // After finite clip ends, play this next
+  var NEXT = { wake: 'stand', down: 'sleep' };
 
-  // ── runtime ──────────────────────────────────────────────────────
-  var state     = 'sleep';
-  var canvas, ctx;
-  var frameData = {};   // { clipName: [{bitmap, delay}, …] }
-  var raf       = null;
-  var cur       = { clip: 'sleep', frame: 0, loops: 0, last: 0, acc: 0 };
+  var state  = 'sleep';
+  var timer  = null;
 
-  // ── GIF decoder ──────────────────────────────────────────────────
-  function loadGif(name, cb) {
-    if (typeof ImageDecoder === 'undefined') { cb(null); return; }
-    fetch(CLIPS[name].src)
-      .then(function(r) { return r.blob(); })
-      .then(function(blob) {
-        var dec = new ImageDecoder({ data: blob.stream(), type: 'image/gif' });
-        return dec.tracks.ready.then(function() {
-          var n      = dec.tracks.selectedTrack.frameCount;
-          var frames = [];
-          var chain  = Promise.resolve();
-          for (var i = 0; i < n; i++) {
-            (function(idx) {
-              chain = chain.then(function() {
-                return dec.decode({ frameIndex: idx }).then(function(res) {
-                  var bm    = res.image;
-                  var delay = bm.duration != null ? bm.duration / 1000 : 100;
-                  frames.push({ bitmap: bm, delay: Math.max(delay, 16) });
-                });
-              });
-            })(i);
-          }
-          return chain.then(function() { dec.close(); return frames; });
-        });
-      })
-      .then(function(frames) { cb(frames); })
-      .catch(function() { cb(null); });
+  function el(name) { return document.getElementById('qsp-' + name); }
+
+  // Force-restart a GIF by blanking src then restoring it
+  function reload(name) {
+    var img = el(name);
+    if (!img) return;
+    img.src = '';
+    img.src = SRCS[name];
   }
 
-  // ── canvas setup ─────────────────────────────────────────────────
-  // We insert a single <canvas> on top of the stacked <img> elements.
-  // When the canvas is active the imgs stay hidden (opacity:0 by default).
-  function buildCanvas() {
-    var container = document.getElementById('qs-corner-pfp');
-    if (!container) return false;
-    canvas        = document.createElement('canvas');
-    canvas.width  = 64;
-    canvas.height = 64;
-    canvas.style.cssText =
-      'position:absolute;inset:0;width:64px;height:64px;' +
-      'border-radius:50%;display:none;pointer-events:none;';
-    container.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    return true;
-  }
-
-  // ── paint ─────────────────────────────────────────────────────────
-  function paint(name, idx) {
-    var frames = frameData[name];
-    if (!frames || !frames[idx]) return;
-    ctx.clearRect(0, 0, 64, 64);
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(32, 32, 32, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(frames[idx].bitmap, 0, 0, 64, 64);
-    ctx.restore();
-  }
-
-  // ── img fallback ──────────────────────────────────────────────────
-  // Used when ImageDecoder is unavailable. Measured durations via
-  // a one-time decode pass; falls back to hardcoded if that fails.
-  var measuredMs = { wake: 3320, down: 3200 };
-
-  function imgShow(name) {
-    ['sleep','wake','stand','down'].forEach(function(f) {
-      var el = document.getElementById('qsp-' + f);
-      if (el) el.classList.toggle('qs-visible', f === name);
+  // Show exactly one layer, hide the rest
+  function show(name) {
+    ['sleep','wake','stand','down'].forEach(function(n) {
+      var img = el(n);
+      if (!img) return;
+      img.style.opacity = (n === name) ? '1' : '0';
     });
   }
-  function imgReload(name) {
-    var el = document.getElementById('qsp-' + name);
-    if (!el) return;
-    var s = el.src; el.src = ''; el.src = s;
+
+  function clearTimer() {
+    if (timer) { clearTimeout(timer); timer = null; }
   }
 
-  var _fbTimer = null;
-  function fallbackPlay(name) {
-    if (_fbTimer) { clearTimeout(_fbTimer); _fbTimer = null; }
-    state = name;
-
-    if (!CLIPS[name].finite) {
-      if (name === 'stand') { imgShow('stand'); }
-      else                  { imgShow('sleep'); }
-      return;
-    }
-
-    // finite: reload + show transition frame, then chain
-    imgReload(name);
-    imgShow(name);
-
-    _fbTimer = setTimeout(function() {
-      _fbTimer = null;
-      fallbackPlay(CLIPS[name].then);
-    }, measuredMs[name] || 2200);
-  }
-
-  // ── canvas playback ───────────────────────────────────────────────
+  // Play a clip. Finite clips auto-chain after their duration.
   function play(name) {
-    if (!frameData[name]) { fallbackPlay(name); return; }
-
-    if (raf) { cancelAnimationFrame(raf); raf = null; }
-
-    canvas.style.display = 'block';
-    // hide all img layers while canvas is active
-    ['sleep','wake','stand','down'].forEach(function(f) {
-      var el = document.getElementById('qsp-' + f);
-      if (el) el.classList.remove('qs-visible');
-    });
-
+    clearTimer();
     state = name;
-    cur   = { clip: name, frame: 0, loops: 0, last: performance.now(), acc: 0 };
-    paint(name, 0);
+    reload(name);
+    show(name);
 
-    function tick(now) {
-      cur.acc += now - cur.last;
-      cur.last  = now;
-
-      var frames = frameData[cur.clip];
-      var delay  = frames[cur.frame] ? frames[cur.frame].delay : 100;
-
-      if (cur.acc >= delay) {
-        cur.acc -= delay;
-        paint(cur.clip, cur.frame);
-        cur.frame++;
-
-        if (cur.frame >= frames.length) {
-          cur.frame = 0;
-          cur.loops++;
-          if (CLIPS[cur.clip].finite) {
-            var next = CLIPS[cur.clip].then;
-            requestAnimationFrame(function() { play(next); });
-            return;
-          }
-        }
-      }
-      raf = requestAnimationFrame(tick);
+    if (DURATION[name]) {
+      timer = setTimeout(function() {
+        timer = null;
+        play(NEXT[name]);
+      }, DURATION[name]);
     }
-    raf = requestAnimationFrame(tick);
   }
 
-  // ── iframe messaging ──────────────────────────────────────────────
-  // Send open/close so the iframe's own engine handles its animation.
+  // ── iframe sync ───────────────────────────────────────────────────
   function pushToIframe(type) {
     var frame = document.getElementById('tarot-mini-frame');
     if (!frame || !frame.contentWindow) return;
     try { frame.contentWindow.postMessage({ type: type }, '*'); } catch(e) {}
   }
 
-  function attachIframeListener() {
+  document.addEventListener('DOMContentLoaded', function() {
     var frame = document.getElementById('tarot-mini-frame');
-    if (!frame) return;
-    frame.addEventListener('load', function() {
-      // Give the iframe's engine a moment to register, then sync state
-      setTimeout(function() {
-        pushToIframe(state === 'stand' ? 'qs-open' : 'qs-close');
-      }, 120);
-    });
-  }
+    if (frame) {
+      frame.addEventListener('load', function() {
+        setTimeout(function() {
+          pushToIframe(state === 'stand' ? 'qs-open' : 'qs-close');
+        }, 120);
+      });
+    }
+    // Start sleeping
+    play('sleep');
+  });
 
   // ── PUBLIC API ────────────────────────────────────────────────────
   window.qsWake = function() {
@@ -4878,41 +4770,11 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   };
 
   window.qsReset = function() {
-    if (raf) { cancelAnimationFrame(raf); raf = null; }
-    if (_fbTimer) { clearTimeout(_fbTimer); _fbTimer = null; }
-    state = 'sleep';
-    if (canvas) canvas.style.display = 'none';
-    imgShow('sleep');
+    play('sleep');
     pushToIframe('qs-close');
   };
 
   window.qsState = function() { return state; };
-
-  // ── init ──────────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', function() {
-    if (!buildCanvas()) return;
-    attachIframeListener();
-
-    // Load all clips; start playing sleep once any clip is ready
-    var names   = Object.keys(CLIPS);
-    var pending = names.length;
-    var started = false;
-
-    names.forEach(function(name) {
-      loadGif(name, function(frames) {
-        if (frames) frameData[name] = frames;
-        pending--;
-        if (!started && frameData['sleep']) {
-          started = true;
-          play('sleep');
-        }
-        if (pending === 0 && !started) {
-          started = true;
-          fallbackPlay('sleep');
-        }
-      });
-    });
-  });
 
 })();
 
@@ -4926,7 +4788,7 @@ function openTarotWidget() {
   var corner = document.getElementById('qs-corner');
   if (!widget) return;
   if (!_tarotLoaded) {
-    _tarotFrame().src = '/orycl_v4.html';
+    _tarotFrame().src = '/orycl_v5.html';
     _tarotLoaded = true;
   }
   // Exit fullscreen if open, back to mini
@@ -4949,7 +4811,7 @@ function minimizeTarotWidget() {
 
 function refreshTarotWidget() {
   var frame = _tarotFrame();
-  if (frame) { frame.src = ''; frame.src = '/orycl_v4.html'; }
+  if (frame) { frame.src = ''; frame.src = '/orycl_v5.html'; }
 }
 
 function openTarotFullscreen() {
@@ -4957,7 +4819,7 @@ function openTarotFullscreen() {
   var widget = document.getElementById('tarot-widget');
   if (!widget) return;
   if (!_tarotLoaded) {
-    _tarotFrame().src = '/orycl_v4.html';
+    _tarotFrame().src = '/orycl_v5.html';
     _tarotLoaded = true;
   }
   widget.classList.add('open');
