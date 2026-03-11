@@ -3904,260 +3904,197 @@ function toggleFullscreen() {
 }
 
 window.addEventListener('message', (e) => {
-  if (e.data?.type === 'orycl-draw') drawCards();
-  if (e.data?.type === 'orycl-clear') clearReading();
+  if (e.data?.type === 'orycl-draw')   drawCards();
+  if (e.data?.type === 'orycl-clear')  clearReading();
   if (e.data?.type === 'orycl-spread') setSpread(e.data.spread);
+  // QS animation triggers from parent frame
+  if (e.data?.type === 'qs-open')      QSAnimEngine.open();
+  if (e.data?.type === 'qs-close')     QSAnimEngine.close();
 });
 
 // ══════════════════════════════════════════════════════
-// QUICKSILVER — ANIMATION ENGINE
-// Frame-precise GIF sequencer: sleep ↔ wake ↔ stand ↔ down
-// Trigger map:
-//   page load          → sleep (looping)
-//   hover              → wake (×1) → stand (looping)
-//   unhover            → down (×1) → sleep (looping)
-//   page hide          → down (×1) → sleep (looping)
-//   page show          → wake (×1) → stand (looping)  [if previously visible]
-//   postMessage src    → legacy override
+// QUICKSILVER — ANIMATION ENGINE  v2
+//
+// Two stable states:  sleep (∞ loop)  ←→  stand (∞ loop)
+// Two transitions:    wake  (×1, sleep→stand)
+//                     down  (×1, stand→sleep)
+//
+// open()  — call when the mini-window opens  → wake→stand
+// close() — call when the mini-window closes → down→sleep
+// The pfp <img> click also calls open/close automatically.
+//
+// Uses ImageDecoder API for frame-precise canvas playback.
+// Falls back to <img> src-swap on older browsers.
 // ══════════════════════════════════════════════════════
 const QSAnimEngine = (() => {
-  // ── clip definitions ─────────────────────────────────
+
+  // ── clip registry ────────────────────────────────────
   const CLIPS = {
-    sleep: { src: 'qs__sleep.gif', maxLoops: 0 },   // 0 = infinite
-    wake:  { src: 'qs__wake.gif',  maxLoops: 1 },
-    stand: { src: 'qs__stand.gif', maxLoops: 0 },
-    down:  { src: 'qs__down.gif',  maxLoops: 1 },
+    sleep: { src: 'qs__sleep.gif', finite: false },
+    wake:  { src: 'qs__wake.gif',  finite: true,  then: 'stand' },
+    stand: { src: 'qs__stand.gif', finite: false },
+    down:  { src: 'qs__down.gif',  finite: true,  then: 'sleep' },
   };
-  // After a finite clip completes, go here:
-  const AFTER = { wake: 'stand', down: 'sleep' };
 
-  // ── runtime state ────────────────────────────────────
-  let canvas, ctx;
-  let state    = 'sleep';        // current clip playing
-  let queued   = null;           // next clip after current finite clip ends
-  let frameData = {};            // { clipName: {frames:[{bitmap,delay}], w, h} }
-  let cur = {                    // current playback cursor
-    clip: 'sleep', frame: 0, loopsDone: 0,
-    rafId: null, lastMs: 0, accMs: 0
-  };
-  let hovered  = false;
-  let imgEl    = null;           // fallback <img> reference
+  // ── state ─────────────────────────────────────────────
+  let canvas, ctx, imgEl;
+  let state     = 'sleep';   // which clip is currently running
+  let isOpen    = false;     // window open/closed
+  let frameData = {};        // decoded frames per clip
+  let raf       = null;      // current animation frame handle
+  let cur       = { clip: null, frame: 0, loops: 0, last: 0, acc: 0 };
 
-  // ── GIF frame loader ──────────────────────────────────
-  // Uses native ImageDecoder (Chrome 94+, Edge 94+, Safari 17.2+).
-  // Falls back to <img> swap on unsupported browsers.
+  // ── GIF decoder (ImageDecoder API) ────────────────────
   async function loadGif(name) {
-    const src = CLIPS[name].src;
+    if (typeof ImageDecoder === 'undefined') return null;
     try {
-      const resp  = await fetch(src);
-      const blob  = await resp.blob();
-      if (typeof ImageDecoder === 'undefined') return null;
-
-      const dec   = new ImageDecoder({ data: blob.stream(), type: 'image/gif' });
+      const blob = await (await fetch(CLIPS[name].src)).blob();
+      const dec  = new ImageDecoder({ data: blob.stream(), type: 'image/gif' });
       await dec.tracks.ready;
-      const track = dec.tracks.selectedTrack;
-      const n     = track.frameCount;
+      const n      = dec.tracks.selectedTrack.frameCount;
       const frames = [];
-
       for (let i = 0; i < n; i++) {
-        const res = await dec.decode({ frameIndex: i });
-        const bm  = res.image;
-        // duration is in microseconds in the spec
-        const delay = (bm.duration != null ? bm.duration / 1000 : 100);
-        frames.push({ bitmap: bm, delay: Math.max(delay, 20) });
+        const res   = await dec.decode({ frameIndex: i });
+        const bm    = res.image;
+        const delay = bm.duration != null ? bm.duration / 1000 : 100; // µs → ms
+        frames.push({ bitmap: bm, delay: Math.max(delay, 16) });
       }
       dec.close();
-      return { frames, w: frames[0].bitmap.displayWidth, h: frames[0].bitmap.displayHeight };
+      return frames;
     } catch (e) {
-      console.warn('QS: could not decode', src, e);
+      console.warn('QS: decode failed for', name, e);
       return null;
     }
   }
 
-  // ── canvas setup ─────────────────────────────────────
-  function initCanvas() {
+  // ── canvas init ───────────────────────────────────────
+  function buildCanvas() {
     imgEl = document.getElementById('oracle-qs-img');
-    if (!imgEl) return false;
+    if (!imgEl) return;
 
-    // Only upgrade to canvas if ImageDecoder will be available
-    // We'll set this up unconditionally — if frames don't load we keep img visible
     canvas = document.createElement('canvas');
-    canvas.id = 'qs-canvas';
-    canvas.width  = 64;
-    canvas.height = 64;
-    canvas.style.cssText = `
-      width:64px; height:64px; border-radius:50%;
-      display:none; cursor:pointer; vertical-align:top;
-    `;
-    imgEl.parentNode.insertBefore(canvas, imgEl.nextSibling);
+    canvas.width = canvas.height = 64;
+    canvas.style.cssText =
+      'width:64px;height:64px;border-radius:50%;display:none;cursor:pointer;';
+    imgEl.insertAdjacentElement('afterend', canvas);
     ctx = canvas.getContext('2d');
 
-    canvas.addEventListener('mouseenter', onHover);
-    canvas.addEventListener('mouseleave', onUnhover);
-    canvas.addEventListener('click', onClick);
-    imgEl.addEventListener('mouseenter', onHover);
-    imgEl.addEventListener('mouseleave', onUnhover);
-    imgEl.addEventListener('click', onClick);
-    return true;
+    // Both elements share the same click handler
+    [canvas, imgEl].forEach(el => el.addEventListener('click', onPfpClick));
   }
 
-  // ── draw one frame to canvas ──────────────────────────
-  function paint(clipName, frameIdx) {
-    const d = frameData[clipName];
-    if (!d || !d.frames[frameIdx]) return;
+  // ── paint one frame ───────────────────────────────────
+  function paint(name, idx) {
+    const frames = frameData[name];
+    if (!frames || !frames[idx]) return;
     ctx.clearRect(0, 0, 64, 64);
     ctx.save();
     ctx.beginPath();
     ctx.arc(32, 32, 32, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(d.frames[frameIdx].bitmap, 0, 0, 64, 64);
+    ctx.drawImage(frames[idx].bitmap, 0, 0, 64, 64);
     ctx.restore();
   }
 
-  // ── img-based swap (fallback) ─────────────────────────
-  function imgSwap(clipName) {
-    if (!imgEl) return;
+  // ── fallback: swap <img> src ──────────────────────────
+  function imgSwap(name) {
     imgEl.style.display = 'block';
     if (canvas) canvas.style.display = 'none';
-    imgEl.src = CLIPS[clipName].src;
-    state = clipName;
+    imgEl.src = CLIPS[name].src;
+    state = name;
   }
 
-  // ── start a clip on canvas ────────────────────────────
-  function startClip(clipName) {
-    if (!frameData[clipName]) { imgSwap(clipName); return; }
+  // ── start playing a clip ──────────────────────────────
+  function play(name) {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
 
-    if (canvas) {
-      canvas.style.display = 'block';
-      if (imgEl) imgEl.style.display = 'none';
-    }
+    // Fallback path — no decoded frames
+    if (!frameData[name]) { imgSwap(name); return; }
 
-    if (cur.rafId) cancelAnimationFrame(cur.rafId);
+    // Switch to canvas
+    canvas.style.display = 'block';
+    imgEl.style.display  = 'none';
 
-    state = clipName;
-    cur = {
-      clip: clipName, frame: 0, loopsDone: 0,
-      rafId: null, lastMs: performance.now(), accMs: 0
-    };
+    state = name;
+    cur   = { clip: name, frame: 0, loops: 0, last: performance.now(), acc: 0 };
 
     const tick = (now) => {
-      cur.accMs += now - cur.lastMs;
-      cur.lastMs = now;
+      cur.acc += now - cur.last;
+      cur.last = now;
 
-      const d   = frameData[cur.clip];
-      const del = d.frames[cur.frame]?.delay ?? 100;
+      const frames = frameData[cur.clip];
+      const delay  = frames[cur.frame]?.delay ?? 100;
 
-      if (cur.accMs >= del) {
-        cur.accMs -= del;
+      if (cur.acc >= delay) {
+        cur.acc -= delay;
         paint(cur.clip, cur.frame);
         cur.frame++;
 
-        if (cur.frame >= d.frames.length) {
+        if (cur.frame >= frames.length) {
           cur.frame = 0;
-          cur.loopsDone++;
+          cur.loops++;
 
-          const maxL = CLIPS[cur.clip].maxLoops;
-          if (maxL > 0 && cur.loopsDone >= maxL) {
-            // Finite clip finished — work out what's next
-            const natural = AFTER[cur.clip];    // e.g. wake→stand, down→sleep
-            const next    = queued ?? natural;
-            queued = null;
-
-            if (next) {
-              // Small yield so the last frame renders before transition
-              requestAnimationFrame(() => startClip(next));
-              return;
-            }
+          // Finite clip completed one full play — chain to next
+          if (CLIPS[cur.clip].finite) {
+            const next = CLIPS[cur.clip].then;
+            requestAnimationFrame(() => play(next));
+            return;
           }
         }
       }
-      cur.rafId = requestAnimationFrame(tick);
+      raf = requestAnimationFrame(tick);
     };
-    cur.rafId = requestAnimationFrame(tick);
+
+    // Paint first frame immediately so there's no blank flash
+    paint(name, 0);
+    raf = requestAnimationFrame(tick);
   }
 
-  // ── state-machine helpers ─────────────────────────────
-  // Request the engine to reach a target stable state
-  function goTo(target) {
-    const s = state;
-    if (target === 'stand') {
-      if (s === 'stand') return;
-      if (s === 'sleep') { queued = null; startClip('wake'); }
-      else if (s === 'wake') { queued = 'stand'; }   // already on its way
-      else if (s === 'down') { queued = 'wake'; }    // will chain: down→sleep, but we override
-    }
-    if (target === 'sleep') {
-      if (s === 'sleep') return;
-      if (s === 'stand') { queued = null; startClip('down'); }
-      else if (s === 'wake') { queued = null; startClip('down'); }
-      else if (s === 'down') { queued = 'sleep'; }
-    }
+  // ── public triggers ───────────────────────────────────
+  function open() {
+    if (isOpen) return;
+    isOpen = true;
+    // From sleep (or mid-down), always start from wake
+    // If down is currently playing, let it finish — it'll land on sleep,
+    // then we need to catch that. Simplest: just interrupt and play wake.
+    play('wake');  // wake (×1) → stand (∞)
   }
 
-  // ── event handlers ────────────────────────────────────
-  function onHover()   { hovered = true;  goTo('stand'); }
-  function onUnhover() { hovered = false; goTo('sleep'); }
-  function onClick()   {
-    if (state === 'sleep' || state === 'down') goTo('stand');
-    else goTo('sleep');
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    play('down');  // down (×1) → sleep (∞)
   }
 
-  // ── visibility API ────────────────────────────────────
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      goTo('sleep');
-    } else {
-      // Re-appearing: brief wake, then settle
-      goTo('stand');
-      // After a beat, go back to sleep unless user is hovering
-      setTimeout(() => { if (!hovered) goTo('sleep'); }, 3000);
-    }
-  });
+  function onPfpClick() {
+    isOpen ? close() : open();
+  }
 
   // ── init ──────────────────────────────────────────────
   async function init() {
-    if (!initCanvas()) return;
+    buildCanvas();
 
-    // Preload all gifs in parallel; show sleep img immediately
-    if (imgEl) imgEl.src = CLIPS['sleep'].src;
+    // Show sleep gif immediately while frames decode
+    if (imgEl) imgEl.src = CLIPS.sleep.src;
 
-    const names = Object.keys(CLIPS);
-    const results = await Promise.all(names.map(n => loadGif(n)));
+    // Decode all clips in parallel
+    const names   = Object.keys(CLIPS);
+    const results = await Promise.all(names.map(loadGif));
+    names.forEach((n, i) => { if (results[i]) frameData[n] = results[i]; });
 
-    let anyLoaded = false;
-    names.forEach((n, i) => {
-      if (results[i]) { frameData[n] = results[i]; anyLoaded = true; }
-    });
-
-    if (anyLoaded) {
-      startClip('sleep');
-    }
-    // If nothing loaded, imgEl stays showing sleep.gif via <img>
+    // Start looping sleep on canvas (or img fallback)
+    play('sleep');
   }
 
-  // ── public API ────────────────────────────────────────
-  return {
-    init,
-    goTo,
-    get state() { return state; }
-  };
+  return { init, open, close };
 })();
 
-// Boot when DOM is ready
+// ── boot ──────────────────────────────────────────────
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => QSAnimEngine.init());
 } else {
   QSAnimEngine.init();
 }
-
-// ── QS pfp sync from parent frame (legacy) ──
-window.addEventListener('message', function(e) {
-  if (e.data && e.data.type === 'qs-pfp') {
-    // legacy path — only fires if parent overrides
-    var img = document.getElementById('oracle-qs-img');
-    if (img) img.src = e.data.src;
-  }
-});
 </script>
 </body>
 </html>
