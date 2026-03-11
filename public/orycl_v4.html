@@ -1714,10 +1714,9 @@
 
     <!-- Header -->
     <div id="oracle-header">
-      <!-- QS pfp — injected by parent frame via postMessage or sits as static img -->
+      <!-- QS pfp — controlled by QSAnimEngine -->
       <div class="oracle-qs-pfp" id="oracle-qs-pfp">
-        <!-- parent will swap src; fallback shows stand gif if loaded standalone -->
-        <img src="/qs__sleep.gif" alt="Quicksilver" id="oracle-qs-img">
+        <img src="qs__sleep.gif" alt="Quicksilver" id="oracle-qs-img" style="width:64px;height:64px;border-radius:50%;object-fit:cover;display:block;cursor:pointer;">
         <div class="oracle-qs-ring"></div>
       </div>
       <div class="oracle-title-block">
@@ -3910,9 +3909,251 @@ window.addEventListener('message', (e) => {
   if (e.data?.type === 'orycl-spread') setSpread(e.data.spread);
 });
 
-// ── QS pfp sync from parent frame ──
+// ══════════════════════════════════════════════════════
+// QUICKSILVER — ANIMATION ENGINE
+// Frame-precise GIF sequencer: sleep ↔ wake ↔ stand ↔ down
+// Trigger map:
+//   page load          → sleep (looping)
+//   hover              → wake (×1) → stand (looping)
+//   unhover            → down (×1) → sleep (looping)
+//   page hide          → down (×1) → sleep (looping)
+//   page show          → wake (×1) → stand (looping)  [if previously visible]
+//   postMessage src    → legacy override
+// ══════════════════════════════════════════════════════
+const QSAnimEngine = (() => {
+  // ── clip definitions ─────────────────────────────────
+  const CLIPS = {
+    sleep: { src: 'qs__sleep.gif', maxLoops: 0 },   // 0 = infinite
+    wake:  { src: 'qs__wake.gif',  maxLoops: 1 },
+    stand: { src: 'qs__stand.gif', maxLoops: 0 },
+    down:  { src: 'qs__down.gif',  maxLoops: 1 },
+  };
+  // After a finite clip completes, go here:
+  const AFTER = { wake: 'stand', down: 'sleep' };
+
+  // ── runtime state ────────────────────────────────────
+  let canvas, ctx;
+  let state    = 'sleep';        // current clip playing
+  let queued   = null;           // next clip after current finite clip ends
+  let frameData = {};            // { clipName: {frames:[{bitmap,delay}], w, h} }
+  let cur = {                    // current playback cursor
+    clip: 'sleep', frame: 0, loopsDone: 0,
+    rafId: null, lastMs: 0, accMs: 0
+  };
+  let hovered  = false;
+  let imgEl    = null;           // fallback <img> reference
+
+  // ── GIF frame loader ──────────────────────────────────
+  // Uses native ImageDecoder (Chrome 94+, Edge 94+, Safari 17.2+).
+  // Falls back to <img> swap on unsupported browsers.
+  async function loadGif(name) {
+    const src = CLIPS[name].src;
+    try {
+      const resp  = await fetch(src);
+      const blob  = await resp.blob();
+      if (typeof ImageDecoder === 'undefined') return null;
+
+      const dec   = new ImageDecoder({ data: blob.stream(), type: 'image/gif' });
+      await dec.tracks.ready;
+      const track = dec.tracks.selectedTrack;
+      const n     = track.frameCount;
+      const frames = [];
+
+      for (let i = 0; i < n; i++) {
+        const res = await dec.decode({ frameIndex: i });
+        const bm  = res.image;
+        // duration is in microseconds in the spec
+        const delay = (bm.duration != null ? bm.duration / 1000 : 100);
+        frames.push({ bitmap: bm, delay: Math.max(delay, 20) });
+      }
+      dec.close();
+      return { frames, w: frames[0].bitmap.displayWidth, h: frames[0].bitmap.displayHeight };
+    } catch (e) {
+      console.warn('QS: could not decode', src, e);
+      return null;
+    }
+  }
+
+  // ── canvas setup ─────────────────────────────────────
+  function initCanvas() {
+    imgEl = document.getElementById('oracle-qs-img');
+    if (!imgEl) return false;
+
+    // Only upgrade to canvas if ImageDecoder will be available
+    // We'll set this up unconditionally — if frames don't load we keep img visible
+    canvas = document.createElement('canvas');
+    canvas.id = 'qs-canvas';
+    canvas.width  = 64;
+    canvas.height = 64;
+    canvas.style.cssText = `
+      width:64px; height:64px; border-radius:50%;
+      display:none; cursor:pointer; vertical-align:top;
+    `;
+    imgEl.parentNode.insertBefore(canvas, imgEl.nextSibling);
+    ctx = canvas.getContext('2d');
+
+    canvas.addEventListener('mouseenter', onHover);
+    canvas.addEventListener('mouseleave', onUnhover);
+    canvas.addEventListener('click', onClick);
+    imgEl.addEventListener('mouseenter', onHover);
+    imgEl.addEventListener('mouseleave', onUnhover);
+    imgEl.addEventListener('click', onClick);
+    return true;
+  }
+
+  // ── draw one frame to canvas ──────────────────────────
+  function paint(clipName, frameIdx) {
+    const d = frameData[clipName];
+    if (!d || !d.frames[frameIdx]) return;
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(32, 32, 32, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(d.frames[frameIdx].bitmap, 0, 0, 64, 64);
+    ctx.restore();
+  }
+
+  // ── img-based swap (fallback) ─────────────────────────
+  function imgSwap(clipName) {
+    if (!imgEl) return;
+    imgEl.style.display = 'block';
+    if (canvas) canvas.style.display = 'none';
+    imgEl.src = CLIPS[clipName].src;
+    state = clipName;
+  }
+
+  // ── start a clip on canvas ────────────────────────────
+  function startClip(clipName) {
+    if (!frameData[clipName]) { imgSwap(clipName); return; }
+
+    if (canvas) {
+      canvas.style.display = 'block';
+      if (imgEl) imgEl.style.display = 'none';
+    }
+
+    if (cur.rafId) cancelAnimationFrame(cur.rafId);
+
+    state = clipName;
+    cur = {
+      clip: clipName, frame: 0, loopsDone: 0,
+      rafId: null, lastMs: performance.now(), accMs: 0
+    };
+
+    const tick = (now) => {
+      cur.accMs += now - cur.lastMs;
+      cur.lastMs = now;
+
+      const d   = frameData[cur.clip];
+      const del = d.frames[cur.frame]?.delay ?? 100;
+
+      if (cur.accMs >= del) {
+        cur.accMs -= del;
+        paint(cur.clip, cur.frame);
+        cur.frame++;
+
+        if (cur.frame >= d.frames.length) {
+          cur.frame = 0;
+          cur.loopsDone++;
+
+          const maxL = CLIPS[cur.clip].maxLoops;
+          if (maxL > 0 && cur.loopsDone >= maxL) {
+            // Finite clip finished — work out what's next
+            const natural = AFTER[cur.clip];    // e.g. wake→stand, down→sleep
+            const next    = queued ?? natural;
+            queued = null;
+
+            if (next) {
+              // Small yield so the last frame renders before transition
+              requestAnimationFrame(() => startClip(next));
+              return;
+            }
+          }
+        }
+      }
+      cur.rafId = requestAnimationFrame(tick);
+    };
+    cur.rafId = requestAnimationFrame(tick);
+  }
+
+  // ── state-machine helpers ─────────────────────────────
+  // Request the engine to reach a target stable state
+  function goTo(target) {
+    const s = state;
+    if (target === 'stand') {
+      if (s === 'stand') return;
+      if (s === 'sleep') { queued = null; startClip('wake'); }
+      else if (s === 'wake') { queued = 'stand'; }   // already on its way
+      else if (s === 'down') { queued = 'wake'; }    // will chain: down→sleep, but we override
+    }
+    if (target === 'sleep') {
+      if (s === 'sleep') return;
+      if (s === 'stand') { queued = null; startClip('down'); }
+      else if (s === 'wake') { queued = null; startClip('down'); }
+      else if (s === 'down') { queued = 'sleep'; }
+    }
+  }
+
+  // ── event handlers ────────────────────────────────────
+  function onHover()   { hovered = true;  goTo('stand'); }
+  function onUnhover() { hovered = false; goTo('sleep'); }
+  function onClick()   {
+    if (state === 'sleep' || state === 'down') goTo('stand');
+    else goTo('sleep');
+  }
+
+  // ── visibility API ────────────────────────────────────
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      goTo('sleep');
+    } else {
+      // Re-appearing: brief wake, then settle
+      goTo('stand');
+      // After a beat, go back to sleep unless user is hovering
+      setTimeout(() => { if (!hovered) goTo('sleep'); }, 3000);
+    }
+  });
+
+  // ── init ──────────────────────────────────────────────
+  async function init() {
+    if (!initCanvas()) return;
+
+    // Preload all gifs in parallel; show sleep img immediately
+    if (imgEl) imgEl.src = CLIPS['sleep'].src;
+
+    const names = Object.keys(CLIPS);
+    const results = await Promise.all(names.map(n => loadGif(n)));
+
+    let anyLoaded = false;
+    names.forEach((n, i) => {
+      if (results[i]) { frameData[n] = results[i]; anyLoaded = true; }
+    });
+
+    if (anyLoaded) {
+      startClip('sleep');
+    }
+    // If nothing loaded, imgEl stays showing sleep.gif via <img>
+  }
+
+  // ── public API ────────────────────────────────────────
+  return {
+    init,
+    goTo,
+    get state() { return state; }
+  };
+})();
+
+// Boot when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => QSAnimEngine.init());
+} else {
+  QSAnimEngine.init();
+}
+
+// ── QS pfp sync from parent frame (legacy) ──
 window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'qs-pfp') {
+    // legacy path — only fires if parent overrides
     var img = document.getElementById('oracle-qs-img');
     if (img) img.src = e.data.src;
   }
