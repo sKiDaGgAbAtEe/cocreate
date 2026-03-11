@@ -1206,6 +1206,13 @@
             <span class="hp-threshold" id="hp-theta">θ_E</span>
             <span class="hp-threshold" id="hp-interv">⧖ intervention</span>
           </div>
+          <!-- RCO Relational HUD — visible only when sidecar is live -->
+          <div id="rco-hud" style="display:none;">
+            <div class="hp-section-title" style="color:var(--oryc);opacity:0.8;">Relational Field</div>
+            <div class="hp-state-row"><span class="hp-state-label">trust</span><span class="hp-state-value" id="rco-trust">—</span><span id="rco-trust-vel" style="font-size:9px;color:var(--ink-dim);margin-left:4px;"></span></div>
+            <div class="hp-state-row"><span class="hp-state-label">warmth</span><span class="hp-state-value" id="rco-warmth">—</span></div>
+            <div class="hp-state-row"><span class="hp-state-label">session · turn</span><span class="hp-state-value" id="rco-counter">—</span></div>
+          </div>
         </div>
       </div>
 
@@ -2406,6 +2413,7 @@ function autoResize(el) {
 
   socket.on('connect', () => {
     if (dot) { dot.textContent = '● live'; dot.style.color = 'var(--sage)'; }
+    socket.emit('watchtower:subscribe'); // join __watchtower__ room + receive last known state
   });
   socket.on('disconnect', () => {
     if (dot) { dot.textContent = '○ offline'; dot.style.color = 'var(--ink-faint)'; }
@@ -2414,9 +2422,8 @@ function autoResize(el) {
   socket.on('global:pyxis-state', (p) => {
     updateHeartPanel(p);
   });
-  socket.on('room:pyxis-state', (p) => {
-    updateHeartPanel(p);
-  });
+  // room:pyxis-state removed — Watchtower is not in any room so io.to(roomId).emit() never reaches it.
+  // global:pyxis-state (emitted to all sockets) covers Watchtower's needs.
 })();
 
 function updateHeartPanel(p) {
@@ -2452,6 +2459,25 @@ function updateHeartPanel(p) {
     // If full panel is open, feed it too
     const fp = document.getElementById('pyxisFullPanel');
     if (fp && fp.style.display !== 'none') PyxisCore.push(p, 'pyxisFullMount');
+  }
+
+  // RCO relational HUD — only surfaces when sidecar is live
+  const rcoHud = document.getElementById('rco-hud');
+  if (rcoHud) {
+    if (p.rco) {
+      rcoHud.style.display = 'block';
+      const trustPct = Math.round((p.rco.trust ?? 0) * 100);
+      const warmthPct = Math.round((p.rco.warmth ?? 0) * 100);
+      const vel = p.rco.velocity ?? 0;
+      const velIcon = vel > 0.02 ? '↑' : vel < -0.02 ? '↓' : '—';
+      const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+      setEl('rco-trust',     trustPct + '%');
+      setEl('rco-trust-vel', velIcon);
+      setEl('rco-warmth',    warmthPct + '%');
+      setEl('rco-counter',   `${p.rco.session ?? '—'} · ${p.rco.turn ?? '—'}`);
+    } else {
+      rcoHud.style.display = 'none';
+    }
   }
 }
 

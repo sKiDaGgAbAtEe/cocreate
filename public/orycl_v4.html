@@ -2972,26 +2972,30 @@ const IS_DEPLOYED = window.location.hostname !== 'null' &&
 
 async function oracleCall({ system, prompt, max_tokens = 400 }) {
   if (IS_DEPLOYED) {
-    // Railway: use server proxy
-    const r = await fetch('/api/oracle-read', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ system, prompt, max_tokens })
-    });
-    if (!r.ok) throw new Error(`oracle-read ${r.status}`);
-    return await r.json();
-  } else {
-    // Standalone / Claude.ai artifact: call Anthropic directly
-    const body = { model: 'claude-sonnet-4-20250514', max_tokens, messages: [{ role: 'user', content: prompt }] };
-    if (system) body.system = system;
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    if (!r.ok) throw new Error(`Anthropic API ${r.status}`);
-    return await r.json();
+    // Railway: use server proxy — fall back to direct API if proxy unavailable (staging)
+    try {
+      const r = await fetch('/api/oracle-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system, prompt, max_tokens })
+      });
+      if (!r.ok) throw new Error(`oracle-read ${r.status}`);
+      return await r.json();
+    } catch(proxyErr) {
+      console.warn('oracle-read proxy failed, falling back to direct API:', proxyErr.message);
+      // Fall through to direct Anthropic call below
+    }
   }
+  // Standalone / Claude.ai artifact, or proxy fallback:
+  const body = { model: 'claude-sonnet-4-5', max_tokens, messages: [{ role: 'user', content: prompt }] };
+  if (system) body.system = system;
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error(`Anthropic API ${r.status}`);
+  return await r.json();
 }
 
 async function callBasin(basinId, userPrompt) {
@@ -3354,6 +3358,19 @@ async function saveFieldCheckpoint(oryClData, metrics) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ checkpoint })
     });
+    // Push affective deltas to RCO — oracle resonance persists into future basin responses
+    if (IS_DEPLOYED && metrics) {
+      fetch('/api/rco-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          affective_shifts: {
+            valence: (metrics.coherence  ?? 0) * 0.12 - (metrics.contradiction ?? 0) * 0.08,
+            arousal: (metrics.recursion  ?? 0) * 0.08,
+          }
+        })
+      }).catch(() => {}); // silent — never break the reading
+    }
     // Append to local fieldHistory so conversation sees it immediately
     fieldHistory.push({ ...checkpoint, timestamp: new Date().toISOString() });
   } catch(e) {
@@ -3886,7 +3903,6 @@ function showView(view) {
 function toggleFullscreen() {
   document.getElementById('app').classList.toggle('fullscreen');
 }
-function setTab(tab) {}
 
 window.addEventListener('message', (e) => {
   if (e.data?.type === 'orycl-draw') drawCards();

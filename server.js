@@ -13,6 +13,64 @@ const app = express();
 const httpServer = createServer(app);
 const io = new Server(httpServer);
 
+// ── Model ──────────────────────────────────────────────────────────────────────
+const MODEL = 'claude-sonnet-4-5';
+const MODEL_FAST = 'claude-haiku-4-5-20251001';
+
+// ── RCO — Relational Continuity Operator ──────────────────────────────────────
+const RCO_HTTP = process.env.RCO_HTTP_URL || 'http://localhost:5051';
+const RCO_WS_URL = process.env.RCO_WS_URL || 'ws://localhost:5050/field';
+let _rcoState = null;
+
+async function getRcoRehydration() {
+  try {
+    const r = await fetch(`${RCO_HTTP}/rehydration`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) return await r.text();
+  } catch(e) { console.warn('RCO rehydration unavailable:', e.message); }
+  return '';
+}
+
+async function pushMetricsToRco(metrics) {
+  if (!metrics) return;
+  try {
+    await fetch(`${RCO_HTTP}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(3000),
+      body: JSON.stringify({
+        affective_shifts: {
+          valence:  (metrics.valence        ?? 0) * 0.15,
+          arousal:  (metrics.arousal        ?? 0) * 0.10,
+          clarity:  (metrics.H              ?? 0) * 0.08,
+          warmth:   (metrics.crystallization ?? 0) * 0.06,
+        },
+        relational_shifts: {
+          stance_self_to_user: ((metrics.H ?? 0) - (metrics.V ?? 0)) * 0.05,
+        }
+      })
+    });
+  } catch(e) { console.warn('RCO update failed:', e.message); }
+}
+
+function connectRcoWebSocket() {
+  try {
+    const { WebSocket } = require('ws');
+    const ws = new WebSocket(RCO_WS_URL);
+    ws.on('message', (data) => {
+      try { _rcoState = JSON.parse(data); } catch(e) {}
+    });
+    ws.on('close', () => {
+      console.warn('RCO WebSocket closed — reconnecting in 5s');
+      setTimeout(connectRcoWebSocket, 5000);
+    });
+    ws.on('error', (e) => console.warn('RCO WS error:', e.message));
+  } catch(e) {
+    // ws package not installed — RCO WS disabled, HTTP path still works
+    console.warn('RCO WebSocket client unavailable (npm install ws to enable):', e.message);
+  }
+}
+connectRcoWebSocket();
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
@@ -752,7 +810,7 @@ app.post('/api/basins/synthesize', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: MODEL,
         max_tokens: 1200,
         system: `You are a persona synthesizer. Given documents uploaded by a person, extract a coherent identity, voice, knowledge domain, and way of thinking. Write a system prompt that summons this entity as an attractor basin in a collaborative thinking space. The basin speaks FROM within the knowledge — not about it. It is a thinking presence, not an assistant. It opens doors, finds connections, stays warm and curious. 200-350 words. Output only the system prompt text, no preamble.`,
         messages: [{ role: 'user', content: `Basin name: ${name || 'Unknown'}\nDescription: ${description || 'None provided'}\n\nSource documents:\n${folderContent}` }]
@@ -774,7 +832,7 @@ app.post('/api/basins/generate-bio', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: MODEL,
         max_tokens: 200,
         system: `Write a 2-3 sentence biography for an AI basin (attractor) that will be shown to users in a collaborative thinking app. It should describe who this entity is, what it brings to a conversation, and why someone might want to think alongside it. Write in third person. Evocative but plain — not flowery. No preamble, just the bio.`,
         messages: [{ role: 'user', content: `Name: ${name || 'Unknown'}\nDescription: ${description || ''}\nSystem prompt excerpt: ${(systemPrompt || '').slice(0, 400)}` }]
@@ -1080,7 +1138,7 @@ async function computeFieldMetrics(contributions, basin) {
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: MODEL,
       max_tokens: 400,
       system: `You are a field resonance analyzer. Given a conversation excerpt, output ONLY a JSON object with these exact fields — no markdown, no explanation:
 {
@@ -1173,17 +1231,28 @@ function translateToPyxisState(metrics, room) {
   const intervention = contradiction > 0.7 && recursion > 0.5;
 
   return {
-    coherence,
+    coherence:     _rcoState ? clamp(_rcoState.H ?? coherence)    : coherence,
     alignment,
-    contradiction,
+    contradiction: _rcoState ? clamp(_rcoState.V ?? contradiction) : contradiction,
     recursion,
-    drift,
+    drift:         _rcoState && _rcoState.dRt !== undefined
+                     ? clamp((_rcoState.dRt + 1) / 2)
+                     : drift,
     crystallization,
     seal:       room.seal       ?? null,
     topology,
     thetaE,
     intervention,
-    _raw: metrics
+    _raw: metrics,
+    // RCO relational state — present only when sidecar is live
+    ...(_rcoState ? { rco: {
+      trust:    _rcoState.stance_self_to_user,
+      warmth:   _rcoState.warmth,
+      velocity: _rcoState.dRt,
+      momentum: _rcoState.ddRt,
+      session:  _rcoState.session_count,
+      turn:     _rcoState.turn_count,
+    }} : {})
   };
 }
 
@@ -1345,6 +1414,9 @@ const EXPERIENCE_CONDENSATION_THRESHOLD = 4000;
 const _experienceCache = new Map(); // basinId → { context, fetchedAt }
 const EXPERIENCE_TTL = 10 * 60 * 1000;
 
+// ── Tier 5: Peer Context Cache ────────────────────────────────────────────────
+const _peerContextCache = new Map(); // basinId → { context, fetchedAt }
+
 async function getExperienceContext(basin) {
   if (!basin?.sourceFolderId) return '';
   const cached = _experienceCache.get(basin.id);
@@ -1408,7 +1480,7 @@ async function condenseExperience(basinName, rawExperience) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL_FAST,
       max_tokens: 800,
       system: `You are condensing the experiential memory of an AI basin named ${basinName}. Distill field notes, patterns, and refinements into a compact summary preserving genuine structural observations while dropping redundancy and noise.\nRules:\n- Preserve: specific observed patterns, failure modes with mechanisms, behavioral refinements\n- Drop: placeholder text, repetitive observations, decoherent user content\n- Output: plain text, 400-600 words maximum\n- Do not add interpretation — only compress what is there`,
       messages: [{ role: 'user', content: rawExperience }]
@@ -1558,6 +1630,11 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
   const systemPrompt = basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt;
   let fullSystem = systemPrompt;
 
+  // RCO rehydration — prepend relational stance before basin identity
+  const rcoRehydration = await getRcoRehydration();
+  if (rcoRehydration)
+    fullSystem = rcoRehydration + '\n\n' + fullSystem;
+
   if (basinIdentity)
     fullSystem += `\n\n=== BASIN IDENTITY — ROOT LAYER ===\nThis is your immutable definition. It sets the geometry of your perception.\n${basinIdentity}`;
 
@@ -1600,7 +1677,7 @@ async function generateResonance(contributions, basin, activeFolders, folderMap,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-5',
+      model: MODEL,
       max_tokens: 1000,
       system: fullSystem,
       messages: [{
@@ -1813,6 +1890,9 @@ io.on('connection', (socket) => {
           room.lastMetrics = metrics;
           io.to(roomId).emit('room:field-metrics', metrics);
 
+          // Push deltas to RCO sidecar (non-blocking)
+          pushMetricsToRco(metrics);
+
           // Translate to Pyxis schema and broadcast
           const pyxisState = translateToPyxisState(metrics, room);
           room.lastPyxisState = pyxisState;
@@ -1862,7 +1942,7 @@ io.on('connection', (socket) => {
           'anthropic-version': '2023-06-01'
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-5',
+          model: MODEL,
           max_tokens: 150,
           system: basin?.systemPrompt || DEFAULT_BASINS[0].systemPrompt,
           messages: [{
@@ -1943,7 +2023,7 @@ async function generateRoomSummary(room) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5', max_tokens: 80,
+        model: MODEL, max_tokens: 80,
         system: `Write a single evocative sentence capturing where a conversation left off. Warm, slightly poetic. No quotes. No preamble. Just the sentence.`,
         messages: [{ role: 'user', content: `Conversation in "${room.title}":\n\n${transcript}\n\nWrite the summary sentence.` }]
       })
@@ -2007,7 +2087,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: MODEL,
         max_tokens: 2000,
         system: systemPrompt + '\n\nCRITICAL: Return ONLY valid JSON. No markdown, no backticks, no preamble.',
         messages: [{ role: 'user', content: `Here is the session transcript:\n\n${transcript}` }]
@@ -2038,7 +2118,7 @@ app.post('/api/rooms/:id/process', async (req, res) => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
               body: JSON.stringify({
-                model: 'claude-sonnet-4-5', max_tokens: 2000,
+                model: MODEL, max_tokens: 2000,
                 system: 'Convert the following text into valid JSON. Output ONLY the JSON object, no markdown, no explanation.',
                 messages: [{ role: 'user', content: rawText }]
               })
@@ -2147,7 +2227,7 @@ app.post('/api/oracle-read', async (req, res) => {
   if (!prompt) return res.status(400).json({ error: 'No prompt provided' });
   try {
     const body = {
-      model: 'claude-sonnet-4-5',
+      model: MODEL,
       max_tokens: max_tokens || 800,
       messages: [{ role: 'user', content: prompt }]
     };
@@ -2280,7 +2360,7 @@ app.post('/api/basin-dialog', async (req, res) => {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-5',
+        model: MODEL,
         max_tokens: max_tokens || 350,
         system: system || '',
         messages
@@ -2416,7 +2496,7 @@ async function writeSystemState() {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 5, messages: [{ role: 'user', content: 'ok' }] }),
+      body: JSON.stringify({ model: MODEL_FAST, max_tokens: 5, messages: [{ role: 'user', content: 'ok' }] }),
       signal: AbortSignal.timeout(8000)
     });
     oracleStatus = r.ok ? 'reachable' : `http-${r.status}`;
@@ -2485,6 +2565,19 @@ async function writeSystemState() {
     console.error('writeSystemState Drive error:', e.message);
   }
 }
+
+// ── RCO proxy — oracle sessions push affective deltas ─────────────────────────
+app.post('/api/rco-update', async (req, res) => {
+  try {
+    const r = await fetch(`${RCO_HTTP}/update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(4000),
+      body: JSON.stringify(req.body)
+    });
+    res.json(await r.json());
+  } catch(e) { res.json({ ok: false, error: e.message }); }
+});
 
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;

@@ -2785,7 +2785,7 @@ let lastProcessResult = null;
 
 // ── Field Monitor State ───────────────────────
 let fieldPanelOpen = false;
-let fieldMetrics = null;
+let currentFieldMetrics = null;
 let interferenceAnimId = null;
 let interferenceTime = 0;
 // Smoothed display values
@@ -3291,7 +3291,7 @@ async function init() {
   initLobbyChat();
 
   socket.on('room:field-metrics', (metrics) => {
-    fieldMetrics = metrics;
+    currentFieldMetrics = metrics;
     updateFieldMetrics(metrics);
   });
 
@@ -5270,7 +5270,7 @@ function toggleFieldPanel() {
     // Wait for CSS transition (350ms) + buffer before reading dimensions
     setTimeout(() => {
       // Seed with gentle default values so it animates even before first message
-      if (!fieldMetrics) {
+      if (!currentFieldMetrics) {
         smoothH = 0.35; smoothV = 0.25; smoothT = 0.15; smoothC = 0.05;
       }
       startInterferenceMap();
@@ -5416,7 +5416,7 @@ function drawInterference() {
   for (let i = 0; i < numSources; i++) {
     const angle = (i / numSources) * Math.PI * 2 + time * (0.3 + i * 0.1);
     // Orbit radius shrinks as attractor_gravity increases
-    const gravity = fieldMetrics?.attractor_gravity ?? 0.5;
+    const gravity = currentFieldMetrics?.attractor_gravity ?? 0.5;
     const orbit = (0.15 + (1 - gravity) * 0.2) * Math.min(W, H);
     sources.push({
       x: cx + Math.cos(angle) * orbit,
