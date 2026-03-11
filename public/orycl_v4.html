@@ -3904,12 +3904,13 @@ function toggleFullscreen() {
 }
 
 window.addEventListener('message', (e) => {
-  if (e.data?.type === 'orycl-draw')   drawCards();
-  if (e.data?.type === 'orycl-clear')  clearReading();
-  if (e.data?.type === 'orycl-spread') setSpread(e.data.spread);
-  // QS animation triggers from parent frame
-  if (e.data?.type === 'qs-open')      QSAnimEngine.open();
-  if (e.data?.type === 'qs-close')     QSAnimEngine.close();
+  if (!e.data) return;
+  if (e.data.type === 'orycl-draw')   drawCards();
+  if (e.data.type === 'orycl-clear')  clearReading();
+  if (e.data.type === 'orycl-spread') setSpread(e.data.spread);
+  if (e.data.type === 'qs-open')      QSAnimEngine.open();
+  if (e.data.type === 'qs-close')     QSAnimEngine.close();
+  // legacy qs-pfp src-swap: ignored — engine handles its own state
 });
 
 // ══════════════════════════════════════════════════════
