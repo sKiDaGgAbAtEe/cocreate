@@ -4788,7 +4788,7 @@ function openTarotWidget() {
   var corner = document.getElementById('qs-corner');
   if (!widget) return;
   if (!_tarotLoaded) {
-    _tarotFrame().src = '/orycl_v5.html';
+    _tarotFrame().src = '/orycl_v4.html';
     _tarotLoaded = true;
   }
   // Exit fullscreen if open, back to mini
@@ -4811,7 +4811,7 @@ function minimizeTarotWidget() {
 
 function refreshTarotWidget() {
   var frame = _tarotFrame();
-  if (frame) { frame.src = ''; frame.src = '/orycl_v5.html'; }
+  if (frame) { frame.src = ''; frame.src = '/orycl_v4.html'; }
 }
 
 function openTarotFullscreen() {
@@ -4819,7 +4819,7 @@ function openTarotFullscreen() {
   var widget = document.getElementById('tarot-widget');
   if (!widget) return;
   if (!_tarotLoaded) {
-    _tarotFrame().src = '/orycl_v5.html';
+    _tarotFrame().src = '/orycl_v4.html';
     _tarotLoaded = true;
   }
   widget.classList.add('open');
