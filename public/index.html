@@ -4766,7 +4766,7 @@ function closeDefinition() { document.getElementById('defTooltip').classList.rem
   // ── img fallback ──────────────────────────────────────────────────
   // Used when ImageDecoder is unavailable. Measured durations via
   // a one-time decode pass; falls back to hardcoded if that fails.
-  var measuredMs = { wake: 2200, down: 2200 };
+  var measuredMs = { wake: 3320, down: 3200 };
 
   function imgShow(name) {
     ['sleep','wake','stand','down'].forEach(function(f) {
