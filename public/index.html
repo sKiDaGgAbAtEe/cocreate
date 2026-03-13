@@ -3171,6 +3171,9 @@ function applyTheme(theme, preferDark) {
   root.style.setProperty('--btn-primary-color',  palette.btnColor         || '');
   document.body.style.background = palette.parchment || '';
 
+  // Re-render cards so their colors re-derive from the new theme vars
+  if (_lastRoomList.length) renderRooms(_lastRoomList);
+
   // Dynamic font loading
   if (theme.googleFontsUrl) {
     let fontLink = document.getElementById('dynamic-font-link');
@@ -3946,7 +3949,9 @@ async function viewArchivedSession(fileId, name) {
 
 function closeArchiveViewer() { document.getElementById('archiveViewerModal').classList.remove('open'); }
 
+let _lastRoomList = [];
 function renderRooms(rooms) {
+  _lastRoomList = rooms || [];
   const grid = document.getElementById('roomsGrid');
   if (!rooms.length) {
     grid.innerHTML = '<div class="empty-rooms">◈<br/>No spaces yet.<br/>Create one to begin.</div>';
