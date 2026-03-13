@@ -3420,8 +3420,10 @@ function showPage(id) {
   var inLobby = (id === 'lobby');
   if (corner) corner.style.display = inLobby ? 'block' : 'none';
   if (!inLobby && tarot) {
+    // Clean up fully — don't leave widget-open class stranded on corner
     tarot.classList.remove('open');
     tarot.classList.remove('tarot-fullscreen-mode');
+    if (corner) corner.classList.remove('widget-open');
   }
 }
 
