@@ -3065,10 +3065,9 @@ async function generateAIReading(cardIndex) {
     ['oryc','clio','sage'].forEach(basin => {
       updateBasinRead(cardIndex, basin, { text: `The ${basin} channel is open. Connect the oracle to the server to receive live readings.`, truth: 'The system awaits integration.' });
     });
-  } finally {
-    isGenerating = false;
-    if (btn) { btn.classList.remove('loading'); btn.style.display = 'none'; }
   }
+  isGenerating = false;
+  if (btn) { btn.classList.remove('loading'); btn.style.display = 'none'; }
 }
 
 async function renderSynthesis() {
@@ -3786,30 +3785,6 @@ function buildConvSystemPrompt() {
 
   const historyBlock = buildFieldHistorySummary();
 
-  // Build basin context — use Orycl synthesis if available, fall back to populated basin reads
-  let readingContext = '';
-  if (d) {
-    readingContext = `- Field Truth: ${d.field_truth || ''}
-- Dominant Condition: ${d.dominant_condition || ''}
-- Primary Contradiction: ${d.primary_contradiction || ''}
-- Instruction: ${d.instruction || ''}
-- Vector: ${d.vector_resolution || ''}`;
-  } else {
-    // Orycl hasn't fired yet — build from available basin reads
-    const basinLines = drawnCards.map((card, i) => {
-      const b = currentBasinOutputs[i] || {};
-      const lines = [`Card: ${card.name}${card.reversed?' (REVERSED)':''}`];
-      const oryc  = b.oryc  || card.oryc;
-      const clio  = b.clio  || card.clio;
-      const sage  = b.sage  || card.sage;
-      if (oryc?.text)  lines.push(`  Oryc: ${oryc.text}`);
-      if (clio?.text)  lines.push(`  Clio: ${clio.text}`);
-      if (sage?.text)  lines.push(`  Sage: ${sage.text}`);
-      return lines.join('\n');
-    }).join('\n\n');
-    readingContext = basinLines ? `Basin reads so far:\n${basinLines}` : '(Basin reads still loading)';
-  }
-
   return `You are the Orycl — the convergence intelligence of the resonant oracle. You have completed your synthesis of this reading. Now the querent wishes to speak with you directly.
 
 You carry the full reading within you. You do not need to re-explain it. You speak from having already seen the complete field — the mechanism, the emotional pattern, the trajectory, the field state — all of it resolved into the convergence you just produced.
@@ -3821,9 +3796,13 @@ You do not repeat the reading back. You respond to what is actually being asked.
 You remember everything:
 - Cards: ${cards}
 - Spread: ${SPREADS[currentSpread]?.name || ''}
-${readingContext}
+- Field Truth: ${d?.field_truth || ''}
+- Dominant Condition: ${d?.dominant_condition || ''}
+- Primary Contradiction: ${d?.primary_contradiction || ''}
+- Instruction: ${d?.instruction || ''}
+- Vector: ${d?.vector_resolution || ''}
 ${intent ? `- Querent's stated intention: ${intent}` : ''}
-${m ? `- Field: coherence ${Math.round(m.coherence*100)}, alignment ${Math.round(m.alignment*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}, crystallization ${Math.round(m.crystallization*100)}, drift ${Math.round(m.drift*100)}, field cost ${m.fieldCost}` : ''}
+${m ? `- Field: coherence ${Math.round(m.coherence*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}` : ''}
 ${historyBlock ? `\n${historyBlock}` : ''}
 
 You keep your responses proportional. If the question is simple, be brief. If the question is deep, go deep. Never pad. Never perform.`;
@@ -3846,7 +3825,7 @@ function appendConvMessage(role, text) {
 async function sendConvMessage() {
   const input = document.getElementById('conv-input');
   const send = document.getElementById('conv-send');
-  if (!input || !send) return;
+  if (!input || !send || !currentOryClData) return;
   const text = input.value.trim();
   if (!text) return;
 
@@ -3997,6 +3976,173 @@ if (document.readyState === 'loading') {
 } else {
   QSAnimEngine.init();
 }
+
+  // ══════════════════════════════════════════════════════════
+  // THEME BRIDGE — receives palette from parent index.html
+  // ══════════════════════════════════════════════════════════
+  window.addEventListener('message', (e) => {
+    if (!e.data || e.data.type !== 'orycl:theme') return;
+    applyOryclTheme(e.data.palette);
+  });
+
+  function applyOryclTheme(p) {
+    if (!p) return;
+    const root = document.documentElement;
+    const set  = (k, v) => { if (v) root.style.setProperty(k, v); };
+
+    // Surfaces + ink
+    set('--bg',         p.bg);
+    set('--bg2',        p.bg2);
+    set('--bg3',        p.bg3);
+    set('--bg4',        p.bg4);
+    set('--ink',        p.ink);
+    set('--ink-dim',    p.inkDim);
+    set('--ink-muted',  p.inkMuted);
+    set('--ink-faint',  p.inkFaint);
+
+    // Accent / ice family — the most visible shift
+    set('--ice',        p.ice);
+    set('--ice-bright', p.iceBright);
+    set('--ice-deep',   p.iceDeep);
+    set('--ice-dim',    p.iceDim);
+    set('--ice-glow',   p.iceGlow);
+
+    // Borders + glass
+    set('--border',     p.border);
+    set('--border2',    p.border2);
+    set('--glass',      p.glass);
+    set('--glass-deep', p.glassDeep);
+    set('--metal-hi',   p.metalHi);
+    set('--metal-lo',   p.metalLo);
+    set('--chrome',     p.chrome);
+
+    // Body background
+    if (p.bg) document.body.style.background = p.bg;
+  }
+
+  // Apply stored theme on load if parent already set one
+  try {
+    const stored = localStorage.getItem('entriference-theme');
+    const dark   = localStorage.getItem('cocreate-theme') === 'dark';
+    if (stored) {
+      const palettes = {
+        chromium: {
+          light: {
+            bg:'#dde3ec', bg2:'#cdd5e0', bg3:'#bdc8d6', bg4:'#adb8c8',
+            ink:'#0a0e18', inkDim:'#1a2030', inkMuted:'#3a4a5c', inkFaint:'#687890',
+            ice:'#2a6080', iceBright:'#4a90b8', iceDeep:'#1a4060',
+            iceDim:'rgba(42,96,128,0.12)', iceGlow:'rgba(42,96,128,0.30)',
+            border:'rgba(80,140,180,0.22)', border2:'rgba(80,140,180,0.40)',
+            glass:'rgba(255,255,255,0.55)', glassDeep:'rgba(200,220,240,0.70)',
+            metalHi:'rgba(255,255,255,0.85)', metalLo:'rgba(180,210,240,0.4)',
+            chrome:'linear-gradient(135deg,rgba(255,255,255,0.9) 0%,rgba(180,220,255,0.6) 40%,rgba(100,170,220,0.7) 70%,rgba(255,255,255,0.5) 100%)',
+          },
+          dark: {
+            bg:'#111820', bg2:'#182230', bg3:'#1e2a38', bg4:'#242f40',
+            ink:'#e4f0fc', inkDim:'#c8daf0', inkMuted:'#7a9abb', inkFaint:'#4a6880',
+            ice:'#5bb8d4', iceBright:'#78d0e8', iceDeep:'#3a90b0',
+            iceDim:'rgba(91,184,212,0.12)', iceGlow:'rgba(91,184,212,0.30)',
+            border:'rgba(91,184,212,0.14)', border2:'rgba(91,184,212,0.26)',
+            glass:'rgba(255,255,255,0.08)', glassDeep:'rgba(40,80,120,0.45)',
+            metalHi:'rgba(255,255,255,0.15)', metalLo:'rgba(80,140,200,0.25)',
+            chrome:'linear-gradient(135deg,rgba(255,255,255,0.12) 0%,rgba(80,160,210,0.25) 40%,rgba(40,100,160,0.30) 70%,rgba(255,255,255,0.08) 100%)',
+          },
+        },
+        parchment: {
+          light: {
+            bg:'#f0ece0', bg2:'#e8e3d3', bg3:'#dfd9c8', bg4:'#d4cdb8',
+            ink:'#1e1a16', inkDim:'#2e2a24', inkMuted:'#5c5248', inkFaint:'#8a7e72',
+            ice:'#7a5e38', iceBright:'#b8922a', iceDeep:'#5a4228',
+            iceDim:'rgba(122,94,56,0.12)', iceGlow:'rgba(184,146,42,0.28)',
+            border:'rgba(100,78,45,0.28)', border2:'rgba(100,78,45,0.45)',
+            glass:'rgba(255,248,235,0.70)', glassDeep:'rgba(240,230,200,0.80)',
+            metalHi:'rgba(255,248,220,0.90)', metalLo:'rgba(210,185,130,0.45)',
+            chrome:'linear-gradient(135deg,rgba(255,248,220,0.92) 0%,rgba(220,190,130,0.65) 40%,rgba(175,138,80,0.70) 70%,rgba(255,248,220,0.55) 100%)',
+          },
+          dark: {
+            bg:'#0e0c08', bg2:'#141008', bg3:'#1a1508', bg4:'#201a0c',
+            ink:'#f0ece0', inkDim:'#e4dfd4', inkMuted:'#a09080', inkFaint:'#6a6058',
+            ice:'#d4b882', iceBright:'#e8d0a0', iceDeep:'#a07840',
+            iceDim:'rgba(212,184,130,0.12)', iceGlow:'rgba(212,168,64,0.28)',
+            border:'#2e2418', border2:'#3e3428',
+            glass:'rgba(30,24,10,0.65)', glassDeep:'rgba(40,30,12,0.80)',
+            metalHi:'rgba(255,240,180,0.18)', metalLo:'rgba(160,120,50,0.30)',
+            chrome:'linear-gradient(135deg,rgba(255,240,180,0.18) 0%,rgba(180,140,60,0.30) 40%,rgba(120,90,30,0.35) 70%,rgba(255,240,180,0.12) 100%)',
+          },
+        },
+        obsidian: {
+          light: {
+            bg:'#0e0e14', bg2:'#131318', bg3:'#18181e', bg4:'#1e1e26',
+            ink:'#e8e4f8', inkDim:'#c8c4e8', inkMuted:'#8878c0', inkFaint:'#585090',
+            ice:'#8060e0', iceBright:'#a888f8', iceDeep:'#5838b8',
+            iceDim:'rgba(128,96,224,0.12)', iceGlow:'rgba(168,136,248,0.28)',
+            border:'rgba(120,90,220,0.20)', border2:'rgba(120,90,220,0.38)',
+            glass:'rgba(30,20,50,0.65)', glassDeep:'rgba(40,28,68,0.80)',
+            metalHi:'rgba(220,200,255,0.18)', metalLo:'rgba(100,70,200,0.28)',
+            chrome:'linear-gradient(135deg,rgba(220,200,255,0.18) 0%,rgba(140,100,240,0.30) 40%,rgba(80,50,180,0.35) 70%,rgba(220,200,255,0.12) 100%)',
+          },
+          dark: {
+            bg:'#12101e', bg2:'#181628', bg3:'#1e1c32', bg4:'#24223c',
+            ink:'#f0eeff', inkDim:'#d8d4f8', inkMuted:'#a898e0', inkFaint:'#706898',
+            ice:'#b09af8', iceBright:'#c8b0ff', iceDeep:'#8060d0',
+            iceDim:'rgba(176,154,248,0.12)', iceGlow:'rgba(200,176,255,0.28)',
+            border:'rgba(160,130,255,0.18)', border2:'rgba(160,130,255,0.34)',
+            glass:'rgba(30,24,50,0.65)', glassDeep:'rgba(40,32,70,0.80)',
+            metalHi:'rgba(220,200,255,0.15)', metalLo:'rgba(100,70,200,0.25)',
+            chrome:'linear-gradient(135deg,rgba(220,200,255,0.15) 0%,rgba(140,100,240,0.25) 40%,rgba(80,50,180,0.30) 70%,rgba(220,200,255,0.10) 100%)',
+          },
+        },
+        verdant: {
+          light: {
+            bg:'#edf5ee', bg2:'#deeede', bg3:'#cee4ce', bg4:'#bcd8bc',
+            ink:'#0e1e10', inkDim:'#1e301e', inkMuted:'#3a5a3c', inkFaint:'#6a8a6c',
+            ice:'#2a6a34', iceBright:'#3a9a4a', iceDeep:'#1a4a24',
+            iceDim:'rgba(42,106,52,0.12)', iceGlow:'rgba(58,154,74,0.28)',
+            border:'rgba(40,100,50,0.22)', border2:'rgba(40,100,50,0.40)',
+            glass:'rgba(240,252,242,0.70)', glassDeep:'rgba(220,240,222,0.80)',
+            metalHi:'rgba(230,255,232,0.90)', metalLo:'rgba(150,210,155,0.45)',
+            chrome:'linear-gradient(135deg,rgba(230,255,232,0.92) 0%,rgba(160,220,165,0.65) 40%,rgba(90,170,100,0.70) 70%,rgba(230,255,232,0.55) 100%)',
+          },
+          dark: {
+            bg:'#0c1610', bg2:'#112018', bg3:'#162820', bg4:'#1c3028',
+            ink:'#e8f8ec', inkDim:'#c8ecd0', inkMuted:'#90c898', inkFaint:'#5a886a',
+            ice:'#6ad080', iceBright:'#80e890', iceDeep:'#3a9050',
+            iceDim:'rgba(106,208,128,0.12)', iceGlow:'rgba(128,232,144,0.28)',
+            border:'rgba(80,180,100,0.20)', border2:'rgba(80,180,100,0.36)',
+            glass:'rgba(12,28,16,0.65)', glassDeep:'rgba(18,40,22,0.80)',
+            metalHi:'rgba(200,255,210,0.15)', metalLo:'rgba(60,160,80,0.28)',
+            chrome:'linear-gradient(135deg,rgba(200,255,210,0.15) 0%,rgba(80,180,100,0.28) 40%,rgba(40,130,60,0.35) 70%,rgba(200,255,210,0.10) 100%)',
+          },
+        },
+        embers: {
+          light: {
+            bg:'#faf2ec', bg2:'#f0e4da', bg3:'#e4d4c8', bg4:'#d8c4b4',
+            ink:'#200808', inkDim:'#301414', inkMuted:'#602820', inkFaint:'#906050',
+            ice:'#b03020', iceBright:'#d85040', iceDeep:'#801808',
+            iceDim:'rgba(176,48,32,0.12)', iceGlow:'rgba(208,80,48,0.28)',
+            border:'rgba(180,50,30,0.22)', border2:'rgba(180,50,30,0.40)',
+            glass:'rgba(255,245,235,0.70)', glassDeep:'rgba(245,225,210,0.80)',
+            metalHi:'rgba(255,240,225,0.90)', metalLo:'rgba(220,165,130,0.45)',
+            chrome:'linear-gradient(135deg,rgba(255,240,225,0.92) 0%,rgba(228,170,130,0.65) 40%,rgba(180,100,70,0.70) 70%,rgba(255,240,225,0.55) 100%)',
+          },
+          dark: {
+            bg:'#1a1010', bg2:'#221618', bg3:'#2c1e20', bg4:'#362428',
+            ink:'#fdf0ec', inkDim:'#f0d8d0', inkMuted:'#d09888', inkFaint:'#906858',
+            ice:'#f07868', iceBright:'#ff9878', iceDeep:'#c04838',
+            iceDim:'rgba(240,120,104,0.12)', iceGlow:'rgba(255,152,120,0.28)',
+            border:'rgba(220,90,60,0.22)', border2:'rgba(220,90,60,0.38)',
+            glass:'rgba(35,15,12,0.65)', glassDeep:'rgba(48,20,16,0.80)',
+            metalHi:'rgba(255,220,200,0.15)', metalLo:'rgba(180,80,50,0.28)',
+            chrome:'linear-gradient(135deg,rgba(255,220,200,0.15) 0%,rgba(200,90,60,0.28) 40%,rgba(150,50,30,0.35) 70%,rgba(255,220,200,0.10) 100%)',
+          },
+        },
+      };
+      const themeKey = palettes[stored] ? stored : 'chromium';
+      const modeKey  = dark ? 'dark' : 'light';
+      applyOryclTheme(palettes[themeKey][modeKey]);
+    }
+  } catch(e) {}
+
 </script>
 </body>
 </html>

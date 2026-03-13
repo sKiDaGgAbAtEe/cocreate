@@ -3174,6 +3174,9 @@ function applyTheme(theme, preferDark) {
   // Re-render cards so their colors re-derive from the new theme vars
   if (_lastRoomList.length) renderRooms(_lastRoomList);
 
+  // Broadcast palette to tarot iframe
+  _broadcastThemeToTarot(palette, isDark);
+
   // Dynamic font loading
   if (theme.googleFontsUrl) {
     let fontLink = document.getElementById('dynamic-font-link');
@@ -4970,6 +4973,48 @@ var _tarotLoaded = false;
 
 function _tarotFrame() { return document.getElementById('tarot-mini-frame'); }
 
+
+// ── Broadcast current theme palette to the orycl_v4 iframe ──────────────────
+function _broadcastThemeToTarot(palette, isDark) {
+  const frame = document.getElementById('tarot-mini-frame');
+  if (!frame || !frame.contentWindow) return;
+
+  // Map theme palette → orycl CSS var names
+  // ice/accent is the most visible: use gold as primary accent for warm themes,
+  // accent for cool/neutral ones
+  const accent  = palette.gold   || palette.accent || '#5bb8d4';
+  const accentB = palette.accent || palette.gold   || '#3a90b0';
+
+  // Derive ice family from accent
+  const msg = {
+    type: 'orycl:theme',
+    palette: {
+      bg:         palette.parchment  || palette.bg,
+      bg2:        palette.parchment2 || palette.bg2,
+      bg3:        palette.parchment3 || palette.bg3,
+      bg4:        palette.parchment3 || palette.bg4, // use p3 as bg4 approx
+      ink:        palette.ink,
+      inkDim:     palette.inkDim,
+      inkMuted:   palette.inkMuted,
+      inkFaint:   palette.inkFaint,
+      ice:        accentB,
+      iceBright:  accent,
+      iceDeep:    palette.accent || accentB,
+      iceDim:     (palette.goldDim || palette.border || 'rgba(91,184,212,0.12)'),
+      iceGlow:    (palette.goldDim || 'rgba(91,184,212,0.25)').replace(/[\d.]+\)$/, '0.30)'),
+      border:     palette.border,
+      border2:    palette.border2,
+      glass:      isDark ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.55)',
+      glassDeep:  isDark ? 'rgba(0,0,0,0.65)' : 'rgba(240,240,230,0.75)',
+      metalHi:    isDark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.88)',
+      metalLo:    isDark ? 'rgba(100,100,100,0.25)' : 'rgba(200,200,200,0.45)',
+      chrome:     isDark
+        ? `linear-gradient(135deg,rgba(255,255,255,0.10) 0%,${accentB}44 40%,${palette.accent || accentB}55 70%,rgba(255,255,255,0.06) 100%)`
+        : `linear-gradient(135deg,rgba(255,255,255,0.92) 0%,${accent}99 40%,${accentB}aa 70%,rgba(255,255,255,0.55) 100%)`,
+    }
+  };
+  try { frame.contentWindow.postMessage(msg, '*'); } catch(e) {}
+}
 function openTarotWidget() {
   var widget = document.getElementById('tarot-widget');
   var corner = document.getElementById('qs-corner');
@@ -4984,6 +5029,13 @@ function openTarotWidget() {
   widget.classList.remove('tarot-fullscreen-mode');
   if (corner) corner.classList.add('widget-open');
   qsWake();
+  // Push current theme into the freshly opened iframe
+  setTimeout(() => {
+    const theme   = PRESET_THEMES.find(t => t.id === _activeThemeId) || PRESET_THEMES[0];
+    const isDark  = document.body.classList.contains('dark');
+    const palette = isDark ? theme.dark : theme.light;
+    _broadcastThemeToTarot(palette, isDark);
+  }, 300);
 }
 
 function minimizeTarotWidget() {
