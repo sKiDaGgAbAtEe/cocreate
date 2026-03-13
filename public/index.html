@@ -258,7 +258,7 @@
       flex-direction: column;
       gap: 4px;
       flex-shrink: 0;
-      width: 42%;
+      width: 30%;
       min-width: 0;
       justify-content: center;
     }
@@ -4036,52 +4036,54 @@ function buildShadeSwatches() {
   const container = document.getElementById('colorSwatches');
   if (!container) return;
 
-  // Read theme accent and gold — try both, pick one with saturation
-  const accentRaw = _cssVar('--accent') || '#7a5e38';
-  const goldRaw   = _cssVar('--gold')   || '#b8922a';
+  const body    = document.body;
+  const isDark  = body.classList.contains('dark');
+  const isChrom = body.classList.contains('theme-chromium');
 
-  // Parse both, use accent as hue source (it's the primary identity color)
-  const [ah, as_, al] = _hexToHsl(accentRaw.startsWith('#') ? accentRaw : '#7a5e38');
-  const [gh, gs_, gl] = _hexToHsl(goldRaw.startsWith('#')   ? goldRaw   : '#b8922a');
+  // Pull base hues from the *active* theme
+  // Chromium → plasma-core / plasma-outer
+  // Dark / Parchment → accent / gold
+  let trackA, trackB;
+  if (isChrom) {
+    const core  = _cssVar('--plasma-core')  || '#78d0e8';
+    const outer = _cssVar('--plasma-outer') || '#2a6080';
+    trackA = { hex: core,  label: 'Core'  };
+    trackB = { hex: outer, label: 'Deep'  };
+  } else {
+    const accent = _cssVar('--accent') || (isDark ? '#d4b882' : '#7a5e38');
+    const gold   = _cssVar('--gold')   || (isDark ? '#d4a840' : '#b8922a');
+    trackA = { hex: accent, label: 'Accent' };
+    trackB = { hex: gold,   label: 'Gold'   };
+  }
 
-  // 7 shades: lightest → mid → darkest, keeping hue + saturation
-  // Lightness range: 75% (very light) down to 22% (very dark)
-  const isDark = document.body.classList.contains('dark');
-  const shadeStops = isDark
-    ? [72, 62, 52, 42, 32, 24, 17]   // dark mode: compress toward darker end
-    : [78, 68, 57, 47, 37, 28, 20];  // light mode: full light-to-dark sweep
-
-  // Keep saturation strong but not blown out
-  const sat = Math.max(28, Math.min(as_, 72));
-
-  // Two hue tracks: accent and gold — render both rows
-  const tracks = [
-    { h: ah, label: 'Accent' },
-    { h: gh, label: 'Gold'   },
-  ];
+  // 7 shade stops light → dark, same every render — only the hue changes with theme
+  const shadeStops = [76, 65, 54, 44, 34, 26, 18];
 
   container.innerHTML = '';
 
-  tracks.forEach(({ h, label }) => {
+  [trackA, trackB].forEach(({ hex, label }, ti) => {
+    const [h, s] = _hexToHsl(hex);
+    // Keep saturation grounded — not too grey, not blown out
+    const sat = Math.max(30, Math.min(s, 70));
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:4px;align-items:center';
 
     shadeStops.forEach((l, i) => {
-      const hex = _hslToHex(h, sat, l);
+      const col = _hslToHex(h, sat, l);
       const sw  = document.createElement('div');
       sw.className = 'color-swatch';
-      sw.dataset.color = hex;
-      sw.style.background = hex;
+      sw.dataset.color = col;
+      sw.style.background = col;
       sw.title = `${label} — ${i < 2 ? 'light' : i < 5 ? 'mid' : 'dark'}`;
-      // Mark the mid shade (index 3) as default selected for accent track
-      if (label === 'Accent' && i === 3) {
+      if (ti === 0 && i === 3) {
+        // Default: mid-shade of primary track
         sw.classList.add('selected');
-        selectedRoomCardColor = hex;
-        document.getElementById('newRoomCardColor').value = hex;
+        selectedRoomCardColor = col;
+        document.getElementById('newRoomCardColor').value = col;
       }
       sw.onclick = () => {
-        selectedRoomCardColor = hex;
-        document.getElementById('newRoomCardColor').value = hex;
+        selectedRoomCardColor = col;
+        document.getElementById('newRoomCardColor').value = col;
         container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
         sw.classList.add('selected');
       };
