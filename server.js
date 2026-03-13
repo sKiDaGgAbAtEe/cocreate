@@ -14,7 +14,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer);
 
 // ── Model ──────────────────────────────────────────────────────────────────────
-const MODEL = 'claude-sonnet-4-5';
+const MODEL = 'claude-sonnet-4-6';
 const MODEL_FAST = 'claude-haiku-4-5-20251001';
 
 // ── RCO — Relational Continuity Operator ──────────────────────────────────────
@@ -33,23 +33,14 @@ async function getRcoRehydration() {
 async function pushMetricsToRco(metrics) {
   if (!metrics) return;
   try {
-    await fetch(`${RCO_HTTP}/update`, {
+    // /field-event — full field signal, drives affective translation in RCO
+    await fetch(`${RCO_HTTP}/field-event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       signal: AbortSignal.timeout(3000),
-      body: JSON.stringify({
-        affective_shifts: {
-          valence:  (metrics.valence        ?? 0) * 0.15,
-          arousal:  (metrics.arousal        ?? 0) * 0.10,
-          clarity:  (metrics.H              ?? 0) * 0.08,
-          warmth:   (metrics.crystallization ?? 0) * 0.06,
-        },
-        relational_shifts: {
-          stance_self_to_user: ((metrics.H ?? 0) - (metrics.V ?? 0)) * 0.05,
-        }
-      })
+      body: JSON.stringify({ metrics })
     });
-  } catch(e) { console.warn('RCO update failed:', e.message); }
+  } catch(e) { console.warn('RCO field-event failed:', e.message); }
 }
 
 function connectRcoWebSocket() {
@@ -1230,28 +1221,43 @@ function translateToPyxisState(metrics, room) {
   const thetaE       = coherence > 0.67 && crystallization > 0.55;
   const intervention = contradiction > 0.7 && recursion > 0.5;
 
+  // RCO blend — rco_H/rco_V are relational proxies, not field measurements.
+  // Blend at 20% so RCO adds emotional texture without overriding the LLM field signal.
+  const RCO_BLEND = 0.20;
+  const blendedCoherence     = _rcoState
+    ? clamp(coherence     * (1 - RCO_BLEND) + (_rcoState.rco_H ?? coherence)     * RCO_BLEND)
+    : coherence;
+  const blendedContradiction = _rcoState
+    ? clamp(contradiction * (1 - RCO_BLEND) + (_rcoState.rco_V ?? contradiction) * RCO_BLEND)
+    : contradiction;
+  const blendedDrift = _rcoState && _rcoState.dRt !== undefined
+    ? clamp(drift * (1 - RCO_BLEND) + clamp((_rcoState.dRt + 1) / 2) * RCO_BLEND)
+    : drift;
+
   return {
-    coherence:     _rcoState ? clamp(_rcoState.H ?? coherence)    : coherence,
+    coherence:     blendedCoherence,
     alignment,
-    contradiction: _rcoState ? clamp(_rcoState.V ?? contradiction) : contradiction,
+    contradiction: blendedContradiction,
     recursion,
-    drift:         _rcoState && _rcoState.dRt !== undefined
-                     ? clamp((_rcoState.dRt + 1) / 2)
-                     : drift,
+    drift:         blendedDrift,
     crystallization,
-    seal:       room.seal       ?? null,
+    seal:       room.seal    ?? null,
     topology,
     thetaE,
     intervention,
     _raw: metrics,
     // RCO relational state — present only when sidecar is live
     ...(_rcoState ? { rco: {
-      trust:    _rcoState.stance_self_to_user,
-      warmth:   _rcoState.warmth,
-      velocity: _rcoState.dRt,
-      momentum: _rcoState.ddRt,
-      session:  _rcoState.session_count,
-      turn:     _rcoState.turn_count,
+      trust:          _rcoState.stance_self_to_user,
+      warmth:         _rcoState.warmth,
+      clarity:        _rcoState.clarity,
+      valence:        _rcoState.valence,
+      velocity:       _rcoState.dRt,
+      momentum:       _rcoState.ddRt,
+      active_basin:   _rcoState.active_basin,
+      session:        _rcoState.session_count,
+      turn:           _rcoState.turn_count,
+      field_condition: _rcoState.field_signal?.dominant_event ?? null,
     }} : {})
   };
 }
@@ -1786,6 +1792,12 @@ io.on('connection', (socket) => {
     room.contributions.push(sysMsg);
     io.to(roomId).emit('room:basin-switched', { basin, sysMsg });
     persistRoomsToDrive();
+    // Notify RCO which basin is now active (fire and forget)
+    fetch(`${RCO_HTTP}/basin-switch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ basin: basin.name || basin.id })
+    }).catch(() => {});
   });
 
   // Mode change

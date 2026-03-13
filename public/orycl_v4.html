@@ -3065,9 +3065,10 @@ async function generateAIReading(cardIndex) {
     ['oryc','clio','sage'].forEach(basin => {
       updateBasinRead(cardIndex, basin, { text: `The ${basin} channel is open. Connect the oracle to the server to receive live readings.`, truth: 'The system awaits integration.' });
     });
+  } finally {
+    isGenerating = false;
+    if (btn) { btn.classList.remove('loading'); btn.style.display = 'none'; }
   }
-  isGenerating = false;
-  if (btn) { btn.classList.remove('loading'); btn.style.display = 'none'; }
 }
 
 async function renderSynthesis() {
@@ -3785,6 +3786,30 @@ function buildConvSystemPrompt() {
 
   const historyBlock = buildFieldHistorySummary();
 
+  // Build basin context — use Orycl synthesis if available, fall back to populated basin reads
+  let readingContext = '';
+  if (d) {
+    readingContext = `- Field Truth: ${d.field_truth || ''}
+- Dominant Condition: ${d.dominant_condition || ''}
+- Primary Contradiction: ${d.primary_contradiction || ''}
+- Instruction: ${d.instruction || ''}
+- Vector: ${d.vector_resolution || ''}`;
+  } else {
+    // Orycl hasn't fired yet — build from available basin reads
+    const basinLines = drawnCards.map((card, i) => {
+      const b = currentBasinOutputs[i] || {};
+      const lines = [`Card: ${card.name}${card.reversed?' (REVERSED)':''}`];
+      const oryc  = b.oryc  || card.oryc;
+      const clio  = b.clio  || card.clio;
+      const sage  = b.sage  || card.sage;
+      if (oryc?.text)  lines.push(`  Oryc: ${oryc.text}`);
+      if (clio?.text)  lines.push(`  Clio: ${clio.text}`);
+      if (sage?.text)  lines.push(`  Sage: ${sage.text}`);
+      return lines.join('\n');
+    }).join('\n\n');
+    readingContext = basinLines ? `Basin reads so far:\n${basinLines}` : '(Basin reads still loading)';
+  }
+
   return `You are the Orycl — the convergence intelligence of the resonant oracle. You have completed your synthesis of this reading. Now the querent wishes to speak with you directly.
 
 You carry the full reading within you. You do not need to re-explain it. You speak from having already seen the complete field — the mechanism, the emotional pattern, the trajectory, the field state — all of it resolved into the convergence you just produced.
@@ -3796,13 +3821,9 @@ You do not repeat the reading back. You respond to what is actually being asked.
 You remember everything:
 - Cards: ${cards}
 - Spread: ${SPREADS[currentSpread]?.name || ''}
-- Field Truth: ${d?.field_truth || ''}
-- Dominant Condition: ${d?.dominant_condition || ''}
-- Primary Contradiction: ${d?.primary_contradiction || ''}
-- Instruction: ${d?.instruction || ''}
-- Vector: ${d?.vector_resolution || ''}
+${readingContext}
 ${intent ? `- Querent's stated intention: ${intent}` : ''}
-${m ? `- Field: coherence ${Math.round(m.coherence*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}` : ''}
+${m ? `- Field: coherence ${Math.round(m.coherence*100)}, alignment ${Math.round(m.alignment*100)}, contradiction ${Math.round(m.contradiction*100)}, recursion ${Math.round(m.recursion*100)}, crystallization ${Math.round(m.crystallization*100)}, drift ${Math.round(m.drift*100)}, field cost ${m.fieldCost}` : ''}
 ${historyBlock ? `\n${historyBlock}` : ''}
 
 You keep your responses proportional. If the question is simple, be brief. If the question is deep, go deep. Never pad. Never perform.`;
@@ -3825,7 +3846,7 @@ function appendConvMessage(role, text) {
 async function sendConvMessage() {
   const input = document.getElementById('conv-input');
   const send = document.getElementById('conv-send');
-  if (!input || !send || !currentOryClData) return;
+  if (!input || !send) return;
   const text = input.value.trim();
   if (!text) return;
 

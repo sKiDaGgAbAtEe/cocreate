@@ -201,7 +201,7 @@
       flex-direction: column;
       align-items: stretch;
       gap: 10px;
-      width: 68%;
+      width: 38%;
       margin-left: auto;
       overflow-y: auto;
       padding: 0 28px 28px;
@@ -246,29 +246,48 @@
     .room-card-band { display: none; }
     .room-card-inner-wrap {
       display: flex;
-      flex-direction: column;
-      padding: 14px 16px 16px;
-      gap: 7px;
+      flex-direction: row;
+      align-items: stretch;
+      padding: 12px 14px;
+      gap: 12px;
       position: relative;
+      min-height: 64px;
+    }
+    .room-card-left {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex-shrink: 0;
+      width: 42%;
+      min-width: 0;
+      justify-content: center;
+    }
+    .room-card-right {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      border-left: 1px solid rgba(255,255,255,0.15);
+      padding-left: 12px;
     }
     .room-card-title-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 7px;
     }
     .room-card-band-dot {
-      width: 7px; height: 7px;
+      width: 6px; height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
-      background: rgba(255,255,255,0.55);
+      background: rgba(255,255,255,0.6);
     }
     .room-card-title {
       font-family: 'Cinzel', serif;
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 700;
-      letter-spacing: 0.06em;
-      color: rgba(255,255,255,0.97);
-      text-shadow: 0 1px 3px rgba(0,0,0,0.25);
+      letter-spacing: 0.07em;
+      color: rgba(255,255,255,1);
+      text-shadow: 0 1px 4px rgba(0,0,0,0.35);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -276,11 +295,10 @@
     }
     .room-card-creator {
       font-size: 9px;
-      color: rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.5);
       font-family: 'Cinzel', serif;
       letter-spacing: 0.1em;
       text-transform: uppercase;
-      padding-left: 15px;
     }
     .room-card-body {
       display: contents;
@@ -288,38 +306,39 @@
     .room-card-stats {
       display: flex;
       align-items: center;
-      gap: 10px;
-      font-size: 11px;
-      color: rgba(255,255,255,0.6);
+      gap: 8px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.55);
       font-family: 'Cinzel', serif;
       letter-spacing: 0.07em;
-      padding-left: 15px;
     }
-    .room-card-stat { display: flex; align-items: center; gap: 4px; }
+    .room-card-stat { display: flex; align-items: center; gap: 3px; }
     .room-card-date {
-      font-size: 10px;
-      color: rgba(255,255,255,0.5);
+      font-size: 9px;
+      color: rgba(255,255,255,0.45);
       letter-spacing: 0.05em;
-      margin-left: auto;
     }
     .room-card-summary {
       font-size: 12px;
-      color: rgba(255,255,255,0.75);
+      color: rgba(255,255,255,0.78);
       font-style: italic;
-      line-height: 1.6;
-      padding-left: 15px;
+      line-height: 1.65;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
     }
-    .room-card-summary.empty { opacity: 0.35; }
+    .room-card-summary.empty { opacity: 0.3; }
     .color-swatch {
-      width: 22px; height: 22px;
-      border-radius: 50%;
+      width: 20px; height: 20px;
+      border-radius: 4px;
       cursor: pointer;
       border: 2px solid transparent;
-      transition: transform 0.15s, border-color 0.15s;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
       flex-shrink: 0;
     }
-    .color-swatch:hover { transform: scale(1.2); }
-    .color-swatch.selected { border-color: rgba(0,0,0,0.4); transform: scale(1.15); }
+    .color-swatch:hover { transform: scale(1.18); box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+    .color-swatch.selected { border-color: rgba(0,0,0,0.45); transform: scale(1.12); box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
     .room-card-inner { display: none; }
     .room-card-meta  { display: none; }
     .basin-badge { display: flex; align-items: center; gap: 5px; }
@@ -2463,17 +2482,10 @@
     <div id="basinPreviewBox" style="font-size:12px;color:var(--text-muted);line-height:1.5;padding:8px;background:var(--bg);border-radius:6px;min-height:36px"></div>
     <span class="label">Card Color</span>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <div id="colorSwatches" style="display:flex;gap:6px;flex-wrap:wrap">
-        <div class="color-swatch" data-color="#7b6fa0" style="background:#7b6fa0" title="Slate"></div>
-        <div class="color-swatch" data-color="#5e8c6a" style="background:#5e8c6a" title="Sage"></div>
-        <div class="color-swatch" data-color="#7a5c58" style="background:#7a5c58" title="Ember"></div>
-        <div class="color-swatch" data-color="#4a7fa5" style="background:#4a7fa5" title="Steel"></div>
-        <div class="color-swatch" data-color="#8b7340" style="background:#8b7340" title="Gold"></div>
-        <div class="color-swatch" data-color="#5a6e7f" style="background:#5a6e7f" title="Mist"></div>
-        <div class="color-swatch" data-color="#8b5e3c" style="background:#8b5e3c" title="Rust"></div>
-        <div class="color-swatch" data-color="#4e6b5e" style="background:#4e6b5e" title="Forest"></div>
+      <div id="colorSwatches" style="display:flex;gap:5px;align-items:center">
+        <!-- populated by buildShadeSwatches() on modal open -->
       </div>
-      <input type="color" id="newRoomCardColor" value="#7b6fa0" style="width:28px;height:28px;border:none;border-radius:4px;cursor:pointer;padding:0;background:none" title="Custom color">
+      <input type="color" id="newRoomCardColor" value="#7b6fa0" style="width:24px;height:24px;border:none;border-radius:4px;cursor:pointer;padding:0;background:none;opacity:0.6" title="Custom color">
     </div>
     <span class="label">Save sessions to</span>
     <select id="newRoomSaveFolder"><option value="">— CoCreate folder (default) —</option></select>
@@ -3396,9 +3408,15 @@ async function loadFolders() {
 function showPage(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  // QS corner only visible past the landing screen
+  // QS corner + tarot widget only visible on lobby, not landing or session
   var corner = document.getElementById('qs-corner');
-  if (corner) corner.style.display = (id === 'landing') ? 'none' : 'block';
+  var tarot  = document.getElementById('tarot-widget');
+  var inLobby = (id === 'lobby');
+  if (corner) corner.style.display = inLobby ? 'block' : 'none';
+  if (!inLobby && tarot) {
+    tarot.classList.remove('open');
+    tarot.classList.remove('tarot-fullscreen-mode');
+  }
 }
 
 async function enterLobby() {
@@ -3945,42 +3963,145 @@ function renderRooms(rooms) {
     return `
     <div class="room-card" onclick="joinRoom('${r.id}')" style="animation-delay:${i * 60}ms;background:${cardColor};border-color:${cardColor}">
       <div class="room-card-inner-wrap">
-        <div class="room-card-title-row">
-          <div class="room-card-band-dot"></div>
-          <div class="room-card-title">${esc(r.title)}</div>
-          <span onclick="event.stopPropagation();deleteRoom('${r.id}')" class="room-card-delete" title="Delete" style="opacity:0;transition:opacity 0.15s;color:rgba(255,255,255,0.6);font-size:12px;padding:2px 6px">✕</span>
+        <div class="room-card-left">
+          <div class="room-card-title-row">
+            <div class="room-card-band-dot"></div>
+            <div class="room-card-title">${esc(r.title)}</div>
+            <span onclick="event.stopPropagation();deleteRoom('${r.id}')" class="room-card-delete" title="Delete" style="opacity:0;transition:opacity 0.15s;color:rgba(255,255,255,0.6);font-size:12px;padding:2px 4px">✕</span>
+          </div>
+          ${r.creator ? `<div class="room-card-creator">by ${esc(r.creator)}</div>` : ''}
+          <div class="room-card-stats">
+            <span class="room-card-stat">◈ ${r.contributionCount}</span>
+            <span class="room-card-stat">⌀ ${r.memberCount}</span>
+          </div>
+          ${dateStr ? `<div class="room-card-date">${dateStr}</div>` : ''}
         </div>
-        ${r.creator ? `<div class="room-card-creator">by ${esc(r.creator)}</div>` : ''}
-        <div class="room-card-stats">
-          <span class="room-card-stat">◈ ${r.contributionCount}</span>
-          <span class="room-card-stat">⌀ ${r.memberCount}</span>
-          ${r.subject ? `<span class="room-card-stat" style="font-style:italic">${esc(r.subject)}</span>` : ''}
-          ${dateStr ? `<span class="room-card-date">${dateStr}</span>` : ''}
+        <div class="room-card-right">
+          <div class="room-card-summary${r.summary ? '' : ' empty'}">${r.summary ? esc(r.summary) : (r.subject ? esc(r.subject) : '—')}</div>
         </div>
-        <div class="room-card-summary${r.summary ? '' : ' empty'}">${r.summary ? esc(r.summary) : '—'}</div>
       </div>
     </div>`;
   }).join('');
+}
+
+
+// ── Theme-true shade picker ──────────────────────────────────────────────────
+// Reads the current theme's accent/gold CSS vars and builds a 7-stop
+// light→dark shade strip. Color family stays true to theme; shade is the choice.
+function _cssVar(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+function _hexToHsl(hex) {
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(x=>x+x).join('');
+  const r = parseInt(hex.slice(0,2),16)/255;
+  const g = parseInt(hex.slice(2,4),16)/255;
+  const b = parseInt(hex.slice(4,6),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h=0, s=0, l=(max+min)/2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h = ((g-b)/d + (g<b?6:0))/6; break;
+      case g: h = ((b-r)/d + 2)/6; break;
+      case b: h = ((r-g)/d + 4)/6; break;
+    }
+  }
+  return [h*360, s*100, l*100];
+}
+
+function _hslToHex(h, s, l) {
+  h/=360; s/=100; l/=100;
+  let r,g,b;
+  if (s===0) { r=g=b=l; }
+  else {
+    const hue2rgb = (p,q,t) => {
+      if(t<0)t+=1; if(t>1)t-=1;
+      if(t<1/6)return p+(q-p)*6*t;
+      if(t<1/2)return q;
+      if(t<2/3)return p+(q-p)*(2/3-t)*6;
+      return p;
+    };
+    const q = l<0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  const toHex = x => Math.round(x*255).toString(16).padStart(2,'0');
+  return '#'+toHex(r)+toHex(g)+toHex(b);
+}
+
+function buildShadeSwatches() {
+  const container = document.getElementById('colorSwatches');
+  if (!container) return;
+
+  // Read theme accent and gold — try both, pick one with saturation
+  const accentRaw = _cssVar('--accent') || '#7a5e38';
+  const goldRaw   = _cssVar('--gold')   || '#b8922a';
+
+  // Parse both, use accent as hue source (it's the primary identity color)
+  const [ah, as_, al] = _hexToHsl(accentRaw.startsWith('#') ? accentRaw : '#7a5e38');
+  const [gh, gs_, gl] = _hexToHsl(goldRaw.startsWith('#')   ? goldRaw   : '#b8922a');
+
+  // 7 shades: lightest → mid → darkest, keeping hue + saturation
+  // Lightness range: 75% (very light) down to 22% (very dark)
+  const isDark = document.body.classList.contains('dark');
+  const shadeStops = isDark
+    ? [72, 62, 52, 42, 32, 24, 17]   // dark mode: compress toward darker end
+    : [78, 68, 57, 47, 37, 28, 20];  // light mode: full light-to-dark sweep
+
+  // Keep saturation strong but not blown out
+  const sat = Math.max(28, Math.min(as_, 72));
+
+  // Two hue tracks: accent and gold — render both rows
+  const tracks = [
+    { h: ah, label: 'Accent' },
+    { h: gh, label: 'Gold'   },
+  ];
+
+  container.innerHTML = '';
+
+  tracks.forEach(({ h, label }) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:4px;align-items:center';
+
+    shadeStops.forEach((l, i) => {
+      const hex = _hslToHex(h, sat, l);
+      const sw  = document.createElement('div');
+      sw.className = 'color-swatch';
+      sw.dataset.color = hex;
+      sw.style.background = hex;
+      sw.title = `${label} — ${i < 2 ? 'light' : i < 5 ? 'mid' : 'dark'}`;
+      // Mark the mid shade (index 3) as default selected for accent track
+      if (label === 'Accent' && i === 3) {
+        sw.classList.add('selected');
+        selectedRoomCardColor = hex;
+        document.getElementById('newRoomCardColor').value = hex;
+      }
+      sw.onclick = () => {
+        selectedRoomCardColor = hex;
+        document.getElementById('newRoomCardColor').value = hex;
+        container.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+        sw.classList.add('selected');
+      };
+      row.appendChild(sw);
+    });
+
+    container.appendChild(row);
+  });
 }
 
 // ── Room Modal ────────────────────────────────
 let selectedRoomCardColor = '#7b6fa0';
 function openNewRoomModal() {
   document.getElementById('newRoomModal').classList.add('open');
-  // init swatches
-  document.querySelectorAll('.color-swatch').forEach(sw => {
-    sw.classList.remove('selected');
-    if (sw.dataset.color === selectedRoomCardColor) sw.classList.add('selected');
-    sw.onclick = () => {
-      selectedRoomCardColor = sw.dataset.color;
-      document.getElementById('newRoomCardColor').value = sw.dataset.color;
-      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
-      sw.classList.add('selected');
-    };
-  });
+  // Build theme-true shade swatches on every open so they respond to theme changes
+  buildShadeSwatches();
+  // Custom color picker still works as override
   document.getElementById('newRoomCardColor').oninput = (e) => {
     selectedRoomCardColor = e.target.value;
-    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    document.getElementById('colorSwatches').querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
   };
 }
 function closeNewRoomModal() { document.getElementById('newRoomModal').classList.remove('open'); }
