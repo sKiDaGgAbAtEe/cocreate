@@ -4076,11 +4076,21 @@ function cardShadeToHex(shadeIndex, trackIndex) {
   return _hslToHex(h, sat, SHADE_STOPS[si]);
 }
 
-// Parse stored cardShade — "t0s3" format, or legacy hex → mid-shade fallback
+// Parse stored cardShade — "t0s3" format, or legacy hex → closest shade by lightness
 function parseCardShade(val) {
   if (!val) return { track: 0, shade: 3 };
   const m = String(val).match(/^t(\d)s(\d)$/);
   if (m) return { track: parseInt(m[1]), shade: parseInt(m[2]) };
+  // Legacy hex — map to closest shade index by lightness so rooms look distinct
+  if (val.startsWith('#')) {
+    const [, , l] = _hexToHsl(val);
+    let closest = 3, minDist = 999;
+    SHADE_STOPS.forEach((stop, i) => {
+      const d = Math.abs(stop - l);
+      if (d < minDist) { minDist = d; closest = i; }
+    });
+    return { track: 0, shade: closest };
+  }
   return { track: 0, shade: 3 };
 }
 
