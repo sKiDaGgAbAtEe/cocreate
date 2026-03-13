@@ -4036,41 +4036,46 @@ function _hslToHex(h, s, l) {
 }
 
 // ── Theme-aware card color resolver ─────────────────────────────────────────
-// Given a shade index (0-6, light→dark), returns the correct hex for the
-// current theme. The stored value is the index — never a raw hex — so cards
-// automatically re-derive their color when the theme changes.
-const SHADE_STOPS = [76, 65, 54, 44, 34, 26, 18];
+// Cards store a shade key "t{track}s{index}" — never a raw hex.
+// At render time the hex is derived from the live theme CSS vars + shade index,
+// so cards shift color automatically when the theme changes.
+const SHADE_STOPS = [76, 65, 54, 44, 34, 26, 18]; // lightness %: light→dark
 
-function _themeBaseHues() {
+// Returns two [h, s] pairs (degrees, %) for the current theme's two tracks
+function _themeBasePairs() {
   const body    = document.body;
   const isChrom = body.classList.contains('theme-chromium');
   const isDark  = body.classList.contains('dark');
+
+  let hexA, hexB;
   if (isChrom) {
-    const core  = _cssVar('--plasma-core')  || '#78d0e8';
-    const outer = _cssVar('--plasma-outer') || '#2a6080';
-    return [_hexToHsl(core), _hexToHsl(outer)];
+    hexA = _cssVar('--plasma-core')  || '#78d0e8';
+    hexB = _cssVar('--plasma-outer') || '#2a6080';
+  } else {
+    hexA = _cssVar('--accent') || (isDark ? '#d4b882' : '#7a5e38');
+    hexB = _cssVar('--gold')   || (isDark ? '#d4a840' : '#b8922a');
   }
-  const accent = _cssVar('--accent') || (isDark ? '#d4b882' : '#7a5e38');
-  const gold   = _cssVar('--gold')   || (isDark ? '#d4a840' : '#b8922a');
-  return [_hexToHsl(accent), _hexToHsl(gold)];
+
+  // _hexToHsl returns [h_degrees, s_percent, l_percent]
+  const [hA, sA] = _hexToHsl(hexA);
+  const [hB, sB] = _hexToHsl(hexB);
+  return [[hA, sA], [hB, sB]];
 }
 
 function cardShadeToHex(shadeIndex, trackIndex) {
-  // shadeIndex: 0-6 (light→dark), trackIndex: 0=primary, 1=secondary
-  const ti   = Math.max(0, Math.min(1, trackIndex || 0));
-  const si   = Math.max(0, Math.min(6, shadeIndex  || 3));
-  const hues = _themeBaseHues();
-  const [h, s] = hues[ti];
-  const sat  = Math.max(30, Math.min(s, 70));
+  const ti = Math.max(0, Math.min(1, trackIndex || 0));
+  const si = Math.max(0, Math.min(6, shadeIndex  || 3));
+  const pairs = _themeBasePairs();
+  const [h, s] = pairs[ti];                     // both are plain numbers now
+  const sat = Math.max(32, Math.min(s, 68));
   return _hslToHex(h, sat, SHADE_STOPS[si]);
 }
 
-// Parse a stored cardShade value — accepts "t0s3" format or legacy fallback
+// Parse stored cardShade — "t0s3" format, or legacy hex → mid-shade fallback
 function parseCardShade(val) {
   if (!val) return { track: 0, shade: 3 };
   const m = String(val).match(/^t(\d)s(\d)$/);
   if (m) return { track: parseInt(m[1]), shade: parseInt(m[2]) };
-  // Legacy: stored as raw hex — map to mid-shade of primary track
   return { track: 0, shade: 3 };
 }
 
@@ -4104,9 +4109,10 @@ function buildShadeSwatches() {
   container.innerHTML = '';
 
   [trackA, trackB].forEach(({ hex, label }, ti) => {
-    const [h, s] = _hexToHsl(hex);
-    // Keep saturation grounded — not too grey, not blown out
-    const sat = Math.max(30, Math.min(s, 70));
+    const hsl = _hexToHsl(hex);   // [h_degrees, s_percent, l_percent]
+    const h   = hsl[0];
+    const s   = hsl[1];
+    const sat = Math.max(32, Math.min(s, 68));
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:4px;align-items:center';
 
