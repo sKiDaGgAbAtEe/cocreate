@@ -3587,8 +3587,16 @@ if (socket) {
   });
 
   socket.on('hive:cell_history', ({ history }) => {
+    // Only overwrite if server has actual history — if it's empty (e.g. after
+    // a server restart) keep what we already rendered from localStorage
+    if (!history?.length) return;
     chatMessages.innerHTML = '';
     history.forEach(msg => renderMessage(msg, false));
+    // Merge server history back into local state so it's not lost
+    if (STATE.currentCell) {
+      STATE.currentCell.history = history;
+      saveCells();
+    }
     scrollChat();
   });
 

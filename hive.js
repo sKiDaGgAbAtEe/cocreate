@@ -541,6 +541,43 @@ async function callSara({ cell, history, message, metrics, tone, mode, intent, a
 let _io = null;
 let _getDrive = null;
 
+// Persist cell history to Drive — called after S.A.R.A. exchanges and every 5 user messages
+async function persistCellHistory(cell) {
+  try {
+    const drive = await _getDrive();
+    if (!drive || !cell.driveFolderId) return;
+    const toSave = {
+      id: cell.id, name: cell.name, topic: cell.topic,
+      intent: cell.intent, projectId: cell.projectId,
+      saraMode: cell.saraMode, toneDial: cell.toneDial,
+      metrics: cell.metrics,
+      history: (cell.history || []).slice(-200),
+      updatedAt: cell.updatedAt,
+    };
+    await writeDriveJson(drive, 'cell.json', cell.driveFolderId, toSave);
+  } catch(e) { console.warn('HIVE persistCellHistory:', e.message); }
+}
+
+// Load cell history from Drive on re-entry (survives Railway restarts)
+async function loadCellHistoryFromDrive(cell) {
+  try {
+    const drive = await _getDrive();
+    if (!drive || !cell.driveFolderId) return;
+    const q = `name='cell.json' and '${cell.driveFolderId}' in parents and trashed=false`;
+    const res = await drive.files.list({ q, fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true });
+    if (!res.data.files[0]) return;
+    const fileRes = await drive.files.get({ fileId: res.data.files[0].id, alt: 'media', supportsAllDrives: true });
+    const saved = typeof fileRes.data === 'string' ? JSON.parse(fileRes.data) : fileRes.data;
+    if (saved?.history?.length) {
+      cell.history = saved.history;
+      cell.saraMode = saved.saraMode || cell.saraMode;
+      cell.toneDial = saved.toneDial || cell.toneDial;
+      cell.metrics  = saved.metrics  || cell.metrics;
+      console.log(`◈ HIVE: Loaded ${saved.history.length} messages for "${cell.name}" from Drive`);
+    }
+  } catch(e) { console.warn('HIVE loadCellHistoryFromDrive:', e.message); }
+}
+
 function broadcastMembers(cellId) {
   if (!_io) return;
   const m = {};
@@ -855,23 +892,30 @@ function mount(app, io, { getDrive }) {
       socket.emit('hive:cell_list', { cells: cellListPayload(), projects: projectListPayload() });
     });
 
-    socket.on('hive:enter_cell', ({ cellId }) => {
+    socket.on('hive:enter_cell', async ({ cellId }) => {
       const member = members[socket.id];
       if (!member) return;
       if (member.cellId) { socket.leave(`hive:cell:${member.cellId}`); broadcastMembers(member.cellId); }
       member.cellId = cellId;
       socket.join(`hive:cell:${cellId}`);
-      const cell = cells[cellId];
-      if (cell) {
-        socket.emit('hive:cell_history', { history: (cell.history || []).slice(-100) });
-        const proj  = cell.projectId ? projects[cell.projectId] : null;
-        const strip = d => ({ id: d.id, name: d.name, mimeType: d.mimeType });
-        socket.emit('hive:docs_update', { cellId, docs: {
-          session: (cell.sessionDocs || []).map(d => ({ ...strip(d), scope: 'session' })),
-          cell:    (cell.docs        || []).map(d => ({ ...strip(d), scope: 'cell' })),
-          project: (proj?.docs       || []).map(d => ({ ...strip(d), scope: 'project' })),
-        }});
+      let cell = cells[cellId];
+      if (!cell) {
+        // Cell not in memory (e.g. after restart) — create a stub so the socket room works
+        // The client will push its localStorage history on next message
+        cell = cells[cellId] = { id: cellId, name: cellId, history: [], docs: [], sessionDocs: [], metrics: { coherence: 0.5, contradiction: 0.2 }, saraMode: 'silent', toneDial: 50, fieldPressure: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       }
+      // If in-memory history is empty, try to load from Drive
+      if (!cell.history?.length && cell.driveFolderId) {
+        await loadCellHistoryFromDrive(cell);
+      }
+      socket.emit('hive:cell_history', { history: (cell.history || []).slice(-100) });
+      const proj  = cell.projectId ? projects[cell.projectId] : null;
+      const strip = d => ({ id: d.id, name: d.name, mimeType: d.mimeType });
+      socket.emit('hive:docs_update', { cellId, docs: {
+        session: (cell.sessionDocs || []).map(d => ({ ...strip(d), scope: 'session' })),
+        cell:    (cell.docs        || []).map(d => ({ ...strip(d), scope: 'cell' })),
+        project: (proj?.docs       || []).map(d => ({ ...strip(d), scope: 'project' })),
+      }});
       broadcastMembers(cellId);
     });
 
@@ -911,7 +955,11 @@ function mount(app, io, { getDrive }) {
       broadcastMembers(cellId);
 
       const saraMode = cell.saraMode || 'silent';
-      if (saraMode === 'silent') return;
+      if (saraMode === 'silent') {
+        // Still persist history to Drive even when silent — throttled to every 5 messages
+        if (cell.history.length % 5 === 0) persistCellHistory(cell);
+        return;
+      }
 
       const shouldRespond = saraMode === 'open' || (saraMode === 'ambient' && (cell.fieldPressure || 0) >= 60);
       if (!shouldRespond) { cell.fieldPressure = Math.min(100, (cell.fieldPressure || 0) + 8); return; }
@@ -937,6 +985,8 @@ function mount(app, io, { getDrive }) {
         cell.history.push(saraMsg);
         io.to(`hive:cell:${cellId}`).emit('hive:message', { msg: saraMsg, cellId });
         io.to(`hive:cell:${cellId}`).emit('hive:field_update', { metrics: result.metrics });
+        // Persist after every S.A.R.A. exchange — these are the important moments
+        persistCellHistory(cell);
       } catch(e) { console.error('HIVE S.A.R.A. socket:', e.message); }
     });
 
