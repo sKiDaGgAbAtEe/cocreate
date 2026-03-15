@@ -3062,6 +3062,10 @@ function selectCell(id) {
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === savedMode));
   updateSaraModeRing(savedMode);
 
+  // Restore tone dial
+  STATE.toneDial = cell.toneDial || 50;
+  $('tone-slider').value = STATE.toneDial;
+
   chatMessages.innerHTML = '';
   if (cell.history?.length) {
     cell.history.forEach(msg => renderMessage(msg, false));
@@ -3169,7 +3173,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const mode = btn.dataset.mode;
     STATE.saraMode = mode;
-    if (STATE.currentCell) STATE.currentCell.saraMode = mode;
+    if (STATE.currentCell) { STATE.currentCell.saraMode = mode; saveCells(); }
     document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     updateSaraModeRing(mode);
@@ -3182,6 +3186,7 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
 
 $('tone-slider').addEventListener('input', e => {
   STATE.toneDial = parseInt(e.target.value);
+  if (STATE.currentCell) { STATE.currentCell.toneDial = STATE.toneDial; saveCells(); }
   if (socket && STATE.currentCell) socket.emit('hive:sara_tone', { tone: STATE.toneDial, cellId: STATE.currentCell.id });
 });
 
