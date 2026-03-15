@@ -2309,6 +2309,24 @@
     #hub-back-btn:hover { color: var(--amber); }
     #hub-back-btn.visible { display: block; }
 
+    .cell-delete-btn {
+      width: 16px; height: 16px;
+      border: none;
+      background: none;
+      color: var(--ink-faint);
+      cursor: pointer;
+      font-size: 9px;
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.15s;
+      padding: 0;
+    }
+
+    .cell-item:hover .cell-delete-btn { opacity: 1; }
+    .cell-delete-btn:hover { color: var(--contradict); background: rgba(212,127,155,0.12); }
+
     .hidden { display: none !important; }
 
     /* ── ANIMATIONS ── */
@@ -2985,27 +3003,46 @@ function saveCells() { localStorage.setItem('hive_cells', JSON.stringify(STATE.c
 function renderCellList() {
   const el = $('cell-list');
   el.innerHTML = '';
-  Object.values(STATE.cells).forEach(cell => {
-    const proj = cell.projectId ? STATE.projects[cell.projectId] : null;
-    const div = document.createElement('div');
-    div.className = 'cell-item' + (STATE.currentCell?.id === cell.id ? ' active' : '');
-    div.dataset.id = cell.id;
-    const docCount = (cell.docs?.length || 0) + (cell.sessionDocs?.length || 0);
-    div.innerHTML = `
-      <svg class="cell-hex-icon" viewBox="0 0 20 20" fill="none">
-        <path d="M10 2 L18 6.5 L18 15.5 L10 20 L2 15.5 L2 6.5 Z"
-          fill="var(--amber-dim)" stroke="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.6' : '0.25'})" stroke-width="0.8"/>
-        <circle cx="10" cy="11" r="2.5" fill="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.5' : '0.2'})"/>
-      </svg>
-      <div style="flex:1;min-width:0;">
-        <div class="cell-item-name">${escHtml(cell.name)}</div>
-        ${proj ? `<div style="font-family:var(--mono);font-size:7px;color:var(--ink-faint);letter-spacing:0.08em;">${escHtml(proj.name)}</div>` : ''}
-      </div>
-      ${docCount > 0 ? `<span style="font-family:var(--mono);font-size:8px;color:var(--sara);opacity:0.8;">📄${docCount}</span>` : ''}
-    `;
-    div.addEventListener('click', () => selectCell(cell.id));
-    el.appendChild(div);
-  });
+  Object.values(STATE.cells)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+    .forEach(cell => {
+      const proj = cell.projectId ? STATE.projects[cell.projectId] : null;
+      const div = document.createElement('div');
+      div.className = 'cell-item' + (STATE.currentCell?.id === cell.id ? ' active' : '');
+      div.dataset.id = cell.id;
+      const docCount = (cell.docs?.length || 0) + (cell.sessionDocs?.length || 0);
+      div.innerHTML = `
+        <svg class="cell-hex-icon" viewBox="0 0 20 20" fill="none">
+          <path d="M10 2 L18 6.5 L18 15.5 L10 20 L2 15.5 L2 6.5 Z"
+            fill="var(--amber-dim)" stroke="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.6' : '0.25'})" stroke-width="0.8"/>
+          <circle cx="10" cy="11" r="2.5" fill="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.5' : '0.2'})"/>
+        </svg>
+        <div style="flex:1;min-width:0;">
+          <div class="cell-item-name">${escHtml(cell.name)}</div>
+          ${proj ? `<div style="font-family:var(--mono);font-size:7px;color:var(--ink-faint);letter-spacing:0.08em;">${escHtml(proj.name)}</div>` : ''}
+        </div>
+        ${docCount > 0 ? `<span style="font-family:var(--mono);font-size:8px;color:var(--sara);opacity:0.8;">📄${docCount}</span>` : ''}
+        <button class="cell-delete-btn" data-id="${cell.id}" title="Delete cell">✕</button>
+      `;
+      div.querySelector('.cell-delete-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteCell(cell.id);
+      });
+      div.addEventListener('click', () => selectCell(cell.id));
+      el.appendChild(div);
+    });
+}
+
+function deleteCell(id) {
+  if (!confirm(`Delete "${STATE.cells[id]?.name}"? This cannot be undone.`)) return;
+  if (STATE.currentCell?.id === id) {
+    STATE.currentCell = null;
+    showHub();
+  }
+  delete STATE.cells[id];
+  saveCells();
+  renderCellList();
+  if (!STATE.currentCell) renderHub();
 }
 
 function selectCell(id) {
@@ -4165,12 +4202,11 @@ function updatePyxisHeart(coherence, contradiction) {
   dot.setAttribute('fill', `rgba(64,212,176,${0.5 + coherence * 0.5})`);
 }
 
-// ── Local S.A.R.A. (demo mode — no socket) ───────────────────────────────────
-async function handleLocalSara(userMsg) {
-  if (STATE.saraMode === 'silent') return;
-  if (STATE.saraMode === 'ambient' && STATE.fieldPressure < 55) return;
 
-  await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+init();
+</script>
+</body>
+</html>
 
   // Show thinking
   const thinkEl = document.createElement('div');

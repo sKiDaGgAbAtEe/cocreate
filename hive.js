@@ -315,7 +315,11 @@ RULES:
 async function callClaudeText(model, system, userMessage, maxTokens = 900) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: userMessage }] }),
   });
   if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
@@ -325,7 +329,11 @@ async function callClaudeText(model, system, userMessage, maxTokens = 900) {
 async function callClaudeMultimodal(model, system, blocks, maxTokens = 900) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: blocks }] }),
   });
   if (!resp.ok) throw new Error(`Anthropic ${resp.status}: ${await resp.text()}`);
