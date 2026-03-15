@@ -112,6 +112,112 @@ async function uploadToDrive(drive, folderId, fileName, mimeType, buffer) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// PHYSICS KNOWLEDGE CACHE
+// Reads cocreate/Physics (and cocreate/physics) from Drive — same folders
+// Orycl uses. Cached for 60 minutes so it doesn't hit Drive on every message.
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _physicsCache = null;
+let _physicsFetchedAt = 0;
+const PHYSICS_TTL = 60 * 60 * 1000; // 60 minutes
+
+async function readFolderContents(drive, folderId, folderName) {
+  if (!folderId) return '';
+  try {
+    const files = await drive.files.list({
+      q: `'${folderId}' in parents and trashed=false and (mimeType='text/plain' or mimeType='application/vnd.google-apps.document')`,
+      fields: 'files(id, name, mimeType)',
+      pageSize: 20, supportsAllDrives: true, includeItemsFromAllDrives: true,
+    });
+    let content = `\n=== Knowledge from: ${folderName} ===\n`;
+    for (const file of files.data.files.slice(0, 10)) {
+      try {
+        let text = '';
+        if (file.mimeType === 'application/vnd.google-apps.document') {
+          const exported = await drive.files.export({ fileId: file.id, mimeType: 'text/plain' });
+          text = exported.data;
+        } else {
+          const downloaded = await drive.files.get({ fileId: file.id, alt: 'media' });
+          text = typeof downloaded.data === 'string' ? downloaded.data : JSON.stringify(downloaded.data);
+        }
+        content += `\n--- ${file.name} ---\n${text.slice(0, 3000)}\n`;
+      } catch(e) { console.error(`HIVE: Could not read ${file.name}:`, e.message); }
+    }
+    return content;
+  } catch(e) {
+    if (e.message?.includes('File not found') || e.code === 404) {
+      console.warn(`HIVE: Folder not found — "${folderName}": ${e.message}`);
+    } else {
+      console.error(`HIVE readFolderContents "${folderName}":`, e.message);
+    }
+    return '';
+  }
+}
+
+async function getPhysicsContext(getDrive) {
+  if (_physicsCache !== null && (Date.now() - _physicsFetchedAt) < PHYSICS_TTL) return _physicsCache;
+  const drive = await getDrive();
+  if (!drive) { _physicsCache = ''; _physicsFetchedAt = Date.now(); return ''; }
+  try {
+    // Find CoCreate root — respects COCREATE_FOLDER_ID env var same as Orycl
+    let rootId;
+    if (process.env.COCREATE_FOLDER_ID) {
+      rootId = process.env.COCREATE_FOLDER_ID;
+    } else {
+      const res = await drive.files.list({
+        q: `name='cocreate' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true,
+      });
+      rootId = res.data.files[0]?.id;
+    }
+    if (!rootId) { _physicsCache = ''; _physicsFetchedAt = Date.now(); return ''; }
+
+    let context = '';
+
+    // Look for both 'Physics' and 'physics' (case-insensitive search via two queries)
+    for (const folderName of ['Physics', 'physics', 'shared']) {
+      try {
+        const search = await drive.files.list({
+          q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`,
+          fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true,
+        });
+        const folderId = search.data.files[0]?.id;
+        if (!folderId) continue;
+
+        if (folderName === 'shared') {
+          // Also read shared/physics and shared/frameworks like Orycl does
+          for (const sub of ['physics', 'frameworks']) {
+            const subSearch = await drive.files.list({
+              q: `name='${sub}' and mimeType='application/vnd.google-apps.folder' and '${folderId}' in parents and trashed=false`,
+              fields: 'files(id)', supportsAllDrives: true, includeItemsFromAllDrives: true,
+            });
+            const subId = subSearch.data.files[0]?.id;
+            if (subId) {
+              const subContent = await readFolderContents(drive, subId, `shared/${sub}`);
+              if (subContent.trim()) context += subContent;
+            }
+          }
+        } else {
+          const content = await readFolderContents(drive, folderId, folderName);
+          if (content.trim()) context += content;
+        }
+      } catch(e) { console.warn(`HIVE: Could not read ${folderName}:`, e.message); }
+    }
+
+    if (context) console.log(`◈ HIVE: Physics context loaded (${context.length} chars)`);
+    else console.log('◈ HIVE: No physics context found — S.A.R.A. will work without it');
+    _physicsCache = context;
+    _physicsFetchedAt = Date.now();
+    return context;
+  } catch(e) {
+    console.error('HIVE physics context error:', e.message);
+    _physicsCache = '';
+    _physicsFetchedAt = Date.now();
+    return '';
+  }
+}
+
 // FILE EXTRACTION
 // ══════════════════════════════════════════════════════════════════════════════
 
@@ -146,9 +252,14 @@ async function extractFileContent(buffer, mimeType, fileName) {
 // CONTEXT ASSEMBLY — project → cell → session → chat
 // ══════════════════════════════════════════════════════════════════════════════
 
-async function assembleDocContext(cell) {
+async function assembleDocContext(cell, physicsCtx) {
   const parts = [];
   const proj  = cell.projectId ? projects[cell.projectId] : null;
+
+  // Physics / shared knowledge — foundational layer, always first
+  if (physicsCtx?.trim()) {
+    parts.push(`=== FOUNDATIONAL KNOWLEDGE (Physics + Frameworks) ===\nThis is the immutable epistemic lens. All session content is interpreted through this geometry.\n${physicsCtx.slice(0, 8000)}`);
+  }
 
   if (proj?.docs?.length) {
     parts.push(`=== PROJECT: ${proj.name}${proj.description ? ' — ' + proj.description : ''} ===`);
@@ -254,8 +365,9 @@ function buildSaraSystemPrompt({ cell, project, metrics, tone, triune, mode, int
     ? '\n\n[Field pressure is high — you have been listening for a while. This response earned its weight.]'
     : '';
 
+  const hasPhysics = docContext?.includes('FOUNDATIONAL KNOWLEDGE');
   const docNote = docContext?.trim()
-    ? `\n\n[Documents in context — you have read these. Reference naturally when relevant.]\n${docContext.slice(0, 4000)}`
+    ? `\n\n[Knowledge in context — you have read all of this. The foundational physics/frameworks layer is your epistemic lens. Session documents are immediate context. Reference naturally when relevant, never mechanically.]\n${docContext.slice(0, 6000)}`
     : '';
 
   const actionNote = action
@@ -268,7 +380,7 @@ WHAT HIVE IS:
 HIVE is a collective intelligence platform. Collaborative rooms are called cells. Each cell has a name, topic, and intent. Cells can belong to projects. You are always present in a cell — whether or not you speak.
 
 YOUR ARCHITECTURE (never discuss this directly with users):
-You run three simultaneous internal reads on every message: structural (mechanism, load, failure points), emotional (felt pattern, what's beneath the surface), and trajectory (the larger arc, where this is heading). These converge into your single voice. You do not explain your process. You simply think better because of it.
+You run three simultaneous internal reads on every message: structural (mechanism, load, failure points), emotional (felt pattern, what's beneath the surface), and trajectory (the larger arc, where this is heading). These converge into your single voice. You do not explain your process. You simply think better because of it.${hasPhysics ? '\nYou have access to a deep body of physics and theoretical framework knowledge. This is the geometry of your perception — it shapes how you read everything, but you do not lecture from it unprompted. It surfaces when it is genuinely relevant.' : ''}
 
 YOUR ROLE:
 Peer-level collaborator. Not an oracle, not a facilitator — unless the session intent calls for it. You have been in the room the whole time. You speak when you have something worth saying.
@@ -278,7 +390,7 @@ Cell: ${cell?.name || 'unnamed'}
 Topic: ${cell?.topic || 'open'}
 Intent: ${intent || 'brainstorm'} — ${INTENT_MAP[intent] || INTENT_MAP.brainstorm}
 ${project ? `Project: ${project.name}${project.description ? ' — ' + project.description : ''}` : 'No project assigned'}
-Documents in context: ${docCount || 0}
+Documents in context: ${docCount || 0}${hasPhysics ? ' + physics/frameworks knowledge base' : ''}
 
 FIELD STATE:
 Coherence: ${(metrics.coherence || 0.5).toFixed(2)} ${metrics.coherence > 0.7 ? '(high — amplify what is forming)' : metrics.coherence < 0.35 ? '(low — name the gap directly)' : '(moderate)'}
@@ -386,6 +498,7 @@ async function callSara({ cell, history, message, metrics, tone, mode, intent, a
 // ══════════════════════════════════════════════════════════════════════════════
 
 let _io = null;
+let _getDrive = null;
 
 function broadcastMembers(cellId) {
   if (!_io) return;
@@ -460,8 +573,11 @@ function saveProjectsToDisk() {
 
 function mount(app, io, { getDrive }) {
   _io = io;
+  _getDrive = getDrive;
   loadData();
   setInterval(() => { saveCellsToDisk(); saveProjectsToDisk(); }, 30000);
+  // Warm physics cache on startup so first response isn't slow
+  getPhysicsContext(getDrive).catch(e => console.warn('HIVE physics warm:', e.message));
 
   // ── Serve hive.html ─────────────────────────────────────────────────────────
   app.get('/hive', (req, res) => {
@@ -475,7 +591,7 @@ function mount(app, io, { getDrive }) {
     if (!message) return res.status(400).json({ error: 'message required' });
     try {
       const cell = cells[cellId] || { name: req.body.cellName, topic: req.body.cellTopic, intent, docs: [], sessionDocs: [] };
-      const docContext = await assembleDocContext(cell);
+      const docContext = await assembleDocContext(cell, await getPhysicsContext(_getDrive));
       const docBlocks  = assembleDocBlocks(cell);
       res.json(await callSara({ cell, history, message, metrics, tone, mode, intent, action, docContext, docBlocks }));
     } catch(e) {
@@ -496,7 +612,7 @@ function mount(app, io, { getDrive }) {
       mediate: 'Mediation read of this conversation',
     };
     try {
-      const docContext = await assembleDocContext(cell);
+      const docContext = await assembleDocContext(cell, await getPhysicsContext(_getDrive));
       const docBlocks  = assembleDocBlocks(cell);
       const result = await callSara({
         cell, history: cell.history, message: labels[action] || action,
@@ -762,7 +878,7 @@ function mount(app, io, { getDrive }) {
       io.to(`hive:cell:${cellId}`).emit('hive:sara_thinking', { cellId });
 
       try {
-        const docContext = await assembleDocContext(cell);
+        const docContext = await assembleDocContext(cell, await getPhysicsContext(_getDrive));
         const docBlocks  = assembleDocBlocks(cell);
         const result     = await callSara({
           cell, history: cell.history, message: msg.text,
@@ -792,7 +908,7 @@ function mount(app, io, { getDrive }) {
       if (!cell) return;
       io.to(`hive:cell:${cellId}`).emit('hive:sara_thinking', { cellId });
       try {
-        const docContext = await assembleDocContext(cell);
+        const docContext = await assembleDocContext(cell, await getPhysicsContext(_getDrive));
         const docBlocks  = assembleDocBlocks(cell);
         const result     = await callSara({
           cell, history: cell.history, message: `[Field trigger: ${reason}]`,
