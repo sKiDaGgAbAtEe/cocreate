@@ -8,6 +8,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
+const hive = require('./hive');
 
 const app = express();
 const httpServer = createServer(app);
@@ -2592,6 +2593,9 @@ app.post('/api/rco-update', async (req, res) => {
     res.json(await r.json());
   } catch(e) { res.json({ ok: false, error: e.message }); }
 });
+
+// ── HIVE ───────────────────────────────────────────────
+hive.mount(app, io, { getDrive: getSystemDrive });
 
 // ── Start ──────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;

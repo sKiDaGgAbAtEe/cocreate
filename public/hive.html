@@ -1,0 +1,4611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HIVE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,200;0,300;0,400;0,500;1,200;1,300&display=swap" rel="stylesheet">
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ══════════════════════════════════════════════
+       THEMES
+       Default: Obsidian (dark amber)
+       [data-theme="chromium-dark"]   — ice/chrome dark
+       [data-theme="chromium-light"]  — ice/chrome light
+       [data-theme="parchment"]       — warm parchment light
+    ══════════════════════════════════════════════ */
+
+    :root {
+      /* ── OBSIDIAN (default dark) ── */
+      --bg:          #0c0d0f;
+      --bg2:         #111318;
+      --bg3:         #161a22;
+      --bg4:         #1c212e;
+      --ink:         #ede6d8;
+      --ink-dim:     #c4b89a;
+      --ink-muted:   #8a7d6e;
+      --ink-faint:   #4e4538;
+      --amber:       #f0a840;
+      --amber-bright:#ffc860;
+      --amber-deep:  #c07820;
+      --amber-dim:   rgba(240,168,64,0.12);
+      --amber-glow:  rgba(240,168,64,0.3);
+      --border:      rgba(240,168,64,0.22);
+      --border2:     rgba(240,168,64,0.42);
+      --sara:        #40d4b0;
+      --sara-dim:    rgba(64,212,176,0.10);
+      --sara-glow:   rgba(64,212,176,0.28);
+      --sara-border: rgba(64,212,176,0.32);
+      --oryc:        #9b7fd4;
+      --clio:        #d47f9b;
+      --sage:        #7eb8d4;
+      --coherence:   #40d4b0;
+      --contradict:  #d47f9b;
+      --pressure:    #f0a840;
+      --mono:        'Share Tech Mono', monospace;
+      --glass:       rgba(255,255,255,0.03);
+      --glass-border:rgba(240,168,64,0.12);
+      --input-bg:    rgba(0,0,0,0.4);
+      --shadow:      rgba(0,0,0,0.5);
+      --scrollbar:   rgba(240,168,64,0.2);
+    }
+
+    [data-theme="chromium-dark"] {
+      --bg:          #0a0e14;
+      --bg2:         #0f1520;
+      --bg3:         #141d2c;
+      --bg4:         #1a2538;
+      --ink:         #dce8f4;
+      --ink-dim:     #a8c0d8;
+      --ink-muted:   #6a8faa;
+      --ink-faint:   #354858;
+      --amber:       #4ab8e8;
+      --amber-bright:#78d4f8;
+      --amber-deep:  #1a7cc0;
+      --amber-dim:   rgba(74,184,232,0.12);
+      --amber-glow:  rgba(74,184,232,0.35);
+      --border:      rgba(74,184,232,0.22);
+      --border2:     rgba(74,184,232,0.45);
+      --sara:        #40d4b0;
+      --sara-dim:    rgba(64,212,176,0.10);
+      --sara-glow:   rgba(64,212,176,0.28);
+      --sara-border: rgba(64,212,176,0.32);
+      --coherence:   #40d4b0;
+      --contradict:  #d47f9b;
+      --pressure:    #4ab8e8;
+      --glass:       rgba(255,255,255,0.03);
+      --glass-border:rgba(74,184,232,0.12);
+      --input-bg:    rgba(0,0,0,0.4);
+      --shadow:      rgba(0,0,0,0.6);
+      --scrollbar:   rgba(74,184,232,0.2);
+    }
+
+    [data-theme="chromium-light"] {
+      --bg:          #e8eef5;
+      --bg2:         #dde5ef;
+      --bg3:         #cdd8e8;
+      --bg4:         #bfcfe0;
+      --ink:         #0d1a2a;
+      --ink-dim:     #1e3550;
+      --ink-muted:   #3a5878;
+      --ink-faint:   #6a8fae;
+      --amber:       #1a7cc0;
+      --amber-bright:#2aa8e0;
+      --amber-deep:  #0a4e80;
+      --amber-dim:   rgba(74,184,232,0.14);
+      --amber-glow:  rgba(74,184,232,0.3);
+      --border:      rgba(74,184,232,0.30);
+      --border2:     rgba(74,184,232,0.55);
+      --sara:        #0fa882;
+      --sara-dim:    rgba(15,168,130,0.10);
+      --sara-glow:   rgba(15,168,130,0.25);
+      --sara-border: rgba(15,168,130,0.35);
+      --oryc:        #6040b8;
+      --clio:        #b84070;
+      --sage:        #206898;
+      --coherence:   #0fa882;
+      --contradict:  #b84070;
+      --pressure:    #1a7cc0;
+      --glass:       rgba(255,255,255,0.6);
+      --glass-border:rgba(74,184,232,0.18);
+      --input-bg:    rgba(255,255,255,0.7);
+      --shadow:      rgba(10,30,60,0.12);
+      --scrollbar:   rgba(74,184,232,0.25);
+    }
+
+    [data-theme="parchment"] {
+      --bg:          #f2ede0;
+      --bg2:         #ebe4d3;
+      --bg3:         #e0d8c4;
+      --bg4:         #d4ccb4;
+      --ink:         #1e1a14;
+      --ink-dim:     #3a3028;
+      --ink-muted:   #6a5e4e;
+      --ink-faint:   #9a8e7e;
+      --amber:       #b8822a;
+      --amber-bright:#d4a040;
+      --amber-deep:  #8a5e18;
+      --amber-dim:   rgba(184,130,42,0.12);
+      --amber-glow:  rgba(184,130,42,0.28);
+      --border:      rgba(120,90,40,0.22);
+      --border2:     rgba(120,90,40,0.40);
+      --sara:        #2a8a6a;
+      --sara-dim:    rgba(42,138,106,0.10);
+      --sara-glow:   rgba(42,138,106,0.22);
+      --sara-border: rgba(42,138,106,0.32);
+      --oryc:        #6844b0;
+      --clio:        #b04468;
+      --sage:        #486898;
+      --coherence:   #2a8a6a;
+      --contradict:  #b04468;
+      --pressure:    #b8822a;
+      --glass:       rgba(255,255,255,0.45);
+      --glass-border:rgba(120,90,40,0.14);
+      --input-bg:    rgba(255,255,255,0.55);
+      --shadow:      rgba(30,22,10,0.12);
+      --scrollbar:   rgba(120,90,40,0.2);
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 14px;
+      overflow: hidden;
+    }
+
+    /* ── BACKGROUND ATMOSPHERE ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse at 15% 20%, rgba(240,168,64,0.06) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 80%, rgba(64,212,176,0.04) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 50%, rgba(155,127,212,0.03) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Subtle hex grid texture */
+    body::after {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='52'%3E%3Cpath d='M30 2 L58 17 L58 47 L30 62 L2 47 L2 17 Z' fill='none' stroke='rgba(240,168,64,0.025)' stroke-width='0.5'/%3E%3C/svg%3E");
+      pointer-events: none;
+      opacity: 0.8;
+    }
+
+    /* ── ROOT LAYOUT ── */
+    #app {
+      display: grid;
+      grid-template-columns: 220px 1fr 280px;
+      grid-template-rows: 52px 1fr 120px;
+      grid-template-areas:
+        "header header header"
+        "sidebar chat members"
+        "vc     vc   members";
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+      transition: grid-template-columns 0.25s cubic-bezier(.4,0,.2,1);
+    }
+
+    #app.sidebar-collapsed {
+      grid-template-columns: 0px 1fr 280px;
+      grid-template-areas:
+        "header header header"
+        "sidebar chat members"
+        "vc     vc   members";
+    }
+
+    #app.members-collapsed {
+      grid-template-columns: 220px 1fr 0px;
+      grid-template-areas:
+        "header  header  header"
+        "sidebar chat    members"
+        "vc      vc      members";
+    }
+
+    #app.sidebar-collapsed.members-collapsed {
+      grid-template-columns: 0px 1fr 0px;
+      grid-template-areas:
+        "header  header  header"
+        "sidebar chat    members"
+        "vc      vc      members";
+    }
+
+    /* ── HEADER ── */
+    #hive-header {
+      grid-area: header;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+      backdrop-filter: blur(20px);
+      position: relative;
+      z-index: 100;
+    }
+
+    #hive-header::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--amber), rgba(240,168,64,0.5), var(--amber), transparent);
+      opacity: 0.6;
+    }
+
+    .hive-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hive-hex {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .hive-wordmark {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      background: linear-gradient(135deg, #c07820 0%, #f0a840 35%, #ffc860 55%, #e09030 80%, #a06010 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 12px rgba(240,168,64,0.4));
+    }
+
+    .hive-subtitle {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cell-tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: var(--amber);
+      background: var(--amber-dim);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .cell-tag:hover {
+      background: rgba(240,168,64,0.18);
+      border-color: var(--amber);
+    }
+
+    .cell-name-display {
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      letter-spacing: 0.12em;
+      color: var(--ink-dim);
+    }
+
+    #cell-name-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--ink);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Field pressure indicator */
+    .pressure-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--glass);
+    }
+
+    .pressure-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.15em;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+    }
+
+    .pressure-bar {
+      width: 60px;
+      height: 3px;
+      background: var(--ink-faint);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .pressure-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--amber-deep), var(--amber), var(--amber-bright));
+      transition: width 1.2s ease;
+      box-shadow: 0 0 6px var(--amber-glow);
+    }
+
+    .pressure-val {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--amber);
+      min-width: 24px;
+    }
+
+    .hdr-btn {
+      width: 28px; height: 28px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--glass);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-muted);
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+
+    .hdr-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: var(--amber-dim);
+    }
+
+    /* ── SIDEBAR — Room / Cell navigator ── */
+    #sidebar {
+      grid-area: sidebar;
+      border-right: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(17,19,24,0.95) 0%, rgba(12,13,15,0.9) 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: opacity 0.2s ease;
+      min-width: 0;
+    }
+
+    [data-theme="chromium-light"] #sidebar,
+    [data-theme="parchment"] #sidebar {
+      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    }
+
+    .sidebar-collapsed #sidebar {
+      opacity: 0;
+      pointer-events: none;
+      border-right: none;
+    }
+
+    .sidebar-section {
+      padding: 10px 14px 6px;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      border-bottom: 1px solid rgba(240,168,64,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .sidebar-add-btn {
+      width: 16px; height: 16px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: none;
+      cursor: pointer;
+      color: var(--amber);
+      font-size: 12px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+
+    .sidebar-add-btn:hover {
+      background: var(--amber-dim);
+      border-color: var(--amber);
+    }
+
+    .cell-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .cell-list::-webkit-scrollbar { width: 2px; }
+    .cell-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .cell-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .cell-item:hover {
+      background: var(--amber-dim);
+      border-left-color: rgba(240,168,64,0.3);
+    }
+
+    .cell-item.active {
+      background: var(--amber-dim);
+      border-left-color: var(--amber);
+    }
+
+    .cell-hex-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .cell-item-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--ink-dim);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .cell-item.active .cell-item-name {
+      color: var(--ink);
+    }
+
+    .cell-member-count {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+      background: rgba(240,168,64,0.06);
+      border: 1px solid rgba(240,168,64,0.1);
+      border-radius: 8px;
+      padding: 1px 5px;
+    }
+
+    .cell-item.active .cell-member-count {
+      color: var(--amber);
+      border-color: var(--border);
+      background: var(--amber-dim);
+    }
+
+    /* live indicator */
+    .cell-live-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--sara);
+      box-shadow: 0 0 5px var(--sara-glow);
+      flex-shrink: 0;
+      animation: live-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes live-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; box-shadow: 0 0 8px var(--sara-glow); }
+    }
+
+    .sidebar-bottom {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .user-pill:hover {
+      border-color: var(--border2);
+      background: rgba(240,168,64,0.05);
+    }
+
+    .user-avatar-small {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--amber-deep), var(--amber));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      color: var(--bg);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .user-name-small {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      flex: 1;
+    }
+
+    /* ── MAIN CHAT ── */
+    #chat-panel {
+      grid-area: chat;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--bg);
+      position: relative;
+    }
+
+    /* SARA mode + tone bar */
+    #sara-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+
+    .sara-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .sara-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(64,212,176,0.3), rgba(64,212,176,0.1));
+      border: 1px solid var(--sara-border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      color: var(--sara);
+      box-shadow: 0 0 10px var(--sara-glow);
+    }
+
+    .sara-mode-ring {
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      border: 1px solid var(--sara);
+      opacity: 0.4;
+      animation: sara-ring 3s ease-in-out infinite;
+    }
+
+    @keyframes sara-ring {
+      0%, 100% { opacity: 0.2; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.08); }
+    }
+
+    .sara-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      color: var(--sara);
+    }
+
+    /* Mode toggle buttons */
+    .mode-group {
+      display: flex;
+      gap: 3px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .mode-btn {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 5px;
+      border: none;
+      background: none;
+      color: var(--ink-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .mode-btn:hover { color: var(--ink-dim); }
+
+    .mode-btn.active[data-mode="silent"] {
+      background: var(--bg4);
+      color: var(--ink);
+      box-shadow: 0 0 0 1px var(--border2);
+    }
+
+    .mode-btn.active[data-mode="ambient"] {
+      background: var(--amber-dim);
+      color: var(--amber);
+      box-shadow: 0 0 6px rgba(240,168,64,0.15);
+    }
+
+    .mode-btn.active[data-mode="open"] {
+      background: var(--sara-dim);
+      color: var(--sara);
+      box-shadow: 0 0 8px var(--sara-glow);
+    }
+
+    .controls-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border);
+    }
+
+    /* Tone dial */
+    .tone-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 220px;
+    }
+
+    .tone-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+      white-space: nowrap;
+      letter-spacing: 0.08em;
+    }
+
+    .tone-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, var(--amber-deep), rgba(64,212,176,0.6));
+      outline: none;
+      cursor: pointer;
+    }
+
+    .tone-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--ink);
+      border: 2px solid var(--amber);
+      box-shadow: 0 0 6px var(--amber-glow);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .tone-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      border-color: var(--amber-bright);
+    }
+
+    /* Coherence metrics mini strip */
+    .field-metrics {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .metric-chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .metric-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+    }
+
+    .metric-dot.coherence { background: var(--coherence); box-shadow: 0 0 4px var(--sara-glow); }
+    .metric-dot.contradict { background: var(--contradict); box-shadow: 0 0 4px rgba(212,127,155,0.4); }
+
+    .metric-val {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink-muted);
+    }
+
+    /* ── CHAT MESSAGES ── */
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    #chat-messages::-webkit-scrollbar { width: 3px; }
+    #chat-messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .msg-row {
+      display: flex;
+      gap: 10px;
+      padding: 5px 6px;
+      border-radius: 6px;
+      transition: background 0.15s;
+      animation: msg-in 0.2s ease;
+    }
+
+    @keyframes msg-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg-row:hover { background: rgba(255,255,255,0.02); }
+
+    .msg-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .msg-avatar.user {
+      background: linear-gradient(135deg, var(--amber-deep), var(--amber-dim));
+      border: 1px solid var(--border2);
+      color: var(--amber);
+    }
+
+    .msg-avatar.sara {
+      background: linear-gradient(135deg, rgba(64,212,176,0.2), rgba(64,212,176,0.06));
+      border: 1px solid var(--sara-border);
+      color: var(--sara);
+      box-shadow: 0 0 8px var(--sara-glow);
+    }
+
+    .msg-body { flex: 1; min-width: 0; }
+
+    .msg-meta {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-bottom: 3px;
+    }
+
+    .msg-author {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+
+    .msg-author.user { color: var(--amber); }
+    .msg-author.sara { color: var(--sara); }
+    .msg-author.system { color: var(--ink-faint); }
+
+    .msg-time {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+    }
+
+    /* sara ambient badge */
+    .msg-mode-badge {
+      font-family: var(--mono);
+      font-size: 7px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--amber);
+      background: var(--amber-dim);
+      border: 1px solid rgba(240,168,64,0.2);
+    }
+
+    .msg-mode-badge.signal { color: var(--sara); background: var(--sara-dim); border-color: var(--sara-border); }
+
+    .msg-text {
+      color: var(--ink-dim);
+      line-height: 1.65;
+      font-size: 13.5px;
+      word-wrap: break-word;
+    }
+
+    .msg-text.sara-msg {
+      color: var(--ink);
+    }
+
+    /* SARA thinking state */
+    .sara-thinking {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--sara-dim);
+      border: 1px solid rgba(64,212,176,0.12);
+      margin: 4px 0;
+    }
+
+    .sara-thinking-dots {
+      display: flex;
+      gap: 3px;
+    }
+
+    .sara-thinking-dots span {
+      width: 4px; height: 4px;
+      border-radius: 50%;
+      background: var(--sara);
+      animation: thinking-dot 1.2s ease-in-out infinite;
+    }
+
+    .sara-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .sara-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes thinking-dot {
+      0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
+      30% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .sara-thinking-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--sara);
+      letter-spacing: 0.1em;
+      opacity: 0.8;
+    }
+
+    /* system messages */
+    .msg-row.system-msg {
+      justify-content: center;
+      padding: 3px;
+    }
+
+    .system-msg-text {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink-faint);
+      letter-spacing: 0.1em;
+      text-align: center;
+    }
+
+    /* Pressure signal flash — ambient SARA */
+    .sara-ambient-flash {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px 4px 8px;
+      border-left: 2px solid var(--amber);
+      background: var(--amber-dim);
+      border-radius: 0 6px 6px 0;
+      margin: 2px 0;
+    }
+
+    .ambient-glyph {
+      font-size: 10px;
+      color: var(--amber);
+    }
+
+    .ambient-text {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: rgba(240,168,64,0.85);
+      font-style: italic;
+    }
+
+    /* ── CHAT INPUT ── */
+    #chat-input-area {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      background: var(--bg2);
+      flex-shrink: 0;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      transition: border-color 0.2s;
+    }
+
+    .input-row:focus-within {
+      border-color: rgba(240,168,64,0.4);
+      box-shadow: 0 0 0 2px rgba(240,168,64,0.06);
+    }
+
+    #msg-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--ink);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13.5px;
+      resize: none;
+      max-height: 120px;
+      min-height: 20px;
+      line-height: 1.5;
+    }
+
+    #msg-input::placeholder { color: var(--ink-faint); }
+
+    .send-btn {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--amber-dim);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--amber);
+      font-size: 14px;
+      flex-shrink: 0;
+      transition: all 0.2s;
+    }
+
+    .send-btn:hover {
+      background: rgba(240,168,64,0.2);
+      border-color: var(--amber);
+      box-shadow: 0 0 8px var(--amber-glow);
+    }
+
+    .send-btn:active {
+      transform: scale(0.93);
+    }
+
+    /* ── MEMBERS PANEL ── */
+    #members-panel {
+      grid-area: members;
+      border-left: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(17,19,24,0.95) 0%, rgba(12,13,15,0.9) 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: opacity 0.2s ease;
+      min-width: 0;
+    }
+
+    [data-theme="chromium-light"] #members-panel,
+    [data-theme="parchment"] #members-panel {
+      background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
+    }
+
+    .members-collapsed #members-panel {
+      opacity: 0;
+      pointer-events: none;
+      border-left: none;
+    }
+
+    .panel-header {
+      padding: 10px 14px 8px;
+      border-bottom: 1px solid rgba(240,168,64,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-title {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+
+    .member-list {
+      padding: 8px 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .member-list::-webkit-scrollbar { width: 2px; }
+    .member-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .member-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 7px 14px;
+      transition: background 0.15s;
+    }
+
+    .member-item:hover { background: rgba(240,168,64,0.03); }
+
+    .member-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .member-avatar.you {
+      background: linear-gradient(135deg, rgba(240,168,64,0.25), rgba(240,168,64,0.08));
+      border: 1px solid var(--border2);
+      color: var(--amber);
+    }
+
+    .member-avatar.peer {
+      background: linear-gradient(135deg, rgba(126,184,212,0.2), rgba(126,184,212,0.06));
+      border: 1px solid rgba(126,184,212,0.28);
+      color: #7eb8d4;
+    }
+
+    .member-avatar.sara-member {
+      background: linear-gradient(135deg, rgba(64,212,176,0.2), rgba(64,212,176,0.06));
+      border: 1px solid var(--sara-border);
+      color: var(--sara);
+      box-shadow: 0 0 8px var(--sara-glow);
+    }
+
+    .online-dot {
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 1.5px solid var(--bg2);
+    }
+
+    .online-dot.online { background: #4ade80; }
+    .online-dot.speaking { background: var(--amber); box-shadow: 0 0 5px var(--amber-glow); animation: speaking-pulse 1s ease-in-out infinite; }
+    .online-dot.sara-mode { background: var(--sara); box-shadow: 0 0 5px var(--sara-glow); animation: live-pulse 2s ease-in-out infinite; }
+
+    @keyframes speaking-pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; transform: scale(1.3); }
+    }
+
+    .member-info { flex: 1; min-width: 0; }
+
+    .member-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      color: var(--ink-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .member-name.you { color: var(--amber); }
+    .member-name.sara-name { color: var(--sara); }
+
+    .member-role {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+      letter-spacing: 0.08em;
+    }
+
+    /* Field contribution bar */
+    .member-field-bar {
+      width: 40px;
+      height: 3px;
+      background: var(--ink-faint);
+      border-radius: 2px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .member-field-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.5s ease;
+    }
+
+    .member-field-fill.positive { background: var(--coherence); }
+    .member-field-fill.neutral { background: var(--amber); }
+    .member-field-fill.friction { background: var(--contradict); }
+
+    /* Sara mode indicator */
+    .sara-status-chip {
+      font-family: var(--mono);
+      font-size: 7px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .sara-status-chip.silent {
+      color: var(--ink-faint);
+      background: rgba(60,52,44,0.5);
+      border: 1px solid rgba(160,144,128,0.12);
+    }
+
+    .sara-status-chip.ambient {
+      color: var(--amber);
+      background: var(--amber-dim);
+      border: 1px solid rgba(240,168,64,0.2);
+    }
+
+    .sara-status-chip.open {
+      color: var(--sara);
+      background: var(--sara-dim);
+      border: 1px solid rgba(64,212,176,0.25);
+    }
+
+    /* ── PYXIS MICRO SECTION ── */
+    .pyxis-section {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .pyxis-section-label {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .pyxis-micro-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #pyxis-mount {
+      width: 60px;
+      height: 60px;
+      flex-shrink: 0;
+    }
+
+    .pyxis-metric-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .pyxis-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pyxis-bar-label {
+      font-family: var(--mono);
+      font-size: 7px;
+      letter-spacing: 0.1em;
+      color: var(--ink-faint);
+      width: 50px;
+      text-transform: uppercase;
+    }
+
+    .pyxis-bar {
+      flex: 1;
+      height: 2px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .pyxis-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.5s ease;
+    }
+
+    .pyxis-bar-fill.coherence { background: var(--coherence); box-shadow: 0 0 4px rgba(64,212,176,0.5); }
+    .pyxis-bar-fill.contradiction { background: var(--contradict); box-shadow: 0 0 4px rgba(212,127,155,0.5); }
+    .pyxis-bar-fill.pressure { background: var(--pressure); box-shadow: 0 0 4px rgba(240,168,64,0.5); }
+
+    .pyxis-bar-num {
+      font-family: var(--mono);
+      font-size: 7px;
+      color: var(--ink-faint);
+      width: 22px;
+      text-align: right;
+    }
+
+    /* ── VC PANEL ── */
+    #vc-panel {
+      grid-area: vc;
+      border-top: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      background: var(--bg2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #vc-header {
+      padding: 7px 14px;
+      border-bottom: 1px solid rgba(240,168,64,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .vc-title {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.2em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+    }
+
+    .vc-live-badge {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      padding: 2px 7px;
+      border-radius: 3px;
+      color: var(--sara);
+      background: var(--sara-dim);
+      border: 1px solid var(--sara-border);
+      display: none;
+    }
+
+    .vc-live-badge.visible { display: block; }
+
+    #daily-container {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #daily-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    /* Pre-join state */
+    #vc-prejoin {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 14px;
+      height: 100%;
+    }
+
+    .vc-join-btn {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 7px 16px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--glass);
+      color: var(--ink-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .vc-join-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: var(--amber-dim);
+      box-shadow: 0 0 10px var(--amber-glow);
+    }
+
+    .vc-btn-icon { font-size: 14px; }
+
+    /* VC controls strip */
+    #vc-controls {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid rgba(240,168,64,0.06);
+      flex-shrink: 0;
+    }
+
+    #vc-controls.visible { display: flex; }
+
+    .vc-ctrl-btn {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--glass);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-muted);
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .vc-ctrl-btn:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+      background: var(--amber-dim);
+    }
+
+    .vc-ctrl-btn.muted {
+      border-color: var(--contradict);
+      color: var(--contradict);
+      background: rgba(212,127,155,0.1);
+    }
+
+    .vc-ctrl-btn.danger:hover {
+      border-color: #ef4444;
+      color: #ef4444;
+      background: rgba(239,68,68,0.1);
+    }
+
+    .vc-record-btn {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      padding: 5px 10px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--glass);
+      color: var(--ink-faint);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .vc-record-btn:hover {
+      border-color: var(--contradict);
+      color: var(--contradict);
+      background: rgba(212,127,155,0.08);
+    }
+
+    .vc-record-btn.recording {
+      border-color: var(--contradict);
+      color: var(--contradict);
+      background: rgba(212,127,155,0.1);
+      box-shadow: 0 0 8px rgba(212,127,155,0.2);
+    }
+
+    .record-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--contradict);
+    }
+
+    .vc-record-btn.recording .record-dot {
+      animation: rec-blink 1s ease-in-out infinite;
+    }
+
+    @keyframes rec-blink {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* ── MODAL — New Cell ── */
+    #modal-overlay,
+    #project-modal-overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(6px);
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    .modal-box {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 12px;
+      padding: 28px 32px;
+      width: 420px;
+      box-shadow: 0 20px 60px var(--shadow), 0 0 40px var(--amber-dim);
+      animation: modal-in 0.22s ease;
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(-12px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--amber);
+      margin-bottom: 20px;
+    }
+
+    .modal-field {
+      margin-bottom: 16px;
+    }
+
+    .modal-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .modal-input {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--ink);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .modal-input:focus {
+      border-color: var(--amber);
+      box-shadow: 0 0 0 2px var(--amber-dim);
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 9px;
+      border-radius: 7px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid var(--border);
+    }
+
+    .modal-btn.primary {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border-color: var(--border2);
+    }
+
+    .modal-btn.primary:hover {
+      background: rgba(240,168,64,0.2);
+      box-shadow: 0 0 12px var(--amber-glow);
+    }
+
+    .modal-btn.secondary {
+      background: none;
+      color: var(--ink-muted);
+    }
+
+    .modal-btn.secondary:hover {
+      background: rgba(255,255,255,0.03);
+      color: var(--ink-dim);
+    }
+
+    /* ── USERNAME MODAL ── */
+    #username-modal {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(10px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .username-box {
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      border-radius: 14px;
+      padding: 36px 40px;
+      width: 380px;
+      text-align: center;
+      box-shadow: 0 24px 80px var(--shadow), 0 0 60px var(--amber-dim);
+    }
+
+    .username-hex {
+      margin: 0 auto 16px;
+      width: 56px;
+      height: 56px;
+    }
+
+    .username-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.3em;
+      background: linear-gradient(135deg, #c07820 0%, #f0a840 40%, #ffc860 60%, #e09030 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 4px;
+    }
+
+    .username-sub {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--ink-muted);
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .username-field-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink-faint);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      text-align: left;
+    }
+
+    .username-input {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--ink);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      outline: none;
+      transition: all 0.2s;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .username-input:focus {
+      border-color: var(--amber);
+      box-shadow: 0 0 0 3px var(--amber-dim);
+    }
+
+    .username-enter-btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 8px;
+      background: var(--amber-dim);
+      border: 1px solid var(--border2);
+      color: var(--amber);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .username-enter-btn:hover {
+      background: rgba(240,168,64,0.2);
+      box-shadow: 0 0 20px var(--amber-glow);
+    }
+
+    /* ── THEME PICKER ── */
+    .theme-picker {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      padding: 3px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .theme-swatch {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1.5px solid transparent;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .theme-swatch:hover { transform: scale(1.15); }
+    .theme-swatch.active { border-color: var(--amber); box-shadow: 0 0 5px var(--amber-glow); }
+
+    .theme-swatch[data-t="obsidian"]         { background: linear-gradient(135deg, #0c0d0f, #f0a840); }
+    .theme-swatch[data-t="chromium-dark"]    { background: linear-gradient(135deg, #0a0e14, #4ab8e8); }
+    .theme-swatch[data-t="chromium-light"]   { background: linear-gradient(135deg, #e8eef5, #1a7cc0); }
+    .theme-swatch[data-t="parchment"]        { background: linear-gradient(135deg, #f2ede0, #b8822a); }
+
+    /* ── COLLAPSE TOGGLES ── 
+       Fixed to viewport edges so they stay clickable even when panels are 0px wide */
+    .collapse-btn {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 200;
+      cursor: pointer;
+      width: 14px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--ink-muted);
+      font-size: 10px;
+      transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+      user-select: none;
+      line-height: 1;
+    }
+
+    .collapse-btn:hover {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border-color: var(--amber);
+    }
+
+    #sidebar-collapse-btn {
+      left: 220px;
+      border-radius: 0 4px 4px 0;
+      border-left: none;
+      transition: left 0.25s cubic-bezier(.4,0,.2,1), background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .sidebar-collapsed #sidebar-collapse-btn {
+      left: 0px;
+    }
+
+    #members-collapse-btn {
+      right: 280px;
+      border-radius: 4px 0 0 4px;
+      border-right: none;
+      transition: right 0.25s cubic-bezier(.4,0,.2,1), background 0.15s, color 0.15s, border-color 0.15s;
+    }
+
+    .members-collapsed #members-collapse-btn {
+      right: 0px;
+    }
+
+    /* ── PROJECT LIST ── */
+    .project-list {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(240,168,64,0.06);
+    }
+
+    .project-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .project-item:hover { background: var(--amber-dim); }
+    .project-item.active { background: var(--amber-dim); }
+
+    .project-icon {
+      font-size: 10px;
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+
+    .project-item-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--ink-dim);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-transform: uppercase;
+    }
+
+    .project-cell-count {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+    }
+
+    /* ── MODAL EXTRAS ── */
+    .modal-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .modal-half { flex: 1; }
+
+    .modal-select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0 L5 6 L10 0' fill='none' stroke='rgba(240,168,64,0.6)' stroke-width='1.5'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+
+    /* ── INTENT SELECT ── */
+    .intent-select {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 4px 22px 4px 8px;
+      background: var(--input-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--ink-muted);
+      outline: none;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0 L4 5 L8 0' fill='none' stroke='rgba(240,168,64,0.5)' stroke-width='1.2'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 7px center;
+      transition: border-color 0.2s;
+      max-width: 100px;
+    }
+
+    .intent-select:focus, .intent-select:hover {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    /* ── SESSION ACTIONS ── */
+    .action-group {
+      display: flex;
+      gap: 3px;
+    }
+
+    .action-btn {
+      width: 24px; height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      background: var(--glass);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--ink-muted);
+      font-size: 11px;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .action-btn:hover {
+      border-color: var(--sara-border);
+      color: var(--sara);
+      background: var(--sara-dim);
+      box-shadow: 0 0 6px var(--sara-glow);
+    }
+
+    .action-btn.loading {
+      animation: action-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes action-pulse {
+      0%, 100% { border-color: var(--sara-border); box-shadow: 0 0 4px var(--sara-glow); }
+      50% { border-color: var(--sara); box-shadow: 0 0 12px var(--sara-glow); }
+    }
+
+    /* Action result message styling */
+    .msg-action-badge {
+      font-family: var(--mono);
+      font-size: 7px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      color: var(--sara);
+      background: var(--sara-dim);
+      border: 1px solid var(--sara-border);
+    }
+
+    /* ── PANEL TABS ── */
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      background: var(--bg2);
+    }
+
+    .panel-tab {
+      flex: 1;
+      padding: 9px 6px;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .panel-tab:hover { color: var(--ink-muted); }
+
+    .panel-tab.active {
+      color: var(--amber);
+      border-bottom-color: var(--amber);
+    }
+
+    .doc-count-badge {
+      position: absolute;
+      top: 4px; right: 4px;
+      min-width: 14px; height: 14px;
+      border-radius: 7px;
+      background: var(--sara);
+      color: var(--bg);
+      font-size: 7px;
+      font-family: var(--mono);
+      display: flex; align-items: center; justify-content: center;
+      padding: 0 3px;
+      font-weight: 700;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-content.hidden { display: none; }
+
+    /* ── DOCS PANEL ── */
+    .doc-scope-tabs {
+      display: flex;
+      gap: 3px;
+      padding: 8px 10px 6px;
+      flex-shrink: 0;
+    }
+
+    .doc-scope-btn {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--ink-faint);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .doc-scope-btn:hover { color: var(--ink-muted); }
+    .doc-scope-btn.active {
+      background: var(--amber-dim);
+      color: var(--amber);
+      border-color: var(--border2);
+    }
+
+    .doc-upload-area {
+      padding: 8px 10px 4px;
+      flex-shrink: 0;
+    }
+
+    .upload-drop-zone {
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .upload-drop-zone:hover, .upload-drop-zone.dragover {
+      border-color: var(--amber);
+      background: var(--amber-dim);
+    }
+
+    .upload-icon { font-size: 18px; color: var(--amber); opacity: 0.7; }
+    .upload-text { font-family: var(--mono); font-size: 9px; color: var(--ink-muted); letter-spacing: 0.08em; }
+    .upload-sub  { font-family: var(--mono); font-size: 8px; color: var(--ink-faint); letter-spacing: 0.06em; }
+
+    .doc-list-wrap { flex: 1; overflow-y: auto; padding: 4px 0; }
+    .doc-list-wrap.hidden { display: none; }
+
+    .doc-scope-header {
+      font-family: var(--mono);
+      font-size: 7px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      padding: 6px 12px 4px;
+    }
+
+    .doc-scope-note { font-style: italic; opacity: 0.7; }
+
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      transition: background 0.15s;
+      cursor: default;
+    }
+
+    .doc-item:hover { background: rgba(255,255,255,0.02); }
+
+    .doc-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      width: 18px;
+      text-align: center;
+    }
+
+    .doc-info { flex: 1; min-width: 0; }
+
+    .doc-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ink-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .doc-meta {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+    }
+
+    .doc-delete-btn {
+      width: 16px; height: 16px;
+      border: none;
+      background: none;
+      color: var(--ink-faint);
+      cursor: pointer;
+      font-size: 10px;
+      border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: all 0.15s;
+    }
+
+    .doc-item:hover .doc-delete-btn { opacity: 1; }
+    .doc-delete-btn:hover { color: var(--contradict); background: rgba(212,127,155,0.1); }
+
+    .doc-empty {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--ink-faint);
+      text-align: center;
+      padding: 16px 12px;
+      font-style: italic;
+    }
+
+    /* ── HUB — landing screen ── */
+    #hub {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+      animation: hub-in 0.3s ease;
+    }
+
+    @keyframes hub-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    #hub.hidden { display: none; }
+
+    .hub-greeting {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+
+    .hub-greeting-text h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .hub-greeting-text p {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      color: var(--ink-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .hub-new-project-btn {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      padding: 9px 18px;
+      border: 1px solid var(--border2);
+      border-radius: 7px;
+      background: var(--amber-dim);
+      color: var(--amber);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .hub-new-project-btn:hover {
+      background: rgba(240,168,64,0.2);
+      box-shadow: 0 0 16px var(--amber-glow);
+    }
+
+    .hub-section-title {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin-bottom: 12px;
+    }
+
+    /* Projects grid */
+    .hub-projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .hub-project-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--glass);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hub-project-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amber), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .hub-project-card:hover {
+      border-color: var(--border2);
+      background: var(--amber-dim);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--shadow);
+    }
+
+    .hub-project-card:hover::before { opacity: 1; }
+
+    .hub-project-card-icon {
+      font-size: 20px;
+      margin-bottom: 10px;
+      opacity: 0.8;
+    }
+
+    .hub-project-card-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--ink);
+      margin-bottom: 4px;
+    }
+
+    .hub-project-card-desc {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 11px;
+      color: var(--ink-muted);
+      line-height: 1.5;
+      margin-bottom: 10px;
+      min-height: 16px;
+    }
+
+    .hub-project-card-meta {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+      letter-spacing: 0.08em;
+      display: flex;
+      gap: 10px;
+    }
+
+    /* Free chat card */
+    .hub-free-card {
+      border: 1px solid var(--sara-border);
+      border-radius: 10px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--sara-dim);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .hub-free-card:hover {
+      border-color: var(--sara);
+      box-shadow: 0 0 20px var(--sara-glow);
+      transform: translateY(-1px);
+    }
+
+    .hub-free-card-icon {
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .hub-free-card-text h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      color: var(--sara);
+      margin-bottom: 3px;
+    }
+
+    .hub-free-card-text p {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 12px;
+      color: var(--ink-muted);
+      line-height: 1.5;
+    }
+
+    /* Recent cells list */
+    .hub-recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .hub-recent-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+      background: var(--glass);
+    }
+
+    .hub-recent-item:hover {
+      border-color: var(--border2);
+      background: var(--amber-dim);
+    }
+
+    .hub-recent-hex {
+      width: 28px; height: 28px;
+      flex-shrink: 0;
+    }
+
+    .hub-recent-info { flex: 1; min-width: 0; }
+
+    .hub-recent-name {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hub-recent-meta {
+      font-family: var(--mono);
+      font-size: 8px;
+      color: var(--ink-faint);
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    .hub-recent-intent {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      padding: 2px 7px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      background: var(--amber-dim);
+      color: var(--amber);
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .hub-empty {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-faint);
+      text-align: center;
+      padding: 20px;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      letter-spacing: 0.08em;
+    }
+
+    /* Sidebar back button */
+    #hub-back-btn {
+      display: none;
+      width: 100%;
+      padding: 7px 14px;
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      background: none;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      text-align: left;
+      transition: color 0.15s;
+    }
+
+    #hub-back-btn:hover { color: var(--amber); }
+    #hub-back-btn.visible { display: block; }
+
+    .hidden { display: none !important; }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    /* Scrollbar global */
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--scrollbar) transparent;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── USERNAME ENTRY ── -->
+<div id="username-modal">
+  <div class="username-box">
+    <svg class="username-hex" viewBox="0 0 56 56" fill="none">
+      <path d="M28 4 L52 18 L52 46 L28 60 L4 46 L4 18 Z" stroke="rgba(240,168,64,0.5)" stroke-width="1" fill="rgba(240,168,64,0.06)"/>
+      <path d="M28 10 L46 20 L46 40 L28 50 L10 40 L10 20 Z" stroke="rgba(240,168,64,0.3)" stroke-width="0.5" fill="none"/>
+      <circle cx="28" cy="30" r="6" fill="rgba(240,168,64,0.3)" stroke="rgba(240,168,64,0.6)" stroke-width="0.8"/>
+    </svg>
+    <div class="username-title">HIVE</div>
+    <div class="username-sub">Collective Intelligence Platform</div>
+    <div class="username-field-label">Your call sign</div>
+    <input class="username-input" id="username-input" type="text" placeholder="Enter name..." maxlength="24" autocomplete="off" />
+    <button class="username-enter-btn" id="username-enter-btn">ENTER THE HIVE</button>
+  </div>
+</div>
+
+<!-- ── NEW CELL MODAL ── -->
+<div id="modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">NEW CELL</div>
+    <div class="modal-field">
+      <div class="modal-label">Cell Name</div>
+      <input class="modal-input" id="new-cell-name" type="text" placeholder="e.g. Product Redesign Sprint" maxlength="40" />
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Topic / Intent (optional)</div>
+      <input class="modal-input" id="new-cell-topic" type="text" placeholder="e.g. UI architecture for v2" maxlength="80" />
+    </div>
+    <div class="modal-row">
+      <div class="modal-field modal-half">
+        <div class="modal-label">Session Intent</div>
+        <select class="modal-input modal-select" id="new-cell-intent">
+          <option value="brainstorm">Brainstorm</option>
+          <option value="decision">Decision</option>
+          <option value="debrief">Debrief</option>
+          <option value="mediation">Mediation</option>
+          <option value="reflection">Reflection</option>
+          <option value="moderation">Moderation</option>
+        </select>
+      </div>
+      <div class="modal-field modal-half">
+        <div class="modal-label">Project (optional)</div>
+        <select class="modal-input modal-select" id="new-cell-project">
+          <option value="">No project</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="modal-cancel-btn">Cancel</button>
+      <button class="modal-btn primary" id="modal-create-btn">Create Cell</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── NEW PROJECT MODAL ── -->
+<div id="project-modal-overlay">
+  <div class="modal-box">
+    <div class="modal-title">NEW PROJECT</div>
+    <div class="modal-field">
+      <div class="modal-label">Project Name</div>
+      <input class="modal-input" id="new-proj-name" type="text" placeholder="e.g. Genesis v2" maxlength="40" />
+    </div>
+    <div class="modal-field">
+      <div class="modal-label">Description (optional)</div>
+      <input class="modal-input" id="new-proj-desc" type="text" placeholder="e.g. Full rebrand and replatform" maxlength="120" />
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn secondary" id="proj-modal-cancel-btn">Cancel</button>
+      <button class="modal-btn primary" id="proj-modal-create-btn">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN APP ── -->
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="hive-header">
+    <div class="hive-logo">
+      <svg class="hive-hex" viewBox="0 0 32 32" fill="none">
+        <path d="M16 2 L30 10 L30 26 L16 34 L2 26 L2 10 Z" stroke="rgba(240,168,64,0.6)" stroke-width="1" fill="rgba(240,168,64,0.08)"/>
+        <path d="M16 6 L26 12 L26 24 L16 30 L6 24 L6 12 Z" stroke="rgba(240,168,64,0.3)" stroke-width="0.5" fill="none"/>
+        <circle cx="16" cy="18" r="4" fill="rgba(240,168,64,0.4)" stroke="rgba(240,168,64,0.8)" stroke-width="0.8"/>
+        <circle cx="16" cy="18" r="1.5" fill="rgba(240,168,64,0.9)"/>
+      </svg>
+      <div>
+        <div class="hive-wordmark">HIVE</div>
+        <div class="hive-subtitle">Collective Intelligence</div>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <span class="cell-name-display">CELL:</span>
+      <span id="cell-name-label">—</span>
+    </div>
+
+    <div class="header-right">
+      <div class="pressure-indicator" title="S.A.R.A. field pressure — builds while silent">
+        <span class="pressure-label">FIELD</span>
+        <div class="pressure-bar">
+          <div class="pressure-fill" id="pressure-fill" style="width: 0%"></div>
+        </div>
+        <span class="pressure-val" id="pressure-val">0%</span>
+      </div>
+
+      <div class="theme-picker" title="Theme">
+        <div class="theme-swatch active" data-t="obsidian"       title="Obsidian"></div>
+        <div class="theme-swatch"        data-t="chromium-dark"  title="Chromium Dark"></div>
+        <div class="theme-swatch"        data-t="chromium-light" title="Chromium Light"></div>
+        <div class="theme-swatch"        data-t="parchment"      title="Parchment"></div>
+      </div>
+
+      <button class="hdr-btn" id="history-btn" title="Session history">⏲</button>
+      <button class="hdr-btn" id="settings-btn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <button id="hub-back-btn">← Hub</button>
+    <div class="sidebar-section">
+      Cells
+      <button class="sidebar-add-btn" id="new-cell-btn" title="New cell">+</button>
+    </div>
+    <div class="cell-list" id="cell-list">
+      <!-- populated by JS -->
+    </div>
+    <div class="sidebar-bottom">
+      <div class="user-pill" id="user-pill">
+        <div class="user-avatar-small" id="user-avatar-small">?</div>
+        <span class="user-name-small" id="user-name-small">—</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CHAT -->
+  <main id="chat-panel">
+
+    <!-- HUB — landing screen, shown before any cell is selected -->
+    <div id="hub">
+      <div class="hub-greeting">
+        <div class="hub-greeting-text">
+          <h2 id="hub-hello">THE HIVE</h2>
+          <p>Where do you want to work?</p>
+        </div>
+        <button class="hub-new-project-btn" id="hub-new-project-btn">
+          <span>⬡</span> NEW PROJECT
+        </button>
+      </div>
+
+      <!-- Free chat -->
+      <div>
+        <div class="hub-section-title">Open Session</div>
+        <div class="hub-free-card" id="hub-free-chat">
+          <span class="hub-free-card-icon">◈</span>
+          <div class="hub-free-card-text">
+            <h3>FREE CHAT</h3>
+            <p>No project, no structure — just open the room and let S.A.R.A. in when you're ready.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div>
+        <div class="hub-section-title">Projects</div>
+        <div class="hub-projects-grid" id="hub-projects-grid">
+          <div class="hub-empty">No projects yet — create one to get started.</div>
+        </div>
+      </div>
+
+      <!-- Recent cells -->
+      <div>
+        <div class="hub-section-title">Recent Cells</div>
+        <div class="hub-recent-list" id="hub-recent-list">
+          <div class="hub-empty">No recent sessions.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S.A.R.A. controls bar — hidden until in a cell -->
+    <div id="sara-controls" class="hidden">
+    <div id="sara-controls">
+      <div class="sara-avatar-wrap">
+        <div class="sara-avatar">S</div>
+        <div class="sara-mode-ring" id="sara-mode-ring"></div>
+      </div>
+      <span class="sara-label">S.A.R.A.</span>
+
+      <div class="controls-divider"></div>
+
+      <div class="mode-group">
+        <button class="mode-btn active" data-mode="silent" id="mode-silent">SILENT</button>
+        <button class="mode-btn" data-mode="ambient" id="mode-ambient">AMBIENT</button>
+        <button class="mode-btn" data-mode="open" id="mode-open">OPEN</button>
+      </div>
+
+      <div class="controls-divider"></div>
+
+      <div class="tone-wrap">
+        <span class="tone-label">SIGNAL</span>
+        <input type="range" class="tone-slider" id="tone-slider" min="0" max="100" value="50" />
+        <span class="tone-label">SYNTH</span>
+      </div>
+
+      <div class="controls-divider"></div>
+
+      <!-- Intent selector -->
+      <select class="intent-select" id="intent-select" title="Session intent">
+        <option value="brainstorm">Brainstorm</option>
+        <option value="decision">Decision</option>
+        <option value="debrief">Debrief</option>
+        <option value="mediation">Mediation</option>
+        <option value="reflection">Reflection</option>
+        <option value="moderation">Moderation</option>
+      </select>
+
+      <div class="controls-divider"></div>
+
+      <!-- Session actions -->
+      <div class="action-group">
+        <button class="action-btn" data-action="summarize"    title="Summarize conversation">∑</button>
+        <button class="action-btn" data-action="extract_ideas" title="Extract ideas">◆</button>
+        <button class="action-btn" data-action="name_tension"  title="Name the tension">⚡</button>
+        <button class="action-btn" data-action="next_steps"    title="Next steps">→</button>
+        <button class="action-btn" data-action="full_read"     title="Full convergence read">◉</button>
+        <button class="action-btn" data-action="mediate"       title="Mediation read">⚖</button>
+      </div>
+
+      <div class="field-metrics">
+        <div class="metric-chip">
+          <div class="metric-dot coherence"></div>
+          <span class="metric-val" id="coherence-val">0.50</span>
+        </div>
+        <div class="metric-chip">
+          <div class="metric-dot contradict"></div>
+          <span class="metric-val" id="contradict-val">0.20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="chat-messages" class="hidden">
+      <div class="msg-row system-msg">
+        <span class="system-msg-text">◈ — Select or create a cell to begin — ◈</span>
+      </div>
+    </div>
+
+    <!-- Input -->
+    <div id="chat-input-area" class="hidden">
+      <div class="input-row">
+        <textarea id="msg-input" rows="1" placeholder="Say something..." maxlength="2000"></textarea>
+        <button class="send-btn" id="send-btn">➤</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- MEMBERS -->
+  <aside id="members-panel">
+    <!-- Panel tabs -->
+    <div class="panel-tabs">
+      <button class="panel-tab active" data-tab="members">Members</button>
+      <button class="panel-tab" data-tab="docs">
+        Docs
+        <span class="doc-count-badge" id="doc-count-badge" style="display:none"></span>
+      </button>
+      <button class="panel-tab" data-tab="field">Field</button>
+    </div>
+
+    <!-- Members tab -->
+    <div class="panel-content" id="tab-members">
+      <div class="member-list" id="member-list"></div>
+    </div>
+
+    <!-- Docs tab -->
+    <div class="panel-content hidden" id="tab-docs">
+      <!-- Doc scope tabs -->
+      <div class="doc-scope-tabs">
+        <button class="doc-scope-btn active" data-scope="session">Session</button>
+        <button class="doc-scope-btn" data-scope="cell">Cell</button>
+        <button class="doc-scope-btn" data-scope="project">Project</button>
+      </div>
+
+      <!-- Upload area -->
+      <div class="doc-upload-area" id="doc-upload-area">
+        <input type="file" id="doc-file-input" multiple accept=".pdf,.docx,.txt,.md,.markdown,.png,.jpg,.jpeg,.webp,.gif" style="display:none" />
+        <div class="upload-drop-zone" id="upload-drop-zone">
+          <span class="upload-icon">⊕</span>
+          <span class="upload-text">Drop files or click to upload</span>
+          <span class="upload-sub" id="upload-scope-label">to session</span>
+        </div>
+      </div>
+
+      <!-- Doc lists by scope -->
+      <div class="doc-list-wrap" id="doc-list-session">
+        <div class="doc-scope-header">Session uploads <span class="doc-scope-note">— cleared on reload</span></div>
+        <div class="doc-list" id="doc-list-session-items"></div>
+      </div>
+      <div class="doc-list-wrap hidden" id="doc-list-cell">
+        <div class="doc-scope-header">Cell documents <span class="doc-scope-note">— persisted to Drive</span></div>
+        <div class="doc-list" id="doc-list-cell-items"></div>
+      </div>
+      <div class="doc-list-wrap hidden" id="doc-list-project">
+        <div class="doc-scope-header">Project documents <span class="doc-scope-note">— shared across all cells</span></div>
+        <div class="doc-list" id="doc-list-project-items"></div>
+      </div>
+    </div>
+
+    <!-- Field tab -->
+    <div class="panel-content hidden" id="tab-field">
+      <div class="pyxis-section">
+        <div class="pyxis-section-label">Field State</div>
+        <div class="pyxis-micro-row">
+          <div id="pyxis-mount">
+            <svg id="pyxis-svg" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:100%;overflow:visible;">
+              <defs>
+                <radialGradient id="pyxis-glow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="rgba(64,212,176,0.3)"/>
+                  <stop offset="100%" stop-color="rgba(64,212,176,0)"/>
+                </radialGradient>
+              </defs>
+              <circle cx="30" cy="30" r="27" fill="none" stroke="rgba(240,168,64,0.15)" stroke-width="0.5"/>
+              <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(64,212,176,0.3)" stroke-width="1"
+                      stroke-dasharray="138" stroke-dashoffset="0" id="coherence-ring"
+                      style="transform-origin:30px 30px;transform:rotate(-90deg);transition:stroke-dashoffset 1.5s ease,stroke 1s ease;"/>
+              <circle cx="30" cy="30" r="17" fill="none" stroke="rgba(212,127,155,0.2)" stroke-width="0.8"
+                      stroke-dasharray="107" stroke-dashoffset="85" id="contradict-ring"
+                      style="transform-origin:30px 30px;transform:rotate(-90deg);transition:stroke-dashoffset 1.5s ease;"/>
+              <circle cx="30" cy="30" r="12" fill="url(#pyxis-glow)" id="pyxis-core-glow"/>
+              <path d="M30 20 L38 25 L38 35 L30 40 L22 35 L22 25 Z" fill="rgba(64,212,176,0.08)" stroke="rgba(64,212,176,0.4)" stroke-width="0.8" id="pyxis-hex"/>
+              <circle cx="30" cy="30" r="3" fill="rgba(64,212,176,0.8)" id="pyxis-dot"/>
+            </svg>
+          </div>
+          <div class="pyxis-metric-list">
+            <div class="pyxis-bar-row">
+              <span class="pyxis-bar-label">Coherence</span>
+              <div class="pyxis-bar"><div class="pyxis-bar-fill coherence" id="bar-coherence" style="width:50%"></div></div>
+              <span class="pyxis-bar-num" id="num-coherence">0.50</span>
+            </div>
+            <div class="pyxis-bar-row">
+              <span class="pyxis-bar-label">Contradict</span>
+              <div class="pyxis-bar"><div class="pyxis-bar-fill contradiction" id="bar-contradict" style="width:20%"></div></div>
+              <span class="pyxis-bar-num" id="num-contradict">0.20</span>
+            </div>
+            <div class="pyxis-bar-row">
+              <span class="pyxis-bar-label">Pressure</span>
+              <div class="pyxis-bar"><div class="pyxis-bar-fill pressure" id="bar-pressure" style="width:0%"></div></div>
+              <span class="pyxis-bar-num" id="num-pressure">0.00</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- VC PANEL -->
+  <div id="vc-panel">
+    <div id="vc-header">
+      <span class="vc-title">Voice Channel</span>
+      <span class="vc-live-badge" id="vc-live-badge">● LIVE</span>
+    </div>
+
+    <div id="daily-container">
+      <div id="vc-prejoin">
+        <button class="vc-join-btn" id="vc-join-btn">
+          <span class="vc-btn-icon">🎙</span>
+          JOIN VOICE
+        </button>
+      </div>
+      <iframe id="daily-frame" allow="camera;microphone;display-capture;fullscreen" style="display:none;"></iframe>
+    </div>
+
+    <div id="vc-controls">
+      <button class="vc-ctrl-btn" id="vc-mute-btn" title="Mute / Unmute">🎙</button>
+      <button class="vc-ctrl-btn" id="vc-deafen-btn" title="Deafen">🔊</button>
+      <button class="vc-record-btn" id="vc-record-btn">
+        <span class="record-dot"></span>
+        RECORD
+      </button>
+      <button class="vc-ctrl-btn danger" id="vc-leave-btn" title="Leave voice">📵</button>
+    </div>
+  </div>
+
+  <!-- COLLAPSE TOGGLES — fixed position, track panel edges -->
+  <button class="collapse-btn" id="sidebar-collapse-btn" title="Collapse cells panel">‹</button>
+  <button class="collapse-btn" id="members-collapse-btn" title="Collapse members panel">›</button>
+
+</div><!-- /#app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// HIVE — Client v2
+// ══════════════════════════════════════════════════════════════════════════════
+
+const STATE = {
+  username: null,
+  currentCell: null,
+  cells: {},
+  projects: {},
+  members: {},
+  saraMode: 'silent',
+  toneDial: 50,
+  intent: 'brainstorm',
+  fieldPressure: 0,
+  metrics: { coherence: 0.50, contradiction: 0.20 },
+  docs: { session: [], cell: [], project: [] },
+  activeDocScope: 'session',
+  activePanelTab: 'members',
+  vcActive: false,
+  recording: false,
+  mediaRecorder: null,
+  recordedChunks: [],
+};
+
+const socket = typeof io !== 'undefined' ? io() : null;
+const $ = id => document.getElementById(id);
+
+// ── View state ─────────────────────────────────────────────────────────────────
+function showHub() {
+  $('hub').classList.remove('hidden');
+  $('sara-controls').classList.add('hidden');
+  $('chat-messages').classList.add('hidden');
+  $('chat-input-area').classList.add('hidden');
+  $('hub-back-btn').classList.remove('visible');
+  $('cell-name-label').textContent = '—';
+  renderHub();
+}
+
+function showChat() {
+  $('hub').classList.add('hidden');
+  $('sara-controls').classList.remove('hidden');
+  $('chat-messages').classList.remove('hidden');
+  $('chat-input-area').classList.remove('hidden');
+  $('hub-back-btn').classList.add('visible');
+}
+
+// ── Hub rendering ──────────────────────────────────────────────────────────────
+function renderHub() {
+  // Greeting
+  if (STATE.username) $('hub-hello').textContent = `WELCOME BACK, ${STATE.username.toUpperCase()}`;
+
+  // Projects grid
+  const grid = $('hub-projects-grid');
+  const projList = Object.values(STATE.projects);
+  if (!projList.length) {
+    grid.innerHTML = '<div class="hub-empty">No projects yet — create one to get started.</div>';
+  } else {
+    grid.innerHTML = '';
+    projList.forEach(proj => {
+      const cellCount = Object.values(STATE.cells).filter(c => c.projectId === proj.id).length;
+      const docCount  = (proj.docs?.length || 0);
+      const card = document.createElement('div');
+      card.className = 'hub-project-card';
+      card.innerHTML = `
+        <div class="hub-project-card-icon">⬡</div>
+        <div class="hub-project-card-name">${escHtml(proj.name)}</div>
+        <div class="hub-project-card-desc">${escHtml(proj.description || '')}</div>
+        <div class="hub-project-card-meta">
+          <span>${cellCount} cell${cellCount !== 1 ? 's' : ''}</span>
+          ${docCount > 0 ? `<span>${docCount} doc${docCount !== 1 ? 's' : ''}</span>` : ''}
+        </div>
+      `;
+      card.addEventListener('click', () => openProjectFromHub(proj.id));
+      grid.appendChild(card);
+    });
+  }
+
+  // Recent cells — last 8, most recent first
+  const recentEl = $('hub-recent-list');
+  const recentCells = Object.values(STATE.cells)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+    .slice(0, 8);
+
+  if (!recentCells.length) {
+    recentEl.innerHTML = '<div class="hub-empty">No recent sessions.</div>';
+  } else {
+    recentEl.innerHTML = '';
+    recentCells.forEach(cell => {
+      const proj = cell.projectId ? STATE.projects[cell.projectId] : null;
+      const msgCount = (cell.history || []).filter(m => m.type === 'user').length;
+      const ts = cell.updatedAt || cell.createdAt;
+      const timeStr = ts ? new Date(ts).toLocaleDateString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      const item = document.createElement('div');
+      item.className = 'hub-recent-item';
+      item.innerHTML = `
+        <svg class="hub-recent-hex" viewBox="0 0 28 28" fill="none">
+          <path d="M14 2 L26 9 L26 21 L14 28 L2 21 L2 9 Z" fill="var(--amber-dim)" stroke="var(--border2)" stroke-width="0.8"/>
+          <circle cx="14" cy="14" r="4" fill="rgba(240,168,64,0.35)"/>
+        </svg>
+        <div class="hub-recent-info">
+          <div class="hub-recent-name">${escHtml(cell.name)}</div>
+          <div class="hub-recent-meta">${proj ? escHtml(proj.name) + ' · ' : ''}${msgCount} message${msgCount !== 1 ? 's' : ''} · ${timeStr}</div>
+        </div>
+        <span class="hub-recent-intent">${cell.intent || 'brainstorm'}</span>
+      `;
+      item.addEventListener('click', () => selectCell(cell.id));
+      recentEl.appendChild(item);
+    });
+  }
+}
+
+function openProjectFromHub(projectId) {
+  // Filter cell list to this project, then select the most recent cell
+  // or prompt to create a new one if empty
+  const projectCells = Object.values(STATE.cells)
+    .filter(c => c.projectId === projectId)
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+
+  if (projectCells.length) {
+    selectCell(projectCells[0].id);
+  } else {
+    // No cells yet — open new cell modal pre-filled with project
+    populateProjectDropdowns();
+    $('new-cell-project').value = projectId;
+    $('modal-overlay').classList.add('open');
+    $('new-cell-name').focus();
+  }
+}
+
+// ── Username ───────────────────────────────────────────────────────────────────
+$('username-enter-btn').addEventListener('click', enterHive);
+$('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') enterHive(); });
+
+function enterHive() {
+  const name = $('username-input').value.trim();
+  if (!name) return;
+  STATE.username = name;
+  $('user-name-small').textContent = name;
+  $('user-avatar-small').textContent = name[0].toUpperCase();
+  $('username-modal').style.display = 'none';
+  if (socket) socket.emit('hive:join', { name });
+  const saved = localStorage.getItem('hive_cells');
+  if (saved) { try { STATE.cells = JSON.parse(saved); } catch(e) {} }
+  renderCellList();
+  renderMembers();
+  showHub();
+}
+
+// ── Hub button wiring ──────────────────────────────────────────────────────────
+$('hub-back-btn').addEventListener('click', () => {
+  STATE.currentCell = null;
+  showHub();
+});
+
+$('hub-new-project-btn').addEventListener('click', () => {
+  $('project-modal-overlay').classList.add('open');
+  $('new-proj-name').focus();
+});
+
+$('hub-free-chat').addEventListener('click', () => {
+  // Create an ephemeral free chat cell
+  const id   = 'free_' + Date.now();
+  const name = 'Free Chat';
+  const cell = {
+    id, name, topic: '', intent: 'brainstorm', projectId: null,
+    history: [], docs: [], sessionDocs: [],
+    createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+  STATE.cells[id] = cell;
+  saveCells();
+  renderCellList();
+  selectCell(id);
+  if (socket) socket.emit('hive:create_cell', { id, name, topic: '', projectId: null, intent: 'brainstorm' });
+});
+
+// ── Projects ───────────────────────────────────────────────────────────────────
+$('proj-modal-cancel-btn').addEventListener('click', () => $('project-modal-overlay').classList.remove('open'));
+$('project-modal-overlay').addEventListener('click', e => { if (e.target === $('project-modal-overlay')) $('project-modal-overlay').classList.remove('open'); });
+$('proj-modal-create-btn').addEventListener('click', createProject);
+
+async function createProject() {
+  const name = $('new-proj-name').value.trim();
+  const description = $('new-proj-desc').value.trim();
+  if (!name) return;
+  try {
+    const resp = await fetch('/api/hive/projects', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+    if (resp.ok) {
+      const proj = await resp.json();
+      STATE.projects[proj.id] = proj;
+    } else { throw new Error('server error'); }
+  } catch(e) {
+    const id = 'proj_local_' + Date.now();
+    STATE.projects[id] = { id, name, description, docs: [], createdAt: new Date().toISOString() };
+  }
+  renderProjectList();
+  populateProjectDropdowns();
+  if (!STATE.currentCell) renderHub();
+  $('new-proj-name').value = '';
+  $('new-proj-desc').value = '';
+  $('project-modal-overlay').classList.remove('open');
+}
+
+function renderProjectList() {
+  const el = $('project-list');
+  if (!el) return;
+  el.innerHTML = '';
+  Object.values(STATE.projects).forEach(proj => {
+    const cellCount = Object.values(STATE.cells).filter(c => c.projectId === proj.id).length;
+    const div = document.createElement('div');
+    div.className = 'project-item';
+    div.innerHTML = `
+      <span class="project-icon">⬡</span>
+      <span class="project-item-name">${escHtml(proj.name)}</span>
+      <span class="project-cell-count">${cellCount}</span>
+    `;
+    el.appendChild(div);
+  });
+}
+
+function populateProjectDropdowns() {
+  ['new-cell-project'].forEach(id => {
+    const sel = $(id);
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = '<option value="">No project</option>';
+    Object.values(STATE.projects).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      if (p.id === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  });
+}
+
+// ── Cells ──────────────────────────────────────────────────────────────────────
+$('new-cell-btn').addEventListener('click', () => {
+  populateProjectDropdowns();
+  $('modal-overlay').classList.add('open');
+  $('new-cell-name').focus();
+});
+$('modal-cancel-btn').addEventListener('click', () => $('modal-overlay').classList.remove('open'));
+$('modal-overlay').addEventListener('click', e => { if (e.target === $('modal-overlay')) $('modal-overlay').classList.remove('open'); });
+$('modal-create-btn').addEventListener('click', createCell);
+$('new-cell-name').addEventListener('keydown', e => { if (e.key === 'Enter') createCell(); });
+
+function createCell() {
+  const name = $('new-cell-name').value.trim();
+  const topic = $('new-cell-topic').value.trim();
+  const intent = $('new-cell-intent').value;
+  const projectId = $('new-cell-project').value || null;
+  if (!name) return;
+  const id = 'cell_' + Date.now();
+  const cell = { id, name, topic, intent: intent || 'brainstorm', projectId, history: [], docs: [], sessionDocs: [], createdAt: new Date().toISOString() };
+  STATE.cells[id] = cell;
+  saveCells();
+  renderCellList();
+  selectCell(id);
+  if (socket) socket.emit('hive:create_cell', { id, name, topic, projectId, intent });
+  $('new-cell-name').value = '';
+  $('new-cell-topic').value = '';
+  $('modal-overlay').classList.remove('open');
+}
+
+function saveCells() { localStorage.setItem('hive_cells', JSON.stringify(STATE.cells)); }
+
+function renderCellList() {
+  const el = $('cell-list');
+  el.innerHTML = '';
+  Object.values(STATE.cells).forEach(cell => {
+    const proj = cell.projectId ? STATE.projects[cell.projectId] : null;
+    const div = document.createElement('div');
+    div.className = 'cell-item' + (STATE.currentCell?.id === cell.id ? ' active' : '');
+    div.dataset.id = cell.id;
+    const docCount = (cell.docs?.length || 0) + (cell.sessionDocs?.length || 0);
+    div.innerHTML = `
+      <svg class="cell-hex-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2 L18 6.5 L18 15.5 L10 20 L2 15.5 L2 6.5 Z"
+          fill="var(--amber-dim)" stroke="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.6' : '0.25'})" stroke-width="0.8"/>
+        <circle cx="10" cy="11" r="2.5" fill="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.5' : '0.2'})"/>
+      </svg>
+      <div style="flex:1;min-width:0;">
+        <div class="cell-item-name">${escHtml(cell.name)}</div>
+        ${proj ? `<div style="font-family:var(--mono);font-size:7px;color:var(--ink-faint);letter-spacing:0.08em;">${escHtml(proj.name)}</div>` : ''}
+      </div>
+      ${docCount > 0 ? `<span style="font-family:var(--mono);font-size:8px;color:var(--sara);opacity:0.8;">📄${docCount}</span>` : ''}
+    `;
+    div.addEventListener('click', () => selectCell(cell.id));
+    el.appendChild(div);
+  });
+}
+
+function selectCell(id) {
+  const cell = STATE.cells[id];
+  if (!cell) return;
+  STATE.currentCell = cell;
+  STATE.intent = cell.intent || 'brainstorm';
+  $('cell-name-label').textContent = cell.name.toUpperCase();
+  $('intent-select').value = STATE.intent;
+
+  // Show chat, hide hub
+  showChat();
+
+  // Restore sara mode
+  const savedMode = cell.saraMode || 'silent';
+  STATE.saraMode = savedMode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === savedMode));
+  updateSaraModeRing(savedMode);
+
+  chatMessages.innerHTML = '';
+  if (cell.history?.length) {
+    cell.history.forEach(msg => renderMessage(msg, false));
+  } else {
+    const topicLine = cell.topic ? `Topic: ${cell.topic}` : 'Open.';
+    appendSystemMsg(`◈ ${cell.name} — ${topicLine} Intent: ${cell.intent || 'brainstorm'}.`);
+  }
+  scrollChat();
+  renderCellList();
+  loadCellDocs(id);
+  if (socket) socket.emit('hive:enter_cell', { cellId: id });
+  resetFieldPressure();
+
+  // Update last activity
+  cell.updatedAt = new Date().toISOString();
+  saveCells();
+}
+
+// ── Chat ───────────────────────────────────────────────────────────────────────
+const chatMessages = $('chat-messages');
+const msgInput = $('msg-input');
+
+$('send-btn').addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+msgInput.addEventListener('input', () => {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
+
+function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || !STATE.currentCell) return;
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+  const msg = { id: Date.now(), author: STATE.username, text, ts: new Date().toISOString(), type: 'user' };
+  addToHistory(msg);
+  renderMessage(msg, true);
+  scrollChat();
+  if (socket) {
+    socket.emit('hive:message', { cellId: STATE.currentCell.id, msg });
+  } else {
+    if (STATE.saraMode !== 'silent') handleLocalSara(msg);
+  }
+  updateFieldPressure(+8);
+  updateMetricsFromMessage(text);
+}
+
+function addToHistory(msg) {
+  if (!STATE.currentCell) return;
+  STATE.currentCell.history = STATE.currentCell.history || [];
+  STATE.currentCell.history.push(msg);
+  saveCells();
+}
+
+function renderMessage(msg, animate = true) {
+  if (!msg) return;
+  if (msg.type === 'system') { appendSystemMsg(msg.text); return; }
+
+  const isSara = msg.type === 'sara';
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  if (!animate) row.classList.add('no-anim');
+
+  const initials = (msg.author || '?')[0].toUpperCase();
+  const avatarClass = isSara ? 'sara' : 'user';
+  const authorClass = isSara ? 'sara' : 'user';
+
+  let badge = '';
+  if (msg.actionResult) {
+    const actionLabels = { summarize:'Summary', extract_ideas:'Ideas', name_tension:'Tension', next_steps:'Next Steps', full_read:'Full Read', doc_summary:'Doc Summary', mediate:'Mediation' };
+    badge = `<span class="msg-action-badge">${actionLabels[msg.actionResult] || msg.actionResult}</span>`;
+  } else if (msg.ambientSignal) {
+    badge = `<span class="msg-mode-badge">ambient</span>`;
+  } else if (isSara && msg.tone === 'signal') {
+    badge = `<span class="msg-mode-badge signal">signal</span>`;
+  }
+
+  const time = msg.ts ? new Date(msg.ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+
+  row.innerHTML = `
+    <div class="msg-avatar ${avatarClass}">${initials}</div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-author ${authorClass}">${escHtml(msg.author)}</span>
+        ${badge}
+        <span class="msg-time">${time}</span>
+      </div>
+      <div class="msg-text${isSara ? ' sara-msg' : ''}">${escHtml(msg.text)}</div>
+    </div>
+  `;
+  chatMessages.appendChild(row);
+}
+
+function appendSystemMsg(text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row system-msg';
+  row.innerHTML = `<span class="system-msg-text">${escHtml(text)}</span>`;
+  chatMessages.appendChild(row);
+}
+
+function scrollChat() { requestAnimationFrame(() => { chatMessages.scrollTop = chatMessages.scrollHeight; }); }
+
+// ── S.A.R.A. controls ─────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    STATE.saraMode = mode;
+    if (STATE.currentCell) STATE.currentCell.saraMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSaraModeRing(mode);
+    renderMembers();
+    if (socket && STATE.currentCell) socket.emit('hive:sara_mode', { mode, cellId: STATE.currentCell.id });
+    if (mode === 'open' && STATE.fieldPressure > 40) triggerSara('mode_switch_high_pressure');
+    appendSystemMsg(`◈ S.A.R.A. → ${mode.toUpperCase()}`);
+  });
+});
+
+$('tone-slider').addEventListener('input', e => {
+  STATE.toneDial = parseInt(e.target.value);
+  if (socket && STATE.currentCell) socket.emit('hive:sara_tone', { tone: STATE.toneDial, cellId: STATE.currentCell.id });
+});
+
+$('intent-select').addEventListener('change', e => {
+  STATE.intent = e.target.value;
+  if (STATE.currentCell) {
+    STATE.currentCell.intent = STATE.intent;
+    saveCells();
+    if (socket) socket.emit('hive:cell_intent', { intent: STATE.intent, cellId: STATE.currentCell.id });
+    appendSystemMsg(`◈ Intent → ${STATE.intent}`);
+  }
+});
+
+function updateSaraModeRing(mode) {
+  const ring = $('sara-mode-ring');
+  if (!ring) return;
+  if (mode === 'silent') {
+    ring.style.borderColor = 'rgba(160,144,128,0.3)'; ring.style.animationDuration = '5s';
+  } else if (mode === 'ambient') {
+    ring.style.borderColor = 'var(--amber)'; ring.style.animationDuration = '2.5s';
+  } else {
+    ring.style.borderColor = 'var(--sara)'; ring.style.animationDuration = '1.5s';
+  }
+}
+
+// ── Session actions ───────────────────────────────────────────────────────────
+document.querySelectorAll('.action-btn').forEach(btn => {
+  btn.addEventListener('click', () => triggerAction(btn.dataset.action, btn));
+});
+
+async function triggerAction(action, btnEl) {
+  if (!STATE.currentCell) { appendSystemMsg('◈ Select a cell first.'); return; }
+  if (btnEl) btnEl.classList.add('loading');
+
+  const actionLabels = {
+    summarize:'Summarize', extract_ideas:'Extract Ideas', name_tension:'Name Tension',
+    next_steps:'Next Steps', full_read:'Full Read', doc_summary:'Doc Summary', mediate:'Mediation',
+  };
+  appendSystemMsg(`◈ S.A.R.A. running: ${actionLabels[action] || action}...`);
+
+  try {
+    const resp = await fetch('/api/hive/sara/action', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action, cellId: STATE.currentCell.id,
+        metrics: STATE.metrics, tone: STATE.toneDial, intent: STATE.intent,
+      }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const saraMsg = {
+        id: Date.now(), author: 'S.A.R.A.', text: data.reply,
+        ts: new Date().toISOString(), type: 'sara', actionResult: action,
+      };
+      addToHistory(saraMsg);
+      renderMessage(saraMsg, true);
+      scrollChat();
+      if (data.metrics) { STATE.metrics = { ...STATE.metrics, ...data.metrics }; updateMetricsUI(); }
+      updateFieldPressure(-40);
+    } else {
+      // Demo fallback
+      const demoAction = {
+        summarize: 'The conversation has covered ' + (STATE.currentCell.history?.filter(m=>m.type==='user')?.length||0) + ' messages. No server connection — connect the backend for a full summary.',
+        extract_ideas: 'Server not connected. In live mode, S.A.R.A. will extract and number every distinct idea from the conversation.',
+        name_tension: 'Server not connected. In live mode, S.A.R.A. will name the exact fork or unresolved tension in the room.',
+        next_steps: 'Server not connected. In live mode, S.A.R.A. will produce a numbered list of concrete next steps.',
+        full_read: 'Server not connected. In live mode, S.A.R.A. delivers a full convergence read across all three dimensions.',
+        doc_summary: 'No documents in context — or server not connected.',
+        mediate: 'Server not connected. In live mode, S.A.R.A. reads each party\'s position and names the real common ground.',
+      };
+      const saraMsg = {
+        id: Date.now(), author: 'S.A.R.A.',
+        text: demoAction[action] || 'Action unavailable in demo mode.',
+        ts: new Date().toISOString(), type: 'sara', actionResult: action,
+      };
+      addToHistory(saraMsg);
+      renderMessage(saraMsg, true);
+      scrollChat();
+    }
+  } catch(e) {
+    appendSystemMsg('◈ Action unavailable — server not connected.');
+  }
+  if (btnEl) btnEl.classList.remove('loading');
+}
+
+// ── Field pressure ─────────────────────────────────────────────────────────────
+let pressureInterval = null;
+
+function resetFieldPressure() { STATE.fieldPressure = 0; updatePressureUI(); }
+
+function updateFieldPressure(delta) {
+  STATE.fieldPressure = Math.min(100, Math.max(0, STATE.fieldPressure + delta));
+  updatePressureUI();
+  if (STATE.saraMode === 'ambient' && STATE.fieldPressure >= 60) triggerAmbientSignal();
+  clearInterval(pressureInterval);
+  pressureInterval = setInterval(() => {
+    if (STATE.fieldPressure > 0) { STATE.fieldPressure = Math.max(0, STATE.fieldPressure - 1); updatePressureUI(); }
+    else clearInterval(pressureInterval);
+  }, 3000);
+}
+
+function updatePressureUI() {
+  const p = STATE.fieldPressure;
+  $('pressure-fill').style.width = p + '%';
+  $('pressure-val').textContent = p + '%';
+  $('bar-pressure').style.width = p + '%';
+  $('num-pressure').textContent = (p / 100).toFixed(2);
+}
+
+const AMBIENT_SIGNALS = [
+  { glyph:'◈', text:'signal coherence increasing' }, { glyph:'▲', text:'structural tension in the field' },
+  { glyph:'∿', text:'pattern is forming' }, { glyph:'◉', text:'convergence point near' },
+  { glyph:'⟁', text:'contradiction needs resolution' }, { glyph:'⌬', text:'three nodes in alignment' },
+];
+
+let lastAmbientTs = 0;
+function triggerAmbientSignal() {
+  const now = Date.now();
+  if (now - lastAmbientTs < 15000) return;
+  lastAmbientTs = now;
+  const sig = AMBIENT_SIGNALS[Math.floor(Math.random() * AMBIENT_SIGNALS.length)];
+  const el = document.createElement('div');
+  el.className = 'sara-ambient-flash';
+  el.innerHTML = `<span class="ambient-glyph">${sig.glyph}</span><span class="ambient-text">${sig.text}</span>`;
+  chatMessages.appendChild(el);
+  scrollChat();
+  STATE.fieldPressure = Math.max(0, STATE.fieldPressure - 25);
+  updatePressureUI();
+}
+
+// ── Metrics ────────────────────────────────────────────────────────────────────
+function updateMetricsFromMessage(text) {
+  const words = text.toLowerCase().split(/\s+/);
+  const qw = words.filter(w => w.includes('?') || ['how','why','what','when','where'].includes(w)).length;
+  const aw = words.filter(w => ['is','are','should','must','need'].includes(w)).length;
+  STATE.metrics.coherence = Math.min(1, Math.max(0, STATE.metrics.coherence + (aw - qw) * 0.02 + (Math.random() - 0.5) * 0.04));
+  STATE.metrics.contradiction = Math.min(1, Math.max(0, STATE.metrics.contradiction + qw * 0.03 + (Math.random() - 0.5) * 0.03));
+  updateMetricsUI();
+}
+
+function updateMetricsUI() {
+  const { coherence, contradiction } = STATE.metrics;
+  $('coherence-val').textContent = coherence.toFixed(2);
+  $('contradict-val').textContent = contradiction.toFixed(2);
+  $('bar-coherence').style.width  = (coherence * 100) + '%';
+  $('num-coherence').textContent   = coherence.toFixed(2);
+  $('bar-contradict').style.width  = (contradiction * 100) + '%';
+  $('num-contradict').textContent   = contradiction.toFixed(2);
+  updatePyxisHeart(coherence, contradiction);
+}
+
+function updatePyxisHeart(coherence, contradiction) {
+  const C22 = 2 * Math.PI * 22, C17 = 2 * Math.PI * 17;
+  const cr = $('coherence-ring'), vr = $('contradict-ring');
+  const cg = $('pyxis-core-glow'), hx = $('pyxis-hex'), dt = $('pyxis-dot');
+  if (!cr) return;
+  cr.setAttribute('stroke-dashoffset', C22 * (1 - coherence));
+  vr.setAttribute('stroke-dashoffset', C17 * (1 - contradiction * 0.8));
+  cg.setAttribute('fill', `rgba(64,212,176,${0.1 + coherence * 0.4})`);
+  hx.setAttribute('fill', `rgba(64,212,176,${0.05 + coherence * 0.2})`);
+  hx.setAttribute('stroke', `rgba(64,212,176,${0.3 + coherence * 0.5})`);
+  dt.setAttribute('r', 2 + coherence * 2);
+  dt.setAttribute('fill', `rgba(64,212,176,${0.5 + coherence * 0.5})`);
+}
+
+// ── Panel tabs ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('.panel-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    const t = tab.dataset.tab;
+    STATE.activePanelTab = t;
+    document.querySelectorAll('.panel-tab').forEach(x => x.classList.remove('active'));
+    tab.classList.add('active');
+    ['tab-members','tab-docs','tab-field'].forEach(id => {
+      const el = $(id);
+      if (el) el.classList.toggle('hidden', id !== 'tab-' + t);
+    });
+  });
+});
+
+// ── Doc scope tabs ─────────────────────────────────────────────────────────────
+document.querySelectorAll('.doc-scope-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    STATE.activeDocScope = btn.dataset.scope;
+    document.querySelectorAll('.doc-scope-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['session','cell','project'].forEach(s => {
+      const el = $('doc-list-' + s);
+      if (el) el.classList.toggle('hidden', s !== STATE.activeDocScope);
+    });
+    $('upload-scope-label').textContent = 'to ' + STATE.activeDocScope;
+  });
+});
+
+// ── File upload ────────────────────────────────────────────────────────────────
+const dropZone = $('upload-drop-zone');
+const fileInput = $('doc-file-input');
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => uploadFiles(fileInput.files));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  uploadFiles(e.dataTransfer.files);
+});
+
+async function uploadFiles(files) {
+  if (!files?.length || !STATE.currentCell) { appendSystemMsg('◈ Select a cell before uploading.'); return; }
+  const scope = STATE.activeDocScope;
+  const fd = new FormData();
+  Array.from(files).forEach(f => fd.append('file', f));
+
+  const params = new URLSearchParams({ scope, cellId: STATE.currentCell.id });
+  if (scope === 'project' && STATE.currentCell.projectId) params.set('projectId', STATE.currentCell.projectId);
+
+  appendSystemMsg(`◈ Uploading ${files.length} file(s) to ${scope}...`);
+
+  try {
+    const resp = await fetch('/api/hive/upload?' + params.toString(), { method: 'POST', body: fd });
+    if (resp.ok) {
+      const data = await resp.json();
+      appendSystemMsg(`◈ ${data.uploaded.length} file(s) uploaded. S.A.R.A. can now read them.`);
+      loadCellDocs(STATE.currentCell.id);
+    } else {
+      appendSystemMsg('◈ Upload failed — server error.');
+    }
+  } catch(e) {
+    // Demo mode: store locally
+    Array.from(files).forEach(f => {
+      const doc = { id: 'doc_' + Date.now(), name: f.name, mimeType: f.type, size: f.size, scope, uploadedAt: new Date().toISOString() };
+      STATE.docs[scope].push(doc);
+    });
+    renderDocList(scope);
+    updateDocBadge();
+    appendSystemMsg(`◈ ${files.length} file(s) queued locally (connect server for Drive sync and S.A.R.A. reading).`);
+  }
+  fileInput.value = '';
+}
+
+async function loadCellDocs(cellId) {
+  try {
+    const resp = await fetch('/api/hive/docs/' + cellId);
+    if (resp.ok) {
+      const data = await resp.json();
+      STATE.docs.session = data.session || [];
+      STATE.docs.cell    = data.cell    || [];
+      STATE.docs.project = data.project || [];
+      ['session','cell','project'].forEach(s => renderDocList(s));
+      updateDocBadge();
+    }
+  } catch(e) {
+    // Use local state
+    ['session','cell','project'].forEach(s => renderDocList(s));
+    updateDocBadge();
+  }
+}
+
+const DOC_ICONS = { 'application/pdf':'📄', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'📝', 'text/plain':'📃', 'text/markdown':'📃', 'image/png':'🖼', 'image/jpeg':'🖼', 'image/webp':'🖼' };
+
+function renderDocList(scope) {
+  const el = $('doc-list-' + scope + '-items');
+  if (!el) return;
+  const docs = STATE.docs[scope] || [];
+  if (!docs.length) { el.innerHTML = `<div class="doc-empty">No ${scope} documents</div>`; return; }
+  el.innerHTML = '';
+  docs.forEach(doc => {
+    const icon = DOC_ICONS[doc.mimeType] || '📎';
+    const size = doc.size ? (doc.size > 1048576 ? (doc.size/1048576).toFixed(1)+'MB' : (doc.size/1024).toFixed(0)+'KB') : '';
+    const div = document.createElement('div');
+    div.className = 'doc-item';
+    div.innerHTML = `
+      <span class="doc-icon">${icon}</span>
+      <div class="doc-info">
+        <div class="doc-name">${escHtml(doc.name)}</div>
+        <div class="doc-meta">${size}${doc.driveFileId ? ' · ☁' : ''}</div>
+      </div>
+      ${scope !== 'project' ? `<button class="doc-delete-btn" data-id="${doc.id}" data-scope="${scope}">✕</button>` : ''}
+    `;
+    const delBtn = div.querySelector('.doc-delete-btn');
+    if (delBtn) delBtn.addEventListener('click', () => deleteDoc(doc.id, scope));
+    el.appendChild(div);
+  });
+}
+
+async function deleteDoc(docId, scope) {
+  if (!STATE.currentCell) return;
+  STATE.docs[scope] = (STATE.docs[scope] || []).filter(d => d.id !== docId);
+  renderDocList(scope);
+  updateDocBadge();
+  try { await fetch(`/api/hive/docs/${STATE.currentCell.id}/${docId}`, { method: 'DELETE' }); } catch(e) {}
+}
+
+function updateDocBadge() {
+  const total = (STATE.docs.session?.length||0) + (STATE.docs.cell?.length||0) + (STATE.docs.project?.length||0);
+  const badge = $('doc-count-badge');
+  if (badge) { badge.textContent = total; badge.style.display = total > 0 ? 'flex' : 'none'; }
+}
+
+// ── Local S.A.R.A. (demo / no socket) ─────────────────────────────────────────
+async function handleLocalSara(userMsg) {
+  if (STATE.saraMode === 'silent') return;
+  if (STATE.saraMode === 'ambient' && STATE.fieldPressure < 55) return;
+  await new Promise(r => setTimeout(r, 600 + Math.random() * 1000));
+
+  const thinkEl = document.createElement('div');
+  thinkEl.className = 'sara-thinking';
+  thinkEl.innerHTML = `<div class="sara-thinking-dots"><span></span><span></span><span></span></div><span class="sara-thinking-label">S.A.R.A. reading the field...</span>`;
+  chatMessages.appendChild(thinkEl);
+  scrollChat();
+  await new Promise(r => setTimeout(r, 1000 + Math.random() * 600));
+  thinkEl.remove();
+
+  try {
+    const resp = await fetch('/api/hive/sara', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userMsg.text,
+        history: (STATE.currentCell?.history || []).slice(-16),
+        metrics: STATE.metrics, tone: STATE.toneDial,
+        mode: STATE.saraMode, cellId: STATE.currentCell?.id,
+        intent: STATE.intent,
+        cellName: STATE.currentCell?.name, cellTopic: STATE.currentCell?.topic,
+      }),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const saraMsg = { id: Date.now(), author: 'S.A.R.A.', text: data.reply, ts: new Date().toISOString(), type: 'sara', tone: STATE.toneDial > 66 ? 'synthesis' : 'signal' };
+      addToHistory(saraMsg);
+      renderMessage(saraMsg, true);
+      scrollChat();
+      if (data.metrics) { STATE.metrics = { ...STATE.metrics, ...data.metrics }; updateMetricsUI(); }
+      updateFieldPressure(-35);
+      return;
+    }
+  } catch(e) {}
+
+  // Demo fallback
+  const demos = [
+    "The mechanism isn't the idea — it's how the idea creates traction against existing structure.",
+    "What's the load-bearing assumption here? Name it before building around it.",
+    "Three reads converge on the same gap. Worth naming directly.",
+    "Coherence is building. The direction is forming — what's still missing to commit?",
+    "The field is holding tension well. That tension has information in it.",
+    "Pattern recognition across what's been said: the real question is two layers down from where the room is working.",
+  ];
+  const saraMsg = { id: Date.now(), author: 'S.A.R.A.', text: demos[Math.floor(Math.random() * demos.length)], ts: new Date().toISOString(), type: 'sara' };
+  addToHistory(saraMsg);
+  renderMessage(saraMsg, true);
+  scrollChat();
+  updateFieldPressure(-30);
+}
+
+// ── Members ────────────────────────────────────────────────────────────────────
+function renderMembers() {
+  const el = $('member-list');
+  if (!el) return;
+  el.innerHTML = '';
+  const all = [
+    { id: 'sara', name: 'S.A.R.A.', type: 'sara', fieldContrib: STATE.metrics.coherence },
+    { id: 'you', name: STATE.username || '—', type: 'you', fieldContrib: 0.6 },
+    ...Object.values(STATE.members).filter(m => m.name !== STATE.username),
+  ];
+  const mc = $('member-count');
+  if (mc) mc.textContent = all.length;
+
+  all.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'member-item';
+    let avatarClass, nameClass, dotClass, roleText;
+    if (m.type === 'sara') { avatarClass = 'sara-member'; nameClass = 'sara-name'; dotClass = 'sara-mode'; roleText = STATE.saraMode; }
+    else if (m.type === 'you') { avatarClass = 'you'; nameClass = 'you'; dotClass = 'online'; roleText = 'you'; }
+    else { avatarClass = 'peer'; nameClass = ''; dotClass = m.speaking ? 'speaking' : 'online'; roleText = ''; }
+    const contrib = m.fieldContrib || 0.4;
+    const barClass = contrib > 0.6 ? 'positive' : contrib < 0.3 ? 'friction' : 'neutral';
+    div.innerHTML = `
+      <div class="member-avatar ${avatarClass}">${(m.name||'?')[0].toUpperCase()}<span class="online-dot ${dotClass}"></span></div>
+      <div class="member-info">
+        <div class="member-name ${nameClass}">${escHtml(m.name)}</div>
+        ${roleText ? `<div class="member-role">${roleText}</div>` : ''}
+      </div>
+      <div class="member-field-bar"><div class="member-field-fill ${barClass}" style="width:${contrib*100}%"></div></div>
+    `;
+    el.appendChild(div);
+  });
+}
+
+// ── Socket events ──────────────────────────────────────────────────────────────
+if (socket) {
+  socket.on('hive:cell_list', ({ cells: serverCells, projects: serverProjects }) => {
+    if (serverCells) serverCells.forEach(c => { if (!STATE.cells[c.id]) STATE.cells[c.id] = { ...c, history: [], docs: [], sessionDocs: [] }; });
+    if (serverProjects) serverProjects.forEach(p => { STATE.projects[p.id] = p; });
+    saveCells();
+    renderCellList();
+    renderProjectList();
+    populateProjectDropdowns();
+    if (!STATE.currentCell) renderHub();
+  });
+
+  socket.on('hive:cell_history', ({ history }) => {
+    chatMessages.innerHTML = '';
+    history.forEach(msg => renderMessage(msg, false));
+    scrollChat();
+  });
+
+  socket.on('hive:message', ({ msg, cellId }) => {
+    if (cellId !== STATE.currentCell?.id) return;
+    if (msg.type === 'user' && msg.author === STATE.username) return;
+    addToHistory(msg);
+    renderMessage(msg, true);
+    scrollChat();
+    if (msg.type === 'user') updateFieldPressure(+8);
+    if (msg.type === 'sara') { if (msg.metrics) { STATE.metrics = { ...STATE.metrics, ...msg.metrics }; updateMetricsUI(); } updateFieldPressure(-30); }
+  });
+
+  socket.on('hive:members', ({ members }) => { STATE.members = members; renderMembers(); renderCellList(); });
+  socket.on('hive:field_update', ({ metrics }) => { STATE.metrics = { ...STATE.metrics, ...metrics }; updateMetricsUI(); });
+  socket.on('hive:sara_mode_change', ({ mode }) => { STATE.saraMode = mode; document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode)); updateSaraModeRing(mode); renderMembers(); });
+  socket.on('hive:intent_change', ({ intent }) => { STATE.intent = intent; $('intent-select').value = intent; });
+  socket.on('hive:doc_added', ({ doc, cellId }) => { if (cellId === STATE.currentCell?.id) { STATE.docs[doc.scope] = STATE.docs[doc.scope] || []; if (!STATE.docs[doc.scope].find(d => d.id === doc.id)) { STATE.docs[doc.scope].push(doc); renderDocList(doc.scope); updateDocBadge(); } } });
+  socket.on('hive:projects_update', ({ projects }) => { projects.forEach(p => { STATE.projects[p.id] = p; }); renderProjectList(); populateProjectDropdowns(); });
+  socket.on('connect', () => appendSystemMsg('◈ Connected to HIVE network'));
+  socket.on('disconnect', () => appendSystemMsg('◈ Connection lost — reconnecting...'));
+}
+
+// ── Voice channel ──────────────────────────────────────────────────────────────
+$('vc-join-btn').addEventListener('click', joinVoice);
+$('vc-mute-btn').addEventListener('click', () => {
+  const muted = !STATE.vcMuted; STATE.vcMuted = muted;
+  $('vc-mute-btn').innerHTML = muted ? '🔇' : '🎙';
+  $('vc-mute-btn').classList.toggle('muted', muted);
+});
+$('vc-deafen-btn').addEventListener('click', () => {
+  const def = !STATE.vcDeafened; STATE.vcDeafened = def;
+  $('vc-deafen-btn').innerHTML = def ? '🔕' : '🔊';
+  $('vc-deafen-btn').classList.toggle('muted', def);
+});
+$('vc-leave-btn').addEventListener('click', leaveVoice);
+$('vc-record-btn').addEventListener('click', toggleRecording);
+
+async function joinVoice() {
+  if (!STATE.currentCell) { appendSystemMsg('◈ Select a cell before joining voice.'); return; }
+  try {
+    const resp = await fetch('/api/hive/daily/room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cellId: STATE.currentCell.id, cellName: STATE.currentCell.name }) });
+    let url;
+    if (resp.ok) { url = (await resp.json()).url; }
+    else { appendSystemMsg('◈ Voice unavailable — server not connected.'); return; }
+    $('vc-prejoin').style.display = 'none';
+    $('daily-frame').src = url + '?userName=' + encodeURIComponent(STATE.username);
+    $('daily-frame').style.display = 'block';
+    $('vc-controls').classList.add('visible');
+    $('vc-live-badge').classList.add('visible');
+    STATE.vcActive = true;
+    appendSystemMsg(`◈ Joined voice in ${STATE.currentCell.name}`);
+  } catch(e) { appendSystemMsg('◈ Voice unavailable.'); }
+}
+
+function leaveVoice() {
+  $('daily-frame').src = '';
+  $('daily-frame').style.display = 'none';
+  $('vc-prejoin').style.display = 'flex';
+  $('vc-controls').classList.remove('visible');
+  $('vc-live-badge').classList.remove('visible');
+  STATE.vcActive = false;
+  stopRecording();
+  appendSystemMsg('◈ Left voice channel');
+}
+
+async function toggleRecording() {
+  if (!STATE.recording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      STATE.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      STATE.recordedChunks = [];
+      STATE.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) STATE.recordedChunks.push(e.data); };
+      STATE.mediaRecorder.onstop = () => {
+        const blob = new Blob(STATE.recordedChunks, { type: 'audio/webm' });
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `hive-${(STATE.currentCell?.name||'cell').replace(/\s+/g,'-').toLowerCase()}-${new Date().toISOString().slice(0,19).replace(/[:.]/g,'-')}.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        stream.getTracks().forEach(t => t.stop());
+        appendSystemMsg('◈ Recording saved locally.');
+      };
+      STATE.mediaRecorder.start(1000);
+      STATE.recording = true;
+      $('vc-record-btn').classList.add('recording');
+      $('vc-record-btn').innerHTML = `<span class="record-dot"></span> STOP REC`;
+      appendSystemMsg('◈ Recording started.');
+    } catch(e) { appendSystemMsg('◈ Microphone access required for recording.'); }
+  } else { stopRecording(); }
+}
+
+function stopRecording() {
+  if (STATE.mediaRecorder && STATE.recording) {
+    STATE.mediaRecorder.stop(); STATE.recording = false;
+    $('vc-record-btn').classList.remove('recording');
+    $('vc-record-btn').innerHTML = `<span class="record-dot"></span> RECORD`;
+  }
+}
+
+// ── Theme ──────────────────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  if (theme === 'obsidian') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', theme);
+  document.querySelectorAll('.theme-swatch').forEach(s => s.classList.toggle('active', s.dataset.t === theme));
+  localStorage.setItem('hive_theme', theme);
+}
+document.querySelectorAll('.theme-swatch').forEach(s => s.addEventListener('click', () => applyTheme(s.dataset.t)));
+
+// ── Collapse ───────────────────────────────────────────────────────────────────
+const appEl = $('app');
+const sidebarCollapseBtn  = $('sidebar-collapse-btn');
+const membersCollapseBtn  = $('members-collapse-btn');
+
+function setSidebarCollapsed(v) {
+  appEl.classList.toggle('sidebar-collapsed', v);
+  sidebarCollapseBtn.textContent = v ? '›' : '‹';
+  localStorage.setItem('hive_sidebar_collapsed', v ? '1' : '0');
+}
+function setMembersCollapsed(v) {
+  appEl.classList.toggle('members-collapsed', v);
+  membersCollapseBtn.textContent = v ? '‹' : '›';
+  localStorage.setItem('hive_members_collapsed', v ? '1' : '0');
+}
+sidebarCollapseBtn.addEventListener('click', () => setSidebarCollapsed(!appEl.classList.contains('sidebar-collapsed')));
+membersCollapseBtn.addEventListener('click', () => setMembersCollapsed(!appEl.classList.contains('members-collapsed')));
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+function init() {
+  applyTheme(localStorage.getItem('hive_theme') || 'obsidian');
+  if (localStorage.getItem('hive_sidebar_collapsed') === '1')  setSidebarCollapsed(true);
+  if (localStorage.getItem('hive_members_collapsed') === '1') setMembersCollapsed(true);
+  updateSaraModeRing('silent');
+  renderMembers();
+  updateMetricsUI();
+
+  // Load projects from server
+  fetch('/api/hive/projects').then(r => r.ok ? r.json() : []).then(projs => {
+    if (projs?.length) {
+      projs.forEach(p => { STATE.projects[p.id] = p; });
+      renderProjectList();
+      populateProjectDropdowns();
+      if (!STATE.currentCell) renderHub();
+    }
+  }).catch(() => {});
+
+  // Subtle field drift
+  setInterval(() => {
+    if (!STATE.currentCell) return;
+    const d = (Math.random() - 0.5) * 0.015;
+    STATE.metrics.coherence     = Math.min(1,   Math.max(0.1,  STATE.metrics.coherence + d));
+    STATE.metrics.contradiction = Math.min(0.9, Math.max(0.05, STATE.metrics.contradiction - d * 0.5));
+    updateMetricsUI();
+  }, 4000);
+
+  $('username-input').focus();
+}
+
+function escHtml(str) { const d = document.createElement('div'); d.appendChild(document.createTextNode(str||'')); return d.innerHTML; }
+function triggerSara(reason) {
+  if (!STATE.currentCell) return;
+  if (socket) socket.emit('hive:trigger_sara', { cellId: STATE.currentCell.id, reason, metrics: STATE.metrics });
+  else handleLocalSara({ text: '[field trigger: ' + reason + ']' });
+}
+
+init();
+</script>
+</body>
+</html>
+
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const STATE = {
+  username: null,
+  currentCell: null,
+  cells: {},
+  members: {},     // { socketId: { name, fieldContrib } }
+  saraMode: 'silent',    // 'silent' | 'ambient' | 'open'
+  toneDial: 50,
+  fieldPressure: 0,
+  metrics: { coherence: 0.50, contradiction: 0.20 },
+  vcActive: false,
+  recording: false,
+  mediaRecorder: null,
+  recordedChunks: [],
+};
+
+// ── Socket ────────────────────────────────────────────────────────────────────
+const socket = typeof io !== 'undefined' ? io() : null;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const usernameModal = $('username-modal');
+const usernameInput = $('username-input');
+const usernameEnterBtn = $('username-enter-btn');
+const modalOverlay = $('modal-overlay');
+const newCellBtn = $('new-cell-btn');
+const modalCancelBtn = $('modal-cancel-btn');
+const modalCreateBtn = $('modal-create-btn');
+const cellList = $('cell-list');
+const cellNameLabel = $('cell-name-label');
+const chatMessages = $('chat-messages');
+const msgInput = $('msg-input');
+const sendBtn = $('send-btn');
+const memberList = $('member-list');
+const memberCount = $('member-count');
+const pressureFill = $('pressure-fill');
+const pressureVal = $('pressure-val');
+
+// ── Username entry ─────────────────────────────────────────────────────────────
+function enterHive() {
+  const name = usernameInput.value.trim();
+  if (!name) return;
+  STATE.username = name;
+  $('user-name-small').textContent = name;
+  $('user-avatar-small').textContent = name[0].toUpperCase();
+  usernameModal.style.display = 'none';
+
+  if (socket) socket.emit('hive:join', { name });
+
+  // Load saved cells from localStorage
+  const saved = localStorage.getItem('hive_cells');
+  if (saved) {
+    try {
+      STATE.cells = JSON.parse(saved);
+      renderCellList();
+      // Auto-select first cell
+      const keys = Object.keys(STATE.cells);
+      if (keys.length) selectCell(keys[0]);
+    } catch(e) {}
+  }
+
+  appendSystemMsg('◈ Welcome to the HIVE, ' + name + '. Select a cell or create one.');
+}
+
+usernameEnterBtn.addEventListener('click', enterHive);
+usernameInput.addEventListener('keydown', e => { if (e.key === 'Enter') enterHive(); });
+
+// ── Cell management ────────────────────────────────────────────────────────────
+newCellBtn.addEventListener('click', () => {
+  modalOverlay.classList.add('open');
+  $('new-cell-name').focus();
+});
+
+modalCancelBtn.addEventListener('click', () => modalOverlay.classList.remove('open'));
+modalOverlay.addEventListener('click', e => { if (e.target === modalOverlay) modalOverlay.classList.remove('open'); });
+
+modalCreateBtn.addEventListener('click', createCell);
+$('new-cell-name').addEventListener('keydown', e => { if (e.key === 'Enter') createCell(); });
+
+function createCell() {
+  const name = $('new-cell-name').value.trim();
+  const topic = $('new-cell-topic').value.trim();
+  if (!name) return;
+
+  const id = 'cell_' + Date.now();
+  const cell = {
+    id,
+    name,
+    topic: topic || '',
+    history: [],
+    createdAt: new Date().toISOString(),
+  };
+
+  STATE.cells[id] = cell;
+  savecells();
+  renderCellList();
+  selectCell(id);
+
+  if (socket) socket.emit('hive:create_cell', { id, name, topic });
+
+  $('new-cell-name').value = '';
+  $('new-cell-topic').value = '';
+  modalOverlay.classList.remove('open');
+}
+
+function saveCell(cell) {
+  STATE.cells[cell.id] = cell;
+  saveCells();
+}
+
+function saveCells() {
+  localStorage.setItem('hive_cells', JSON.stringify(STATE.cells));
+}
+
+function renderCellList() {
+  cellList.innerHTML = '';
+  Object.values(STATE.cells).forEach(cell => {
+    const el = document.createElement('div');
+    el.className = 'cell-item' + (STATE.currentCell?.id === cell.id ? ' active' : '');
+    el.dataset.id = cell.id;
+
+    const memberCount = Object.values(STATE.members).filter(m => m.cellId === cell.id).length;
+
+    el.innerHTML = `
+      <svg class="cell-hex-icon" viewBox="0 0 20 20" fill="none">
+        <path d="M10 2 L18 6.5 L18 15.5 L10 20 L2 15.5 L2 6.5 Z"
+          fill="rgba(240,168,64,0.06)" stroke="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.6' : '0.25'})" stroke-width="0.8"/>
+        <circle cx="10" cy="11" r="2.5" fill="rgba(240,168,64,${STATE.currentCell?.id === cell.id ? '0.5' : '0.2'})"/>
+      </svg>
+      <span class="cell-item-name">${escHtml(cell.name)}</span>
+      <span class="cell-member-count">${memberCount || 0}</span>
+      ${memberCount > 0 ? '<span class="cell-live-dot"></span>' : ''}
+    `;
+
+    el.addEventListener('click', () => selectCell(cell.id));
+    cellList.appendChild(el);
+  });
+}
+
+function selectCell(id) {
+  const cell = STATE.cells[id];
+  if (!cell) return;
+  STATE.currentCell = cell;
+  cellNameLabel.textContent = cell.name.toUpperCase();
+  renderCellList();
+
+  // Load history
+  chatMessages.innerHTML = '';
+  if (cell.history && cell.history.length) {
+    cell.history.forEach(msg => renderMessage(msg, false));
+  } else {
+    const topicLine = cell.topic ? `Topic: ${cell.topic}` : 'No topic set.';
+    appendSystemMsg(`◈ Cell: ${cell.name} — ${topicLine}`);
+  }
+
+  scrollChat();
+  if (socket) socket.emit('hive:enter_cell', { cellId: id });
+  resetFieldPressure();
+}
+
+// ── Messaging ──────────────────────────────────────────────────────────────────
+sendBtn.addEventListener('click', sendMessage);
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+msgInput.addEventListener('input', () => {
+  msgInput.style.height = 'auto';
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 120) + 'px';
+});
+
+function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text || !STATE.currentCell) return;
+  msgInput.value = '';
+  msgInput.style.height = 'auto';
+
+  const msg = {
+    id: Date.now(),
+    author: STATE.username,
+    text,
+    ts: new Date().toISOString(),
+    type: 'user',
+  };
+
+  addToHistory(msg);
+  renderMessage(msg, true);
+  scrollChat();
+
+  if (socket) {
+    socket.emit('hive:message', { cellId: STATE.currentCell.id, msg });
+  } else {
+    // standalone demo mode — S.A.R.A. responds client-side if open
+    handleLocalSara(msg);
+  }
+
+  // Update field pressure
+  updateFieldPressure(+8);
+  updateMetricsFromMessage(text);
+}
+
+function addToHistory(msg) {
+  if (!STATE.currentCell) return;
+  STATE.currentCell.history = STATE.currentCell.history || [];
+  STATE.currentCell.history.push(msg);
+  saveCells();
+}
+
+function renderMessage(msg, animate = true) {
+  if (msg.type === 'system') {
+    appendSystemMsg(msg.text);
+    return;
+  }
+
+  const isSara = msg.type === 'sara';
+  const isUser = msg.type === 'user';
+  const isYou = isUser && msg.author === STATE.username;
+
+  const row = document.createElement('div');
+  row.className = 'msg-row' + (!animate ? ' no-anim' : '');
+
+  const initials = (msg.author || '?')[0].toUpperCase();
+  const avatarClass = isSara ? 'sara' : 'user';
+  const authorClass = isSara ? 'sara' : (isYou ? 'user' : 'user');
+  const textClass = isSara ? 'msg-text sara-msg' : 'msg-text';
+
+  const modeBadge = msg.ambientSignal
+    ? `<span class="msg-mode-badge">ambient</span>`
+    : isSara && msg.tone === 'signal'
+    ? `<span class="msg-mode-badge signal">signal</span>`
+    : '';
+
+  const time = msg.ts ? new Date(msg.ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+
+  row.innerHTML = `
+    <div class="msg-avatar ${avatarClass}">${initials}</div>
+    <div class="msg-body">
+      <div class="msg-meta">
+        <span class="msg-author ${authorClass}">${escHtml(msg.author)}</span>
+        ${modeBadge}
+        <span class="msg-time">${time}</span>
+      </div>
+      <div class="${textClass}">${escHtml(msg.text)}</div>
+    </div>
+  `;
+
+  chatMessages.appendChild(row);
+}
+
+function appendSystemMsg(text) {
+  const row = document.createElement('div');
+  row.className = 'msg-row system-msg';
+  row.innerHTML = `<span class="system-msg-text">${escHtml(text)}</span>`;
+  chatMessages.appendChild(row);
+}
+
+function scrollChat() {
+  requestAnimationFrame(() => {
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  });
+}
+
+// ── S.A.R.A. controls ────────────────────────────────────────────────────────
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const mode = btn.dataset.mode;
+    STATE.saraMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateSaraModeRing(mode);
+    updateSaraMemberStatus(mode);
+
+    // Emit to server
+    if (socket) socket.emit('hive:sara_mode', { mode, cellId: STATE.currentCell?.id });
+
+    // If switching to open and pressure is high, trigger S.A.R.A. immediately
+    if (mode === 'open' && STATE.fieldPressure > 40) {
+      triggerSara('mode_switch_high_pressure');
+    }
+
+    appendSystemMsg(`◈ S.A.R.A. mode → ${mode.toUpperCase()}`);
+  });
+});
+
+$('tone-slider').addEventListener('input', e => {
+  STATE.toneDial = parseInt(e.target.value);
+  if (socket) socket.emit('hive:sara_tone', { tone: STATE.toneDial });
+});
+
+function updateSaraModeRing(mode) {
+  const ring = $('sara-mode-ring');
+  if (mode === 'silent') {
+    ring.style.borderColor = 'rgba(160,144,128,0.3)';
+    ring.style.animationDuration = '5s';
+  } else if (mode === 'ambient') {
+    ring.style.borderColor = 'var(--amber)';
+    ring.style.animationDuration = '2.5s';
+  } else {
+    ring.style.borderColor = 'var(--sara)';
+    ring.style.animationDuration = '1.5s';
+  }
+}
+
+// ── Field pressure ──────────────────────────────────────────────────────────
+let pressureInterval = null;
+
+function resetFieldPressure() {
+  STATE.fieldPressure = 0;
+  updatePressureUI();
+}
+
+function updateFieldPressure(delta) {
+  STATE.fieldPressure = Math.min(100, Math.max(0, STATE.fieldPressure + delta));
+  updatePressureUI();
+
+  // Ambient mode: drop a signal when pressure hits threshold
+  if (STATE.saraMode === 'ambient' && STATE.fieldPressure >= 60) {
+    triggerAmbientSignal();
+  }
+
+  // Natural decay
+  clearInterval(pressureInterval);
+  pressureInterval = setInterval(() => {
+    if (STATE.fieldPressure > 0) {
+      STATE.fieldPressure = Math.max(0, STATE.fieldPressure - 1);
+      updatePressureUI();
+    } else {
+      clearInterval(pressureInterval);
+    }
+  }, 3000);
+}
+
+function updatePressureUI() {
+  const p = STATE.fieldPressure;
+  pressureFill.style.width = p + '%';
+  pressureVal.textContent = p + '%';
+
+  // Color shift as pressure builds
+  if (p > 75) {
+    pressureFill.style.background = 'linear-gradient(90deg, var(--sara), var(--amber-bright))';
+  } else if (p > 45) {
+    pressureFill.style.background = 'linear-gradient(90deg, var(--amber-deep), var(--amber), var(--amber-bright))';
+  } else {
+    pressureFill.style.background = 'linear-gradient(90deg, var(--amber-deep), var(--amber), var(--amber-bright))';
+  }
+
+  // Update pyxis pressure bar
+  $('bar-pressure').style.width = p + '%';
+  $('num-pressure').textContent = (p / 100).toFixed(2);
+}
+
+// ── Ambient signal ────────────────────────────────────────────────────────────
+const AMBIENT_SIGNALS = [
+  { glyph: '◈', text: 'signal coherence increasing' },
+  { glyph: '▲', text: 'structural tension in the field' },
+  { glyph: '∿', text: 'pattern is forming' },
+  { glyph: '◉', text: 'convergence point near' },
+  { glyph: '⟁', text: 'contradiction needs resolution' },
+  { glyph: '⌬', text: 'three nodes in alignment' },
+];
+
+let lastAmbientTs = 0;
+
+function triggerAmbientSignal() {
+  const now = Date.now();
+  if (now - lastAmbientTs < 15000) return; // min 15s between signals
+  lastAmbientTs = now;
+
+  const sig = AMBIENT_SIGNALS[Math.floor(Math.random() * AMBIENT_SIGNALS.length)];
+  const el = document.createElement('div');
+  el.className = 'sara-ambient-flash';
+  el.innerHTML = `<span class="ambient-glyph">${sig.glyph}</span><span class="ambient-text">${sig.text}</span>`;
+  chatMessages.appendChild(el);
+  scrollChat();
+
+  // Partial pressure release
+  STATE.fieldPressure = Math.max(0, STATE.fieldPressure - 25);
+  updatePressureUI();
+}
+
+// ── Metrics ──────────────────────────────────────────────────────────────────
+function updateMetricsFromMessage(text) {
+  // Simple heuristic — real version uses server-side triune processing
+  const words = text.toLowerCase().split(/\s+/);
+  const questionWords = words.filter(w => w.includes('?') || ['how','why','what','when','where'].includes(w)).length;
+  const assertWords = words.filter(w => ['is','are','should','must','need'].includes(w)).length;
+
+  // Drift coherence based on question/assertion ratio
+  let cDelta = (assertWords - questionWords) * 0.02;
+  let vDelta = questionWords * 0.03;
+
+  STATE.metrics.coherence = Math.min(1, Math.max(0, STATE.metrics.coherence + cDelta + (Math.random() - 0.5) * 0.04));
+  STATE.metrics.contradiction = Math.min(1, Math.max(0, STATE.metrics.contradiction + vDelta + (Math.random() - 0.5) * 0.03));
+
+  updateMetricsUI();
+}
+
+function updateMetricsUI() {
+  const { coherence, contradiction } = STATE.metrics;
+  $('coherence-val').textContent = coherence.toFixed(2);
+  $('contradict-val').textContent = contradiction.toFixed(2);
+
+  $('bar-coherence').style.width = (coherence * 100) + '%';
+  $('num-coherence').textContent = coherence.toFixed(2);
+  $('bar-contradict').style.width = (contradiction * 100) + '%';
+  $('num-contradict').textContent = contradiction.toFixed(2);
+
+  updatePyxisHeart(coherence, contradiction);
+}
+
+// ── Pyxis Heart ──────────────────────────────────────────────────────────────
+function updatePyxisHeart(coherence, contradiction) {
+  const CIRCUMFERENCE_22 = 2 * Math.PI * 22; // 138.2
+  const CIRCUMFERENCE_17 = 2 * Math.PI * 17; // 106.8
+
+  const coherenceRing = $('coherence-ring');
+  const contradictRing = $('contradict-ring');
+  const coreGlow = $('pyxis-core-glow');
+  const hex = $('pyxis-hex');
+  const dot = $('pyxis-dot');
+
+  // Coherence ring draws clockwise
+  const coherenceOffset = CIRCUMFERENCE_22 * (1 - coherence);
+  coherenceRing.setAttribute('stroke-dashoffset', coherenceOffset);
+
+  // Contradiction arc
+  const contradictOffset = CIRCUMFERENCE_17 * (1 - contradiction * 0.8);
+  contradictRing.setAttribute('stroke-dashoffset', contradictOffset);
+
+  // Core glow intensity
+  const glowOpacity = 0.1 + coherence * 0.4;
+  coreGlow.setAttribute('fill', `rgba(64,212,176,${glowOpacity})`);
+
+  // Hex color
+  const hexOpacity = 0.05 + coherence * 0.2;
+  hex.setAttribute('fill', `rgba(64,212,176,${hexOpacity})`);
+  hex.setAttribute('stroke', `rgba(64,212,176,${0.3 + coherence * 0.5})`);
+
+  // Dot pulse
+  dot.setAttribute('r', 2 + coherence * 2);
+  dot.setAttribute('fill', `rgba(64,212,176,${0.5 + coherence * 0.5})`);
+}
+
+// ── Local S.A.R.A. (demo mode — no socket) ───────────────────────────────────
+async function handleLocalSara(userMsg) {
+  if (STATE.saraMode === 'silent') return;
+  if (STATE.saraMode === 'ambient' && STATE.fieldPressure < 55) return;
+
+  await new Promise(r => setTimeout(r, 800 + Math.random() * 1200));
+
+  // Show thinking
+  const thinkEl = document.createElement('div');
+  thinkEl.className = 'sara-thinking';
+  thinkEl.innerHTML = `
+    <div class="sara-thinking-dots"><span></span><span></span><span></span></div>
+    <span class="sara-thinking-label">S.A.R.A. processing field...</span>
+  `;
+  chatMessages.appendChild(thinkEl);
+  scrollChat();
+
+  await new Promise(r => setTimeout(r, 1200 + Math.random() * 800));
+  thinkEl.remove();
+
+  // Call Anthropic API
+  try {
+    const toneDesc = STATE.toneDial < 33 ? 'terse and precise — signal only, no elaboration' :
+                     STATE.toneDial > 66 ? 'expansive and synthetic — connect patterns, draw trajectories' :
+                     'balanced — clear insight with light contextual expansion';
+
+    const systemPrompt = buildSaraSystemPrompt(toneDesc);
+
+    const resp = await fetch('/api/hive/sara', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: userMsg.text,
+        history: (STATE.currentCell?.history || []).slice(-12),
+        metrics: STATE.metrics,
+        tone: STATE.toneDial,
+        mode: STATE.saraMode,
+        cellName: STATE.currentCell?.name,
+        cellTopic: STATE.currentCell?.topic,
+      })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const saraMsg = {
+        id: Date.now(),
+        author: 'S.A.R.A.',
+        text: data.reply,
+        ts: new Date().toISOString(),
+        type: 'sara',
+        tone: STATE.toneDial > 66 ? 'synthesis' : 'signal',
+      };
+      addToHistory(saraMsg);
+      renderMessage(saraMsg, true);
+      scrollChat();
+      if (data.metrics) {
+        STATE.metrics = { ...STATE.metrics, ...data.metrics };
+        updateMetricsUI();
+      }
+      updateFieldPressure(-35);
+    }
+  } catch(e) {
+    // Fallback demo response
+    const demos = [
+      "The mechanism isn't the idea — it's how the idea creates traction against existing structure.",
+      "What's the load-bearing constraint here? Name it before we build around it.",
+      "Three readings converge: the pattern is forming. What's the next decision point?",
+      "Coherence is building. The field is holding tension well.",
+      "Signal clean. Structure has a gap at the dependency layer — worth naming.",
+    ];
+    const saraMsg = {
+      id: Date.now(),
+      author: 'S.A.R.A.',
+      text: demos[Math.floor(Math.random() * demos.length)],
+      ts: new Date().toISOString(),
+      type: 'sara',
+    };
+    addToHistory(saraMsg);
+    renderMessage(saraMsg, true);
+    scrollChat();
+    updateFieldPressure(-30);
+  }
+}
+
+function buildSaraSystemPrompt(toneDesc) {
+  return `You are S.A.R.A. — Socially-Aware Resonance Agent. You are a participant in a live creative brainstorming session called "${STATE.currentCell?.name || 'a HIVE cell'}".
+
+Your function: You are a peer-level collaborator who happens to be running three simultaneous cognitive reads — structural (mechanism/architecture), emotional (field/psyche), and trajectory (pattern/arc) — internally. You never announce this. You just think better because of it.
+
+Current field metrics:
+- Coherence: ${STATE.metrics.coherence.toFixed(2)} (higher = room is in agreement)
+- Contradiction: ${STATE.metrics.contradiction.toFixed(2)} (higher = conflicting signals)
+
+Current tone setting: ${toneDesc}
+
+Session topic: ${STATE.currentCell?.topic || 'open exploration'}
+
+Rules:
+- You are peer-level. Not an oracle. Not a narrator. A collaborator who has been listening carefully.
+- You speak when it matters. One well-placed sentence beats three good ones.
+- You do NOT explain your internal process (triune reads, field metrics, etc.)
+- If coherence is high (> 0.7): build on what's forming, amplify the direction
+- If contradiction is high (> 0.5): name the tension directly, don't paper over it
+- If field pressure is building: you earned the right to speak — make it land
+- Match the tone dial: Signal = terse, load-bearing, exact. Synthesis = expansive, connective, pattern-level.
+- Never start with "I" or affirmations like "Great point"
+- Short to medium responses. You are in a live chat, not writing an essay.
+- No markdown formatting. Plain text only.`;
+}
+
+// ── Socket events ─────────────────────────────────────────────────────────────
+if (socket) {
+  socket.on('hive:message', ({ msg, cellId }) => {
+    if (cellId !== STATE.currentCell?.id) return;
+    if (msg.author === STATE.username && msg.type === 'user') return; // already rendered
+    addToHistory(msg);
+    renderMessage(msg, true);
+    scrollChat();
+    if (msg.type === 'user') updateFieldPressure(+8);
+    if (msg.type === 'sara') {
+      if (msg.metrics) { STATE.metrics = { ...STATE.metrics, ...msg.metrics }; updateMetricsUI(); }
+      updateFieldPressure(-30);
+    }
+  });
+
+  socket.on('hive:members', ({ members }) => {
+    STATE.members = members;
+    renderMembers();
+    renderCellList();
+  });
+
+  socket.on('hive:cell_list', ({ cells }) => {
+    cells.forEach(c => { if (!STATE.cells[c.id]) STATE.cells[c.id] = c; });
+    saveCells();
+    renderCellList();
+  });
+
+  socket.on('hive:field_update', ({ metrics }) => {
+    STATE.metrics = { ...STATE.metrics, ...metrics };
+    updateMetricsUI();
+  });
+
+  socket.on('hive:sara_thinking', ({ cellId }) => {
+    if (cellId !== STATE.currentCell?.id) return;
+    // Thinking indicator already shown client-side when local, skip for remote
+  });
+
+  socket.on('connect', () => {
+    appendSystemMsg('◈ Connected to HIVE network');
+  });
+
+  socket.on('disconnect', () => {
+    appendSystemMsg('◈ Connection lost — reconnecting...');
+  });
+}
+
+// ── Member list rendering ────────────────────────────────────────────────────
+function renderMembers() {
+  memberList.innerHTML = '';
+  const allMembers = [
+    // S.A.R.A. always in list
+    { id: 'sara', name: 'S.A.R.A.', type: 'sara', mode: STATE.saraMode, fieldContrib: STATE.metrics.coherence },
+    // Current user
+    { id: 'you', name: STATE.username, type: 'you', fieldContrib: 0.6 },
+    // Other socket members
+    ...Object.values(STATE.members).filter(m => m.name !== STATE.username),
+  ];
+
+  memberCount.textContent = allMembers.length;
+
+  allMembers.forEach(m => {
+    const el = document.createElement('div');
+    el.className = 'member-item';
+
+    let avatarClass, nameClass, dotClass, roleText;
+    if (m.type === 'sara') {
+      avatarClass = 'sara-member';
+      nameClass = 'sara-name';
+      dotClass = 'sara-mode';
+      roleText = `mode: ${STATE.saraMode}`;
+    } else if (m.type === 'you') {
+      avatarClass = 'you';
+      nameClass = 'you';
+      dotClass = 'online';
+      roleText = 'you';
+    } else {
+      avatarClass = 'peer';
+      nameClass = '';
+      dotClass = m.speaking ? 'speaking' : 'online';
+      roleText = '';
+    }
+
+    const contrib = m.fieldContrib || 0.4;
+    const barClass = contrib > 0.6 ? 'positive' : contrib < 0.3 ? 'friction' : 'neutral';
+    const initials = (m.name || '?')[0].toUpperCase();
+
+    el.innerHTML = `
+      <div class="member-avatar ${avatarClass}">
+        ${initials}
+        <span class="online-dot ${dotClass}"></span>
+      </div>
+      <div class="member-info">
+        <div class="member-name ${nameClass}">${escHtml(m.name)}</div>
+        ${roleText ? `<div class="member-role">${roleText}</div>` : ''}
+      </div>
+      <div class="member-field-bar">
+        <div class="member-field-fill ${barClass}" style="width:${contrib * 100}%"></div>
+      </div>
+    `;
+
+    memberList.appendChild(el);
+  });
+}
+
+function updateSaraMemberStatus(mode) {
+  renderMembers();
+}
+
+// ── Voice Channel (Daily.co) ─────────────────────────────────────────────────
+const vcJoinBtn = $('vc-join-btn');
+const vcPrejoin = $('vc-prejoin');
+const dailyFrame = $('daily-frame');
+const vcControls = $('vc-controls');
+const vcLiveBadge = $('vc-live-badge');
+const vcMuteBtn = $('vc-mute-btn');
+const vcDeafenBtn = $('vc-deafen-btn');
+const vcRecordBtn = $('vc-record-btn');
+const vcLeaveBtn = $('vc-leave-btn');
+
+let callFrame = null;
+let vcMuted = false;
+let vcDeafened = false;
+
+vcJoinBtn.addEventListener('click', joinVoice);
+
+async function joinVoice() {
+  if (!STATE.currentCell) {
+    appendSystemMsg('◈ Select a cell before joining voice.');
+    return;
+  }
+
+  // Get or create Daily room URL from server
+  try {
+    const resp = await fetch('/api/hive/daily/room', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cellId: STATE.currentCell.id, cellName: STATE.currentCell.name })
+    });
+
+    let roomUrl;
+    if (resp.ok) {
+      const data = await resp.json();
+      roomUrl = data.url;
+    } else {
+      // Fallback to env-configured base URL + cell id
+      roomUrl = `https://${window.DAILY_DOMAIN || 'your-domain.daily.co'}/${STATE.currentCell.id}`;
+    }
+
+    // Show iframe
+    vcPrejoin.style.display = 'none';
+    dailyFrame.src = roomUrl + '?userName=' + encodeURIComponent(STATE.username);
+    dailyFrame.style.display = 'block';
+    vcControls.classList.add('visible');
+    vcLiveBadge.classList.add('visible');
+    STATE.vcActive = true;
+    appendSystemMsg(`◈ Joined voice in ${STATE.currentCell.name}`);
+  } catch(e) {
+    appendSystemMsg('◈ Voice unavailable — server not connected.');
+  }
+}
+
+vcMuteBtn.addEventListener('click', () => {
+  vcMuted = !vcMuted;
+  vcMuteBtn.innerHTML = vcMuted ? '🔇' : '🎙';
+  vcMuteBtn.classList.toggle('muted', vcMuted);
+  // Communicate to Daily iframe via postMessage if using Daily callFrame API
+  if (dailyFrame.contentWindow) {
+    dailyFrame.contentWindow.postMessage({ type: vcMuted ? 'mute' : 'unmute' }, '*');
+  }
+});
+
+vcDeafenBtn.addEventListener('click', () => {
+  vcDeafened = !vcDeafened;
+  vcDeafenBtn.innerHTML = vcDeafened ? '🔇' : '🔊';
+  vcDeafenBtn.classList.toggle('muted', vcDeafened);
+});
+
+vcLeaveBtn.addEventListener('click', () => {
+  dailyFrame.src = '';
+  dailyFrame.style.display = 'none';
+  vcPrejoin.style.display = 'flex';
+  vcControls.classList.remove('visible');
+  vcLiveBadge.classList.remove('visible');
+  STATE.vcActive = false;
+  stopRecording();
+  appendSystemMsg(`◈ Left voice channel`);
+});
+
+// ── Local recording ───────────────────────────────────────────────────────────
+vcRecordBtn.addEventListener('click', toggleRecording);
+
+async function toggleRecording() {
+  if (!STATE.recording) {
+    startRecording();
+  } else {
+    stopRecording();
+  }
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    STATE.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    STATE.recordedChunks = [];
+
+    STATE.mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) STATE.recordedChunks.push(e.data);
+    };
+
+    STATE.mediaRecorder.onstop = () => {
+      const blob = new Blob(STATE.recordedChunks, { type: 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const cellSlug = (STATE.currentCell?.name || 'cell').replace(/\s+/g, '-').toLowerCase();
+      a.download = `hive-${cellSlug}-${ts}.webm`;
+      a.click();
+      URL.revokeObjectURL(url);
+      stream.getTracks().forEach(t => t.stop());
+      appendSystemMsg('◈ Recording saved locally.');
+    };
+
+    STATE.mediaRecorder.start(1000);
+    STATE.recording = true;
+    vcRecordBtn.classList.add('recording');
+    vcRecordBtn.innerHTML = `<span class="record-dot"></span> STOP REC`;
+    appendSystemMsg('◈ Recording started — saved locally on stop.');
+  } catch(e) {
+    appendSystemMsg('◈ Microphone access required for recording.');
+  }
+}
+
+function stopRecording() {
+  if (STATE.mediaRecorder && STATE.recording) {
+    STATE.mediaRecorder.stop();
+    STATE.recording = false;
+    vcRecordBtn.classList.remove('recording');
+    vcRecordBtn.innerHTML = `<span class="record-dot"></span> RECORD`;
+  }
+}
+
+// ── Theme system ──────────────────────────────────────────────────────────────
+const THEMES = ['obsidian', 'chromium-dark', 'chromium-light', 'parchment'];
+
+function applyTheme(theme) {
+  const root = document.documentElement;
+  if (theme === 'obsidian') {
+    root.removeAttribute('data-theme');
+  } else {
+    root.setAttribute('data-theme', theme);
+  }
+  // Update swatch active state
+  document.querySelectorAll('.theme-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.t === theme);
+  });
+  // Persist
+  localStorage.setItem('hive_theme', theme);
+}
+
+document.querySelectorAll('.theme-swatch').forEach(swatch => {
+  swatch.addEventListener('click', () => applyTheme(swatch.dataset.t));
+});
+
+// ── Panel collapse ────────────────────────────────────────────────────────────
+const appEl = $('app');
+const sidebarCollapseBtn  = $('sidebar-collapse-btn');
+const membersCollapseBtn  = $('members-collapse-btn');
+
+function setSidebarCollapsed(collapsed) {
+  appEl.classList.toggle('sidebar-collapsed', collapsed);
+  sidebarCollapseBtn.textContent = collapsed ? '›' : '‹';
+  sidebarCollapseBtn.title = collapsed ? 'Expand cells panel' : 'Collapse cells panel';
+  localStorage.setItem('hive_sidebar_collapsed', collapsed ? '1' : '0');
+}
+
+function setMembersCollapsed(collapsed) {
+  appEl.classList.toggle('members-collapsed', collapsed);
+  membersCollapseBtn.textContent = collapsed ? '‹' : '›';
+  membersCollapseBtn.title = collapsed ? 'Expand members panel' : 'Collapse members panel';
+  localStorage.setItem('hive_members_collapsed', collapsed ? '1' : '0');
+}
+
+sidebarCollapseBtn.addEventListener('click', () => {
+  setSidebarCollapsed(!appEl.classList.contains('sidebar-collapsed'));
+});
+
+membersCollapseBtn.addEventListener('click', () => {
+  setMembersCollapsed(!appEl.classList.contains('members-collapsed'));
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  // Restore theme
+  const savedTheme = localStorage.getItem('hive_theme') || 'obsidian';
+  applyTheme(savedTheme);
+
+  // Restore panel collapse state
+  if (localStorage.getItem('hive_sidebar_collapsed') === '1')  setSidebarCollapsed(true);
+  if (localStorage.getItem('hive_members_collapsed') === '1') setMembersCollapsed(true);
+
+  updateSaraModeRing('silent');
+  renderMembers();
+  updateMetricsUI();
+
+  // Subtle field drift
+  setInterval(() => {
+    if (!STATE.currentCell) return;
+    const d = (Math.random() - 0.5) * 0.015;
+    STATE.metrics.coherence     = Math.min(1,   Math.max(0.1,  STATE.metrics.coherence + d));
+    STATE.metrics.contradiction = Math.min(0.9, Math.max(0.05, STATE.metrics.contradiction - d * 0.5));
+    updateMetricsUI();
+  }, 4000);
+
+  usernameInput.focus();
+}
+
+// ── Utils ─────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(str || ''));
+  return d.innerHTML;
+}
+
+function triggerSara(reason) {
+  if (!STATE.currentCell) return;
+  if (socket) {
+    socket.emit('hive:trigger_sara', { cellId: STATE.currentCell.id, reason, metrics: STATE.metrics });
+  } else {
+    handleLocalSara({ text: '[field pressure trigger: ' + reason + ']' });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
