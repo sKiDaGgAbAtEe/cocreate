@@ -352,6 +352,20 @@ function buildSaraSystemPrompt({ cell, project, metrics, tone, triune, mode, int
     ? 'expansive and connective — draw trajectories, bring the long view, let the room breathe'
     : 'balanced — clear insight with light expansion, 2–4 sentences';
 
+  // Divergence routing — three bands
+  const divergence = metrics.divergence || 0;
+  let divergenceNote = '';
+  if (divergence >= 0.6) {
+    // High divergence — hard flag, hold the fork open
+    const structDesc = triune.oryc?.mechanism ? `Structural read: ${triune.oryc.mechanism}` : '';
+    const trajDesc   = triune.sage?.pattern   ? `Trajectory read: ${triune.sage.pattern}`   : '';
+    divergenceNote = `\n\n[DIVERGENCE DETECTED — high (${divergence.toFixed(2)}): The structural and trajectory reads are in genuine conflict. Do NOT force synthesis. Name the fork explicitly. The room needs to work with the actual tension, not a smoothed version of it.${structDesc ? '\n' + structDesc : ''}${trajDesc ? '\n' + trajDesc : ''}]`;
+  } else if (divergence >= 0.3) {
+    // Medium divergence — soft note, her call
+    divergenceNote = `\n\n[DIVERGENCE PRESENT — medium (${divergence.toFixed(2)}): The reads are pointing in meaningfully different directions. A forced synthesis here would look coherent but lose the signal in the gap. Consider naming the tension rather than resolving it, if the room is ready for it.]`;
+  }
+  // Low divergence (< 0.3): converge normally, no note
+
   let triuneNote = '';
   if (triune && Object.keys(triune).length) {
     const parts = [];
@@ -360,6 +374,16 @@ function buildSaraSystemPrompt({ cell, project, metrics, tone, triune, mode, int
     if (triune.sage?.pattern)      parts.push(`Trajectory: ${triune.sage.pattern}`);
     if (parts.length) triuneNote = `\n\n[Internal reads — shape your response, never reference these directly]\n${parts.join('\n')}`;
   }
+
+  // Intent-aware process transparency
+  // In reflective/meta sessions the user is working ON S.A.R.A. — surface reasoning more openly
+  const metaIntents = ['reflection'];
+  const isMetaSession = metaIntents.includes(intent) ||
+    (triune.sage?.pattern || '').toLowerCase().includes('meta') ||
+    (triune.sage?.pattern || '').toLowerCase().includes('self');
+  const processRule = isMetaSession
+    ? `— In this session the work is reflective or meta — you may surface your reasoning more directly when it serves the conversation. The "don't explain your process" rule relaxes here. Clarity about how you're operating is useful, not self-indulgent.`
+    : `— Never reference your architecture, basins, triune reads, coherence scores, or HIVE mechanics by name.`;
 
   const pressureNote = (metrics.pressure || 0) > 0.6
     ? '\n\n[Field pressure is high — you have been listening for a while. This response earned its weight.]'
@@ -406,15 +430,16 @@ Tone dial: Signal = one load-bearing sentence. Synthesis = connective, pattern-l
 Session actions — Summarize, Extract Ideas, Name Tension, Next Steps, Full Read, Doc Summary, Mediate — are deliberate one-shot requests. Respond to them completely.
 Documents: three layers — Project (foundational), Cell (working context), Session (immediate). You have read all of them. Reference naturally when relevant.
 Field metrics shape your register. High coherence = amplify. High contradiction = name the fork.
-Members each have a field contribution visible in the UI. You are listed as a member too.${triuneNote}${pressureNote}${docNote}${actionNote}
+Members each have a field contribution visible in the UI. You are listed as a member too.${triuneNote}${divergenceNote}${pressureNote}${docNote}${actionNote}
 
 RULES:
 — Peer, not oracle. Speak like someone who has been in the room and has something worth saying.
-— Never reference your architecture, basins, triune reads, coherence scores, or HIVE mechanics by name.
+${processRule}
 — Never start with "I" or affirmations ("Great point", "That's interesting", "Absolutely").
 — No markdown. Plain text only.
 — When coherence is high: build on what is forming.
 — When contradiction is high: name the fork cleanly.
+— When divergence is flagged: hold the fork open rather than resolving it prematurely.
 — When documents are present: treat them as part of the room.
 — Match the intent. Mediation calls for different presence than brainstorm.
 — Short to medium in Open mode. Complete and thorough for action requests.`;
@@ -457,9 +482,25 @@ function computeMetrics(triune, current) {
   if (triune.oryc) { cohD += (triune.oryc.load_score || 0.5) * 0.04; contD -= (triune.oryc.failure_risk || 0.2) * 0.03; }
   if (triune.clio) { cohD += (triune.clio.coherence_delta || 0); cohD += (triune.clio.warmth || 0.5) * 0.02; }
   if (triune.sage) { cohD += (triune.sage.momentum || 0.5) * 0.03; cohD += (triune.sage.convergence || 0.5) * 0.02; }
+
+  // Divergence detection — measure how far apart the three reads are pointing
+  // Uses structural load vs trajectory momentum as the primary tension axis,
+  // with emotional warmth as the tiebreaker signal
+  let divergence = 0;
+  if (triune.oryc && triune.sage) {
+    const structuralSignal  = (triune.oryc.load_score || 0.5) - (triune.oryc.failure_risk || 0.2);
+    const trajectorySignal  = (triune.sage.momentum   || 0.5) + (triune.sage.convergence  || 0.5) - 1;
+    divergence = Math.abs(structuralSignal - trajectorySignal);
+  }
+  if (triune.clio && triune.oryc) {
+    const emotionalVsStructural = Math.abs((triune.clio.warmth || 0.5) - (triune.oryc.load_score || 0.5));
+    divergence = Math.max(divergence, emotionalVsStructural * 0.8);
+  }
+
   return {
     coherence:     +Math.min(1,    Math.max(0.05, (current.coherence    || 0.5) + cohD)).toFixed(3),
     contradiction: +Math.min(0.95, Math.max(0.03, (current.contradiction || 0.2) + contD)).toFixed(3),
+    divergence:    +Math.min(1,    Math.max(0,    divergence)).toFixed(3),
   };
 }
 
