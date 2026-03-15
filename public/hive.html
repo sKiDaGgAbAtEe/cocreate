@@ -572,13 +572,17 @@
 
     /* SARA mode + tone bar */
     #sara-controls {
-      display: flex;
+      display: none;
       align-items: center;
       gap: 8px;
       padding: 8px 16px;
       border-bottom: 1px solid var(--border);
       background: var(--bg2);
       flex-shrink: 0;
+    }
+
+    #sara-controls.visible {
+      display: flex;
     }
 
     .sara-avatar-wrap {
@@ -2502,7 +2506,7 @@
     </div>
 
     <!-- S.A.R.A. controls bar — hidden until in a cell -->
-    <div id="sara-controls" class="hidden">
+    <div id="sara-controls">
     <div id="sara-controls">
       <div class="sara-avatar-wrap">
         <div class="sara-avatar">S</div>
@@ -2741,7 +2745,7 @@ const $ = id => document.getElementById(id);
 // ── View state ─────────────────────────────────────────────────────────────────
 function showHub() {
   $('hub').classList.remove('hidden');
-  $('sara-controls').classList.add('hidden');
+  $('sara-controls').classList.remove('visible');
   $('chat-messages').classList.add('hidden');
   $('chat-input-area').classList.add('hidden');
   $('hub-back-btn').classList.remove('visible');
@@ -2751,7 +2755,7 @@ function showHub() {
 
 function showChat() {
   $('hub').classList.add('hidden');
-  $('sara-controls').classList.remove('hidden');
+  $('sara-controls').classList.add('visible');
   $('chat-messages').classList.remove('hidden');
   $('chat-input-area').classList.remove('hidden');
   $('hub-back-btn').classList.add('visible');
